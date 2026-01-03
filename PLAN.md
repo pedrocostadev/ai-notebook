@@ -31,7 +31,7 @@ ai-notebook/
 │   │   └── lib/
 │   │       ├── heading-detector.ts
 │   │       ├── schemas.ts         # Zod schemas for type-safe LLM calls
-│   │       └── token-counter.ts   # Gemini countTokens API wrapper
+│   │       └── token-counter.ts   # Heuristic token estimation
 │   ├── preload/
 │   │   ├── index.ts               # contextBridge API
 │   │   └── index.d.ts             # Type declarations
@@ -104,15 +104,19 @@ CREATE VIRTUAL TABLE vec_chunks USING vec0(
   embedding FLOAT[3072]
 );
 
--- FTS5 for full-text search (replaces okapibm25)
+-- FTS5 for full-text search (standalone table synced via triggers)
 CREATE VIRTUAL TABLE chunks_fts USING fts5(
   content,
-  content_rowid=id,
   tokenize='porter unicode61'
 );
 
--- Trigger to sync FTS5 with chunks table
+-- Triggers to sync FTS5 with chunks table
 CREATE TRIGGER chunks_ai AFTER INSERT ON chunks BEGIN
+  INSERT INTO chunks_fts(rowid, content) VALUES (new.id, new.content);
+END;
+
+CREATE TRIGGER chunks_au AFTER UPDATE ON chunks BEGIN
+  DELETE FROM chunks_fts WHERE rowid = old.id;
   INSERT INTO chunks_fts(rowid, content) VALUES (new.id, new.content);
 END;
 
@@ -244,7 +248,7 @@ END;
 # Dependencies
 react@19, react-dom@19, @ai-sdk/google, ai, better-sqlite3, sqlite-vec
 @langchain/community, @langchain/textsplitters, pdf-parse
-tesseract.js, @google/generative-ai, zod, dotenv
+tesseract.js, zod, dotenv
 clsx, tailwind-merge, class-variance-authority, lucide-react
 
 # DevDependencies
@@ -253,8 +257,6 @@ electron, electron-vite, @vitejs/plugin-react, typescript
 tailwindcss, @tailwindcss/vite, @electron-forge/*
 vitest, @playwright/test
 ```
-
-**Note**: `@google/generative-ai` is for the `countTokens` API (accurate Gemini token counting).
 
 **Note on shadcn-ui**: Not an npm package. Use CLI to copy components into project:
 
@@ -280,6 +282,17 @@ Components copied to `src/renderer/src/components/ui/`.
 - **Build workflow**: electron-vite (dev/build) → Electron Forge (packaging)
   - Dev: `npm run dev` (electron-vite)
   - Build: `npm run build && npm run make` (vite → forge)
+- **Electron security config** (in main/index.ts):
+  ```typescript
+  new BrowserWindow({
+    webPreferences: {
+      contextIsolation: true,  // required for preload
+      nodeIntegration: false,  // security: no Node in renderer
+      sandbox: true,           // extra isolation
+      preload: path.join(__dirname, '../preload/index.js')
+    }
+  });
+  ```
 - Configure Tailwind v4 (see config notes above)
 - Init shadcn-ui (button, input, scroll-area, card, sheet)
 
@@ -352,16 +365,11 @@ describe("chunkText", () => {
 - Job queue with exponential backoff for rate limits
 - Batch embedding generation (background processing)
 - sqlite-vec storage + search
-- **Token counting with Gemini `countTokens` API**:
-
+- **Token counting with heuristic** (~4 chars/token, no API calls):
   ```typescript
-  import { GoogleGenerativeAI } from "@google/generative-ai";
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
-
-  async function countTokens(text: string): Promise<number> {
-    const { totalTokens } = await model.countTokens(text);
-    return totalTokens;
+  // src/main/lib/token-counter.ts
+  function estimateTokens(text: string): number {
+    return Math.ceil(text.length / 4);
   }
   ```
 
@@ -377,11 +385,10 @@ describe("chunkText", () => {
 - **Context window management** (cap at 8000 tokens for fast responses):
   ```typescript
   const MAX_CONTEXT_TOKENS = 8000;
-  async function buildContext(chunks: Chunk[]): Promise<string> {
-    let context = "",
-      tokenCount = 0;
+  function buildContext(chunks: Chunk[]): string {
+    let context = '', tokenCount = 0;
     for (const chunk of chunks) {
-      const tokens = chunk.token_count ?? (await countTokens(chunk.content));
+      const tokens = chunk.token_count ?? estimateTokens(chunk.content);
       if (tokenCount + tokens > MAX_CONTEXT_TOKENS) break;
       context += `\n---\n${chunk.content}`;
       tokenCount += tokens;
@@ -485,7 +492,7 @@ test("upload PDF and chat", async () => {
 - **Job queue** - background embedding with exponential backoff for rate limits
 - **PDF storage** - copy to `app.getPath('userData')/pdfs/`
 - **File size limit** - 50MB max per PDF
-- **Token counting** - Gemini `countTokens` API, cached in DB per chunk
+- **Token counting** - heuristic (~4 chars/token), cached in DB per chunk
 - **Context limit** - 8000 tokens max for fast responses
 - **Vector cleanup** - SQLite triggers auto-delete from vec_chunks
 - **Type-safe LLM calls** - all `generateObject` calls use Zod schemas:
