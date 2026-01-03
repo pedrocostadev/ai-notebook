@@ -163,8 +163,12 @@ END;
    - **FTS5 query sanitization** (escape special chars):
      ```typescript
      function escapeFTS5Query(query: string): string {
-       return query.replace(/"/g, '""').split(/\s+/)
-         .filter(t => t.length > 0).map(t => `"${t}"`).join(' ');
+       return query
+         .replace(/"/g, '""')
+         .split(/\s+/)
+         .filter((t) => t.length > 0)
+         .map((t) => `"${t}"`)
+         .join(" ");
      }
      ```
 3. **Reciprocal Rank Fusion (k=60):**
@@ -213,6 +217,7 @@ END;
 5. Retrieve top 5 re-ranked chunks
 6. Build prompt with context
 7. **Two-phase response:**
+
    ```typescript
    // Phase 1: Stream the answer
    const { textStream } = await streamText({
@@ -261,6 +266,7 @@ npx shadcn@latest add button input scroll-area card sheet
 Components copied to `src/renderer/src/components/ui/`.
 
 **Tailwind v4 + shadcn-ui Config**:
+
 - Use `@theme inline` instead of `@layer base`
 - Colors use OKLCH format
 - Remove `forwardRef` from components, add `data-slot` attributes
@@ -291,7 +297,7 @@ Components copied to `src/renderer/src/components/ui/`.
 - **File size validation**: Reject files > 50MB at upload
   ```typescript
   const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
-  if (stats.size > MAX_FILE_SIZE) throw new Error('File exceeds 50MB limit');
+  if (stats.size > MAX_FILE_SIZE) throw new Error("File exceeds 50MB limit");
   ```
 - Implement PDFLoader + heading detector
 - RecursiveCharacterTextSplitter
@@ -338,7 +344,7 @@ describe("chunkText", () => {
 });
 ```
 
-- Test with `pdfs/book_ai_enginerring.pdf`
+- Test with `pdfs/book_ai_enginering.pdf`
 
 ### 4. Embeddings & Vector Store
 
@@ -347,16 +353,18 @@ describe("chunkText", () => {
 - Batch embedding generation (background processing)
 - sqlite-vec storage + search
 - **Token counting with Gemini `countTokens` API**:
+
   ```typescript
-  import { GoogleGenerativeAI } from '@google/generative-ai';
+  import { GoogleGenerativeAI } from "@google/generative-ai";
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
 
   async function countTokens(text: string): Promise<number> {
     const { totalTokens } = await model.countTokens(text);
     return totalTokens;
   }
   ```
+
 - Cache token counts in `chunks.token_count` column (computed once per chunk)
 - Test: verify `pdfs/book_ai_enginerring.pdf` vectors saved to DB
 
@@ -370,9 +378,10 @@ describe("chunkText", () => {
   ```typescript
   const MAX_CONTEXT_TOKENS = 8000;
   async function buildContext(chunks: Chunk[]): Promise<string> {
-    let context = '', tokenCount = 0;
+    let context = "",
+      tokenCount = 0;
     for (const chunk of chunks) {
-      const tokens = chunk.token_count ?? await countTokens(chunk.content);
+      const tokens = chunk.token_count ?? (await countTokens(chunk.content));
       if (tokenCount + tokens > MAX_CONTEXT_TOKENS) break;
       context += `\n---\n${chunk.content}`;
       tokenCount += tokens;
@@ -491,15 +500,15 @@ export const RerankedResultsSchema = z.object({
     .array(z.number())
     .describe(
       "Array of chunk IDs sorted by relevance to the query. " +
-      "The first ID is the most relevant, last is least relevant. " +
-      "Only include IDs from the provided candidate chunks."
+        "The first ID is the most relevant, last is least relevant. " +
+        "Only include IDs from the provided candidate chunks."
     ),
   reasoning: z
     .string()
     .optional()
     .describe(
       "Brief explanation of why the top chunks were ranked highest. " +
-      "Focus on semantic relevance to the query, not keyword matches."
+        "Focus on semantic relevance to the query, not keyword matches."
     ),
 });
 
@@ -515,31 +524,31 @@ export const ChatResponseMetadataSchema = z.object({
           .string()
           .describe(
             "An exact quote from the chunk that supports your answer. " +
-            "Keep quotes concise (1-2 sentences max)."
+              "Keep quotes concise (1-2 sentences max)."
           ),
       })
     )
     .optional()
     .describe(
       "Citations from the source chunks that support your answer. " +
-      "Include 1-3 citations for factual claims. " +
-      "Omit if the answer is a general statement not tied to specific text."
+        "Include 1-3 citations for factual claims. " +
+        "Omit if the answer is a general statement not tied to specific text."
     ),
   confidence: z
     .enum(["high", "medium", "low"])
     .describe(
       "Your confidence in the answer based on context quality. " +
-      "high: context directly answers the question. " +
-      "medium: context partially answers or requires inference. " +
-      "low: context is tangentially related or insufficient."
+        "high: context directly answers the question. " +
+        "medium: context partially answers or requires inference. " +
+        "low: context is tangentially related or insufficient."
     ),
   followUpQuestions: z
     .array(z.string())
     .optional()
     .describe(
       "2-3 natural follow-up questions the user might ask next. " +
-      "Questions should be answerable from the PDF content. " +
-      "Omit if the topic is fully covered."
+        "Questions should be answerable from the PDF content. " +
+        "Omit if the topic is fully covered."
     ),
 });
 
@@ -557,7 +566,7 @@ export const HeadingAnalysisSchema = z.object({
           .max(6)
           .describe(
             "Heading hierarchy level (1=main title, 2=chapter, 3=section, etc.). " +
-            "Infer from context: font size, numbering patterns, document structure."
+              "Infer from context: font size, numbering patterns, document structure."
           ),
         startIndex: z
           .number()
@@ -566,8 +575,8 @@ export const HeadingAnalysisSchema = z.object({
     )
     .describe(
       "All detected headings in the document, in order of appearance. " +
-      "Include chapter titles, section headers, and subsection headers. " +
-      "Exclude: table of contents entries, headers/footers, captions."
+        "Include chapter titles, section headers, and subsection headers. " +
+        "Exclude: table of contents entries, headers/footers, captions."
     ),
 });
 
