@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: oklch(100% 0 0);
+  --color-foreground: oklch(14.9% 0.032 264.3);
+  --color-card: oklch(100% 0 0);
+  --color-card-foreground: oklch(14.9% 0.032 264.3);
+  --color-popover: oklch(100% 0 0);
+  --color-popover-foreground: oklch(14.9% 0.032 264.3);
+  --color-primary: oklch(22.7% 0.032 264.3);
+  --color-primary-foreground: oklch(98.5% 0.001 247.8);
+  --color-secondary: oklch(96.8% 0.006 264.3);
+  --color-secondary-foreground: oklch(22.7% 0.032 264.3);
+  --color-muted: oklch(96.8% 0.006 264.3);
+  --color-muted-foreground: oklch(55.4% 0.018 264.3);
+  --color-accent: oklch(96.8% 0.006 264.3);
+  --color-accent-foreground: oklch(22.7% 0.032 264.3);
+  --color-destructive: oklch(57.7% 0.245 27.3);
+  --color-destructive-foreground: oklch(98.5% 0.001 247.8);
+  --color-border: oklch(91.4% 0.011 264.3);
+  --color-input: oklch(91.4% 0.011 264.3);
+  --color-ring: oklch(22.7% 0.032 264.3);
+  --radius: 0.5rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  @theme inline {
+    --color-background: oklch(14.9% 0.032 264.3);
+    --color-foreground: oklch(98.5% 0.001 247.8);
+    --color-card: oklch(14.9% 0.032 264.3);
+    --color-card-foreground: oklch(98.5% 0.001 247.8);
+    --color-popover: oklch(14.9% 0.032 264.3);
+    --color-popover-foreground: oklch(98.5% 0.001 247.8);
+    --color-primary: oklch(98.5% 0.001 247.8);
+    --color-primary-foreground: oklch(22.7% 0.032 264.3);
+    --color-secondary: oklch(26.4% 0.027 264.3);
+    --color-secondary-foreground: oklch(98.5% 0.001 247.8);
+    --color-muted: oklch(26.4% 0.027 264.3);
+    --color-muted-foreground: oklch(71.4% 0.014 264.3);
+    --color-accent: oklch(26.4% 0.027 264.3);
+    --color-accent-foreground: oklch(98.5% 0.001 247.8);
+    --color-destructive: oklch(57.7% 0.245 27.3);
+    --color-destructive-foreground: oklch(98.5% 0.001 247.8);
+    --color-border: oklch(26.4% 0.027 264.3);
+    --color-input: oklch(26.4% 0.027 264.3);
+    --color-ring: oklch(84.2% 0.009 264.3);
+  }
+}
+
+* {
+  border-color: var(--color-border);
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+}
