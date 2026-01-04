@@ -22,6 +22,8 @@ export const ChatResponseMetadataSchema = z.object({
     .array(
       z.object({
         chunkId: z.number().describe('The ID of the chunk this citation comes from'),
+        pageStart: z.number().describe('The starting page number of this chunk'),
+        pageEnd: z.number().describe('The ending page number of this chunk'),
         quote: z
           .string()
           .describe(

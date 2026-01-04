@@ -7,7 +7,7 @@ interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
   metadata: {
-    citations?: { chunkId: number; quote: string }[]
+    citations?: { chunkId: number; pageStart: number; pageEnd: number; quote: string }[]
     confidence?: 'high' | 'medium' | 'low'
     followUpQuestions?: string[]
   } | null
@@ -67,6 +67,12 @@ export function MessageList({ messages, streamingContent, isStreaming }: Message
                       <p className="text-xs font-medium">Sources:</p>
                       {message.metadata.citations.map((citation, i) => (
                         <blockquote key={i} className="text-xs italic border-l-2 pl-2 text-muted-foreground">
+                          <span className="not-italic font-medium">
+                            {citation.pageStart === citation.pageEnd
+                              ? `p. ${citation.pageStart}`
+                              : `pp. ${citation.pageStart}-${citation.pageEnd}`}
+                            :
+                          </span>{' '}
                           "{citation.quote}"
                         </blockquote>
                       ))}

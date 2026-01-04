@@ -159,8 +159,8 @@ Question: ${query}
 
 Answer: ${fullResponse}
 
-Context chunks used (with IDs):
-${contextChunks.map((c) => `[ID: ${c.id}] ${c.content.slice(0, 300)}`).join('\n\n')}`
+Context chunks used (with IDs and pages):
+${contextChunks.map((c) => `[ID: ${c.id}, Pages: ${c.page_start}-${c.page_end}] ${c.content.slice(0, 300)}`).join('\n\n')}`
     })
     metadata = object
   } catch {
