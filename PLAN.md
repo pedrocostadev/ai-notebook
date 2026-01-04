@@ -5,10 +5,11 @@
 - **Desktop**: Electron (Electron Forge + electron-vite)
 - **Frontend**: React 19 + TypeScript + Tailwind CSS v4 + shadcn-ui
 - **AI**: Google Gemini via AI-SDK (`@ai-sdk/google`)
-  - Chat: `gemini-2.5-flash-lite`
+  - Chat: user-configurable (default: `gemini-2.5-flash-lite`)
   - Embeddings: `gemini-embedding-001` (3072 dims)
+  - API key: user-provided via Settings screen
 - **Vector DB**: SQLite + sqlite-vec
-- **PDF**: LangChain.js (`@langchain/community` PDFLoader + `pdf-parse`)
+- **PDF**: LangChain.js (`@langchain/community` PDFLoader + `pdf-parse`) — text-based PDFs only
 
 ## Project Structure
 
@@ -20,11 +21,12 @@ ai-notebook/
 │   │   ├── ipc/
 │   │   │   ├── handlers.ts        # IPC registration
 │   │   │   ├── pdf.handlers.ts    # PDF processing
-│   │   │   └── chat.handlers.ts   # Chat/RAG
+│   │   │   ├── chat.handlers.ts   # Chat/RAG
+│   │   │   └── settings.handlers.ts # Settings CRUD
 │   │   ├── services/
 │   │   │   ├── database.ts        # SQLite + sqlite-vec + FTS5
-│   │   │   ├── pdf-processor.ts   # PDF loading + chunking
-│   │   │   ├── ocr.ts             # Tesseract.js OCR service
+│   │   │   ├── settings.ts        # Settings storage (API key, model)
+│   │   │   ├── pdf-processor.ts   # PDF loading + chunking + scanned detection
 │   │   │   ├── embeddings.ts      # Gemini embeddings
 │   │   │   ├── job-queue.ts       # Background job processing
 │   │   │   └── rag.ts             # RAG pipeline
@@ -38,13 +40,15 @@ ai-notebook/
 │   └── renderer/
 │       └── src/
 │           ├── components/
-│           │   ├── ui/            # shadcn
+│           │   ├── ui/            # shadcn (incl. toast)
 │           │   ├── layout/        # Sidebar, MainContent
+│           │   ├── settings/      # SettingsDialog
 │           │   ├── pdf/           # PdfList, PdfUpload, PasswordDialog
 │           │   └── chat/          # ChatContainer, MessageList, ChatInput
 │           └── hooks/
 │               ├── usePdfs.ts
-│               └── useChat.ts
+│               ├── useChat.ts
+│               └── useSettings.ts
 ├── e2e/                           # Playwright E2E tests
 │   └── chat.spec.ts
 └── # Data stored in app.getPath('userData')
@@ -55,6 +59,12 @@ ai-notebook/
 ## SQLite Schema
 
 ```sql
+CREATE TABLE settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+-- Keys: 'api_key' (encrypted), 'chat_model'
+
 CREATE TABLE pdfs (
   id INTEGER PRIMARY KEY,
   filename TEXT NOT NULL,
@@ -91,7 +101,7 @@ CREATE TABLE messages (
 CREATE TABLE jobs (
   id INTEGER PRIMARY KEY,
   pdf_id INTEGER REFERENCES pdfs(id) ON DELETE CASCADE,
-  type TEXT CHECK(type IN ('embed', 'ocr')),
+  type TEXT CHECK(type IN ('embed')),
   status TEXT CHECK(status IN ('pending', 'running', 'done', 'failed')) DEFAULT 'pending',
   attempts INTEGER DEFAULT 0,
   last_error TEXT,
@@ -207,7 +217,7 @@ END;
    });
 
    const reranked = await generateObject({
-     model: google("gemini-2.5-flash-lite"),
+     model: google(settings.chatModel), // uses user's configured model
      system: `You are a search result reranker. Given a query and candidate chunks,
               return chunk IDs ordered by relevance to answering the query.
               Consider semantic meaning, not just keyword matches.`,
@@ -225,7 +235,7 @@ END;
    ```typescript
    // Phase 1: Stream the answer
    const { textStream } = await streamText({
-     model: google("gemini-2.5-flash-lite"),
+     model: google(settings.chatModel), // user's configured model
      system: "Answer based on the provided context...",
      prompt: `Context:\n${context}\n\nQuestion: ${query}`,
    });
@@ -235,7 +245,7 @@ END;
 
    // Phase 2: Generate metadata (citations, confidence, follow-ups)
    const metadata = await generateObject({
-     model: google("gemini-2.5-flash-lite"),
+     model: google(settings.chatModel), // user's configured model
      schema: ChatResponseMetadataSchema,
      prompt: `Given answer and context, extract citations and confidence...`,
    });
@@ -248,8 +258,7 @@ END;
 # Dependencies
 react@19, react-dom@19, @ai-sdk/google, ai, better-sqlite3, sqlite-vec
 @langchain/community, @langchain/textsplitters, pdf-parse
-tesseract.js, zod, dotenv
-clsx, tailwind-merge, class-variance-authority, lucide-react
+zod, dotenv, clsx, tailwind-merge, class-variance-authority, lucide-react
 
 # DevDependencies
 electron, electron-vite, @vitejs/plugin-react, typescript
@@ -262,7 +271,7 @@ vitest, @playwright/test
 
 ```bash
 npx shadcn@latest init
-npx shadcn@latest add button input scroll-area card sheet
+npx shadcn@latest add button input scroll-area card sheet toast dialog select label alert-dialog
 ```
 
 Components copied to `src/renderer/src/components/ui/`.
@@ -272,6 +281,7 @@ Components copied to `src/renderer/src/components/ui/`.
 - Use `@theme inline` instead of `@layer base`
 - Colors use OKLCH format
 - Remove `forwardRef` from components, add `data-slot` attributes
+- Dark mode: `darkMode: 'media'` (follows system preference)
 - See: https://ui.shadcn.com/docs/tailwind-v4
 
 ## Implementation Phases
@@ -286,11 +296,11 @@ Components copied to `src/renderer/src/components/ui/`.
   ```typescript
   new BrowserWindow({
     webPreferences: {
-      contextIsolation: true,  // required for preload
-      nodeIntegration: false,  // security: no Node in renderer
-      sandbox: true,           // extra isolation
-      preload: path.join(__dirname, '../preload/index.js')
-    }
+      contextIsolation: true, // required for preload
+      nodeIntegration: false, // security: no Node in renderer
+      sandbox: true, // extra isolation
+      preload: path.join(__dirname, "../preload/index.js"),
+    },
   });
   ```
 - Configure Tailwind v4 (see config notes above)
@@ -300,12 +310,60 @@ Components copied to `src/renderer/src/components/ui/`.
 
 - Setup better-sqlite3 + sqlite-vec
 - Create schema with FTS5 tables and triggers
+- Create settings table for API key + model
 - Create jobs table for queue system
-- CRUD operations for pdfs, chunks, messages, jobs
+- CRUD operations for pdfs, chunks, messages, jobs, settings
 - Add electron-rebuild for native modules
 - Use `app.getPath('userData')` for DB location
 
-### 3. PDF Processing
+### 3. Settings Screen
+
+- **SettingsDialog component** (modal via shadcn dialog)
+  - API key input (password field, masked)
+  - Model dropdown (chat models only, embeddings fixed)
+  - Save button with validation
+- **Available models**:
+  ```typescript
+  const CHAT_MODELS = [
+    { id: "gemini-2.5-flash-lite", name: "Gemini 2.5 Flash Lite (fastest)" },
+    { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash" },
+    { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro (smartest)" },
+  ] as const;
+  ```
+- **API key encryption**: Use Electron `safeStorage` for secure storage
+
+  ```typescript
+  import { safeStorage } from "electron";
+
+  function encryptApiKey(key: string): string {
+    return safeStorage.encryptString(key).toString("base64");
+  }
+
+  function decryptApiKey(encrypted: string): string {
+    return safeStorage.decryptString(Buffer.from(encrypted, "base64"));
+  }
+  ```
+
+- **Validation**: Test API key with minimal request before saving
+  ```typescript
+  async function validateApiKey(apiKey: string): Promise<boolean> {
+    try {
+      const google = createGoogleGenerativeAI({ apiKey });
+      await generateText({
+        model: google("gemini-2.5-flash-lite"),
+        prompt: "Hi",
+        maxTokens: 1,
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  ```
+- **First-run UX**: Show SettingsDialog on startup if no API key configured
+- IPC handlers: `settings:get`, `settings:set`, `settings:validate-key`
+
+### 4. PDF Processing
 
 - **File size validation**: Reject files > 50MB at upload
   ```typescript
@@ -314,11 +372,15 @@ Components copied to `src/renderer/src/components/ui/`.
   ```
 - Implement PDFLoader + heading detector
 - RecursiveCharacterTextSplitter
-- **OCR auto-detection**: Trigger if < 50 chars/page extracted
+- **Scanned PDF detection**: Reject with error if < 50 chars/page
   ```typescript
   const MIN_CHARS_PER_PAGE = 50;
   const avgChars = pages.reduce((s, p) => s + p.text.length, 0) / pages.length;
-  if (avgChars < MIN_CHARS_PER_PAGE) await runOCR(filepath);
+  if (avgChars < MIN_CHARS_PER_PAGE) {
+    throw new Error(
+      "This PDF appears to be scanned. Only text-based PDFs are supported."
+    );
+  }
   ```
 - **Password-protected PDF handling**:
   1. Catch password error from PDFLoader
@@ -359,13 +421,14 @@ describe("chunkText", () => {
 
 - Test with `pdfs/book_ai_enginering.pdf`
 
-### 4. Embeddings & Vector Store
+### 5. Embeddings & Vector Store
 
 - Gemini embedding service
 - Job queue with exponential backoff for rate limits
 - Batch embedding generation (background processing)
 - sqlite-vec storage + search
 - **Token counting with heuristic** (~4 chars/token, no API calls):
+
   ```typescript
   // src/main/lib/token-counter.ts
   function estimateTokens(text: string): number {
@@ -374,9 +437,9 @@ describe("chunkText", () => {
   ```
 
 - Cache token counts in `chunks.token_count` column (computed once per chunk)
-- Test: verify `pdfs/book_ai_enginerring.pdf` vectors saved to DB
+- Test: verify `pdfs/book_ai_enginering.pdf` vectors saved to DB
 
-### 5. RAG Pipeline
+### 6. RAG Pipeline
 
 - Hybrid search (vector + FTS5)
 - RRF fusion
@@ -386,7 +449,8 @@ describe("chunkText", () => {
   ```typescript
   const MAX_CONTEXT_TOKENS = 8000;
   function buildContext(chunks: Chunk[]): string {
-    let context = '', tokenCount = 0;
+    let context = "",
+      tokenCount = 0;
     for (const chunk of chunks) {
       const tokens = chunk.token_count ?? estimateTokens(chunk.content);
       if (tokenCount + tokens > MAX_CONTEXT_TOKENS) break;
@@ -400,16 +464,20 @@ describe("chunkText", () => {
   - Input validation (max length, sanitization)
   - System prompt protection (prevent injection)
   - Token limit checks before API call
-- Test: query `pdfs/book_ai_enginerring.pdf` and verify relevant context retrieved + response generated
+- Test: query `pdfs/book_ai_enginering.pdf` and verify relevant context retrieved + response generated
 
-### 6. UI
+### 7. UI
 
-- Sidebar (PDF list with processing status indicators)
-- PdfUpload (drag-drop)
+- Sidebar (PDF list with processing status indicators, delete button with confirm dialog, settings gear icon)
+- SettingsDialog (API key + model selection)
+- PdfUpload (drag-drop, single file only)
+- Empty state with "Upload a PDF to get started" guide
 - PasswordDialog for protected PDFs
 - Progress bar for PDF processing
+- Error toast for scanned PDFs
 - Duplicate upload toast notification
 - ChatContainer + MessageList + ChatInput
+- **Chat disabled during processing**: While PDF embeddings are generating, disable input and show "Processing PDF - please wait..." message
 - Streaming response + metadata display (citations, confidence, follow-ups)
 - E2E test with Playwright:
 
@@ -422,9 +490,9 @@ test("upload PDF and chat", async () => {
   // Upload PDF
   await window
     .locator('[data-testid="pdf-upload"]')
-    .setInputFiles("pdfs/book_ai_enginerring.pdf");
+    .setInputFiles("pdfs/book_ai_enginering.pdf");
   await expect(window.locator('[data-testid="pdf-list"]')).toContainText(
-    "book_ai_enginerring"
+    "book_ai_enginering"
   );
 
   // Send chat message
@@ -442,7 +510,7 @@ test("upload PDF and chat", async () => {
 });
 ```
 
-### 7. Polish & Packaging
+### 8. Polish & Packaging
 
 - Error handling, loading states
 - App icons
@@ -472,24 +540,36 @@ test("upload PDF and chat", async () => {
 - `src/main/lib/schemas.ts` - Zod schemas for type-safe LLM calls
 - `src/main/lib/token-counter.ts` - Context window management
 - `src/main/services/database.ts` - SQLite + sqlite-vec + FTS5 setup
-- `src/main/services/pdf-processor.ts` - PDF loading, chunking
-- `src/main/services/ocr.ts` - Tesseract.js for scanned PDFs
+- `src/main/services/settings.ts` - API key encryption + model config
+- `src/main/services/pdf-processor.ts` - PDF loading, chunking, scanned detection
 - `src/main/services/job-queue.ts` - Background processing with retries
 - `src/main/services/rag.ts` - Hybrid search + RRF + re-ranking + streaming
 - `src/preload/index.ts` - IPC API surface
 - `src/preload/index.d.ts` - TypeScript declarations for IPC
-- `src/renderer/src/hooks/useChat.ts` - Streaming + metadata state
+- `src/renderer/src/components/settings/SettingsDialog.tsx` - Config UI
+- `src/renderer/src/hooks/useChat.ts` - Streaming + metadata state + processing lock
+- `src/renderer/src/hooks/useSettings.ts` - Settings state management
 
 ## Design Decisions
 
-- **Single PDF per chat** - each chat session is scoped to one PDF
+- **Single PDF per chat** - each chat session is scoped to one PDF; only one PDF upload at a time
+- **User-provided API key** - no bundled key; user enters own Gemini API key
+- **Configurable chat model** - user selects from supported Gemini models; embeddings model fixed
+- **Secure key storage** - API key encrypted via Electron `safeStorage`
+- **Light/dark mode** - follows system preference via `prefers-color-scheme`
 - **Two-phase chat response** - stream answer first, then generate metadata (citations, confidence)
 - **SQLite FTS5** - replaces okapibm25 for persistent full-text search
-- **OCR support** - Tesseract.js for scanned PDFs
+- **No scanned PDF support** - MVP only supports text-based PDFs; scanned PDFs show error
+- **Chat blocked until ready** - disable chat input while embeddings are processing
 - **Background processing** - large PDFs processed incrementally with progress UI
 - **Password-protected PDFs** - prompt user for password
 - **Duplicate handling** - navigate to existing PDF, show toast
+- **Delete chat = delete PDF** - removing a chat deletes its PDF, chunks, embeddings, and file; requires confirmation dialog
+- **Chat history persisted** - messages saved to DB; restored when returning to a PDF
+- **Embedding failure** - keep PDF in error state; user must delete manually
+- **Re-ranking uses chat model** - uses user's configured model for consistency
 - **Job queue** - background embedding with exponential backoff for rate limits
+- **Offline handling** - auto-retry when connection restored
 - **PDF storage** - copy to `app.getPath('userData')/pdfs/`
 - **File size limit** - 50MB max per PDF
 - **Token counting** - heuristic (~4 chars/token), cached in DB per chunk
