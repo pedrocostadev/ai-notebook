@@ -47,6 +47,20 @@ export type ChatModel = {
   name: string
 }
 
+export type PdfMetadata = {
+  title: string | null
+  author: string | null
+  publisher: string | null
+  publishDate: string | null
+  isbn: string | null
+  edition: string | null
+  language: string | null
+  subject: string | null
+}
+
+export type SlashSummaryResult = { summary: string } | { pending: true } | { error: string }
+export type SlashMetadataResult = { metadata: PdfMetadata } | { pending: true } | { error: string }
+
 const api = {
   // Settings
   hasApiKey: (): Promise<boolean> => ipcRenderer.invoke('settings:has-api-key'),
@@ -86,6 +100,12 @@ const api = {
     ipcRenderer.invoke('chat:send', pdfId, chapterId, message),
   getChatHistory: (pdfId: number, chapterId: number | null): Promise<ChatMessage[]> =>
     ipcRenderer.invoke('chat:history', pdfId, chapterId),
+
+  // Slash commands
+  getChapterSummary: (chapterId: number): Promise<SlashSummaryResult> =>
+    ipcRenderer.invoke('slash:get-summary', chapterId),
+  getPdfMetadata: (pdfId: number): Promise<SlashMetadataResult> =>
+    ipcRenderer.invoke('slash:get-metadata', pdfId),
 
   // Event listeners
   onChatStream: (callback: (chunk: string) => void) => {

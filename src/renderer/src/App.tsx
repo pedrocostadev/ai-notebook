@@ -85,6 +85,7 @@ export default function App() {
         pdfId={pdfs.selectedPdfId}
         chapterId={pdfs.selectedChapterId}
         chapterTitle={pdfs.selectedChapter?.title}
+        chapters={pdfs.selectedPdfId ? pdfs.chapters[pdfs.selectedPdfId] : undefined}
         status={getDisplayStatus()}
         progress={getDisplayProgress()}
         onUpload={handleUpload}
