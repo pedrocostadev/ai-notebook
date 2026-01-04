@@ -10,11 +10,15 @@ import {
   updateChapterStatus,
   getChaptersByPdfId,
   deletePdf,
-  getPdf
+  getPdf,
+  getChapter,
+  updateChapterSummary,
+  updatePdfMetadata
 } from './database'
 import { generateEmbeddings } from './embeddings'
 import { getApiKey } from './settings'
 import { deletePdfFile, processChapter } from './pdf-processor'
+import { generateChapterSummary, generatePdfMetadata } from './content-generator'
 
 const MAX_ATTEMPTS = 3
 const BASE_DELAY = 1000
@@ -85,6 +89,29 @@ async function processNextJob(): Promise<void> {
 
       // Generate embeddings for this chapter's chunks
       await processChapterEmbeddings(job.pdf_id, job.chapter_id)
+    } else if (job.type === 'summary' && job.chapter_id !== null) {
+      // Generate chapter summary using already-extracted chunks
+      const chunks = getChunksByChapterId(job.chapter_id)
+      if (chunks.length === 0) {
+        throw new Error('No chunks found for chapter - embed job may not have completed')
+      }
+
+      // Concatenate chunks to get chapter text
+      const chapterText = chunks.map((c) => c.content).join('\n\n')
+
+      const summary = await generateChapterSummary(chapterText)
+      updateChapterSummary(job.chapter_id, summary)
+    } else if (job.type === 'metadata') {
+      // Generate PDF metadata
+      const pdf = getPdf(job.pdf_id)
+      if (!pdf) throw new Error('PDF not found')
+
+      const loader = new PDFLoader(pdf.filepath, { parsedItemSeparator: '\n' })
+      const docs = await loader.load()
+      const fullText = docs.map((d) => d.pageContent).join('\n\n')
+
+      const metadata = await generatePdfMetadata(fullText)
+      updatePdfMetadata(job.pdf_id, metadata)
     }
 
     if (cancelRequested) {
@@ -96,12 +123,15 @@ async function processNextJob(): Promise<void> {
     }
 
     updateJobStatus(job.id, 'done')
-    if (job.chapter_id !== null) {
+    // Only update chapter status for embed jobs (the primary processing job)
+    if (job.type === 'embed' && job.chapter_id !== null) {
       updateChapterStatus(job.chapter_id, 'done')
     }
 
-    // Check if all chapters are done
-    checkPdfCompletion(job.pdf_id)
+    // Check if all chapters are done (only for embed jobs)
+    if (job.type === 'embed') {
+      checkPdfCompletion(job.pdf_id)
+    }
   } catch (err) {
     if (cancelRequested) {
       currentPdfId = null
@@ -115,7 +145,8 @@ async function processNextJob(): Promise<void> {
 
     if (job.attempts + 1 >= MAX_ATTEMPTS) {
       updateJobStatus(job.id, 'failed', errorMsg)
-      if (job.chapter_id !== null) {
+      // Only update chapter status for embed jobs (the primary processing job)
+      if (job.type === 'embed' && job.chapter_id !== null) {
         updateChapterStatus(job.chapter_id, 'error', errorMsg)
       }
     } else {

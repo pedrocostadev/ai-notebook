@@ -1,7 +1,11 @@
+import { useState, useCallback, useEffect } from 'react'
 import { MessageList } from './MessageList'
 import { ChatInput } from './ChatInput'
+import { ChapterSelectModal } from './ChapterSelectModal'
 import { useChat } from '@/hooks/useChat'
 import { FileText, Upload, Loader2, BookOpen } from 'lucide-react'
+import type { SlashCommand } from './SlashCommandMenu'
+import type { Chapter } from '../../../../preload'
 
 type ProcessingStage = 'extracting' | 'chunking' | 'embedding'
 
@@ -38,13 +42,79 @@ interface ChatContainerProps {
   pdfId: number | null
   chapterId: number | null
   chapterTitle?: string
+  chapters?: Chapter[]
   status?: string
   progress?: Progress
   onUpload: () => void
 }
 
-export function ChatContainer({ pdfId, chapterId, chapterTitle, status, progress, onUpload }: ChatContainerProps) {
+export function ChatContainer({ pdfId, chapterId, chapterTitle, chapters, status, progress, onUpload }: ChatContainerProps) {
   const { messages, isStreaming, streamingContent, sendMessage } = useChat(pdfId, chapterId)
+  const [commandResult, setCommandResult] = useState<{ role: 'assistant'; content: string } | null>(null)
+  const [showChapterSelect, setShowChapterSelect] = useState(false)
+  const [pendingCommand, setPendingCommand] = useState<SlashCommand | null>(null)
+
+  // Clear command result when switching channels
+  useEffect(() => {
+    setCommandResult(null)
+  }, [pdfId, chapterId])
+
+  const executeCommand = useCallback(async (command: SlashCommand, targetChapterId?: number) => {
+    if (!pdfId) return
+
+    if (command.name === '/summary') {
+      const chapterToUse = targetChapterId ?? chapterId
+      console.log('[executeCommand] /summary - targetChapterId:', targetChapterId, 'chapterId prop:', chapterId, 'using:', chapterToUse)
+      if (chapterToUse === null) {
+        // In main channel, need to select chapter
+        setPendingCommand(command)
+        setShowChapterSelect(true)
+        return
+      }
+
+      const result = await window.api.getChapterSummary(chapterToUse)
+      if ('summary' in result) {
+        setCommandResult({ role: 'assistant', content: result.summary })
+      } else if ('pending' in result) {
+        setCommandResult({ role: 'assistant', content: 'Summary is still being generated. Please try again later.' })
+      } else {
+        setCommandResult({ role: 'assistant', content: `Error: ${result.error}` })
+      }
+    } else if (command.name === '/book_meta_data') {
+      const result = await window.api.getPdfMetadata(pdfId)
+      if ('metadata' in result) {
+        const meta = result.metadata
+        const lines = [
+          `**Title:** ${meta.title ?? 'Not found'}`,
+          `**Author:** ${meta.author ?? 'Not found'}`,
+          `**Publisher:** ${meta.publisher ?? 'Not found'}`,
+          `**Publish Date:** ${meta.publishDate ?? 'Not found'}`,
+          `**ISBN:** ${meta.isbn ?? 'Not found'}`,
+          `**Edition:** ${meta.edition ?? 'Not found'}`,
+          `**Language:** ${meta.language ?? 'Not found'}`,
+          `**Subject:** ${meta.subject ?? 'Not found'}`
+        ]
+        setCommandResult({ role: 'assistant', content: lines.join('\n') })
+      } else if ('pending' in result) {
+        setCommandResult({ role: 'assistant', content: 'Metadata is still being extracted. Please try again later.' })
+      } else {
+        setCommandResult({ role: 'assistant', content: `Error: ${result.error}` })
+      }
+    }
+  }, [pdfId, chapterId])
+
+  const handleSlashCommand = useCallback((command: SlashCommand) => {
+    setCommandResult(null)
+    executeCommand(command)
+  }, [executeCommand])
+
+  const handleChapterSelect = useCallback((selectedChapterId: number) => {
+    setShowChapterSelect(false)
+    if (pendingCommand) {
+      executeCommand(pendingCommand, selectedChapterId)
+      setPendingCommand(null)
+    }
+  }, [pendingCommand, executeCommand])
 
   if (!pdfId) {
     return (
@@ -89,9 +159,14 @@ export function ChatContainer({ pdfId, chapterId, chapterTitle, status, progress
           Error processing. Please delete and try again.
         </div>
       )}
-      <MessageList messages={messages} streamingContent={streamingContent} isStreaming={isStreaming} />
+      <MessageList
+        messages={commandResult ? [...messages, { id: Date.now(), ...commandResult, metadata: null }] : messages}
+        streamingContent={streamingContent}
+        isStreaming={isStreaming}
+      />
       <ChatInput
         onSend={sendMessage}
+        onSlashCommand={handleSlashCommand}
         disabled={isStreaming || isProcessing || hasError}
         placeholder={
           isProcessing
@@ -100,6 +175,12 @@ export function ChatContainer({ pdfId, chapterId, chapterTitle, status, progress
               ? `Ask a question about "${chapterTitle}"...`
               : 'Ask a question about this PDF...'
         }
+      />
+      <ChapterSelectModal
+        open={showChapterSelect}
+        onOpenChange={setShowChapterSelect}
+        chapters={chapters ?? []}
+        onSelect={handleChapterSelect}
       />
     </div>
   )

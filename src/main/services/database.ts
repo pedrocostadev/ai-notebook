@@ -44,6 +44,7 @@ export async function initDatabase(): Promise<void> {
       file_hash TEXT UNIQUE,
       file_size INTEGER,
       page_count INTEGER,
+      metadata JSON,
       status TEXT CHECK(status IN ('pending', 'processing', 'done', 'error')) DEFAULT 'pending',
       error_message TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -56,6 +57,7 @@ export async function initDatabase(): Promise<void> {
       chapter_index INTEGER,
       start_idx INTEGER,
       end_idx INTEGER,
+      summary TEXT,
       status TEXT CHECK(status IN ('pending', 'processing', 'done', 'error')) DEFAULT 'pending',
       error_message TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -87,13 +89,26 @@ export async function initDatabase(): Promise<void> {
       id INTEGER PRIMARY KEY,
       pdf_id INTEGER REFERENCES pdfs(id) ON DELETE CASCADE,
       chapter_id INTEGER REFERENCES chapters(id) ON DELETE CASCADE,
-      type TEXT CHECK(type IN ('embed')),
+      type TEXT CHECK(type IN ('embed', 'summary', 'metadata')),
       status TEXT CHECK(status IN ('pending', 'running', 'done', 'failed')) DEFAULT 'pending',
       attempts INTEGER DEFAULT 0,
       last_error TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `)
+
+  // Migrations for existing databases
+  const migrations = [
+    'ALTER TABLE pdfs ADD COLUMN metadata JSON',
+    'ALTER TABLE chapters ADD COLUMN summary TEXT'
+  ]
+  for (const migration of migrations) {
+    try {
+      db.exec(migration)
+    } catch {
+      // Column already exists, ignore
+    }
+  }
 
   // Create FTS5 table
   db.exec(`
@@ -282,6 +297,38 @@ export function updateChapterEndIdx(id: number, endIdx: number): void {
     .run(endIdx, id)
 }
 
+export function updateChapterSummary(id: number, summary: string): void {
+  getDb()
+    .prepare('UPDATE chapters SET summary = ? WHERE id = ?')
+    .run(summary, id)
+}
+
+export function getChapterSummary(id: number): string | null {
+  const row = getDb()
+    .prepare('SELECT summary FROM chapters WHERE id = ?')
+    .get(id) as { summary: string | null } | undefined
+  return row?.summary ?? null
+}
+
+// PDF Metadata CRUD
+export function updatePdfMetadata(id: number, metadata: object): void {
+  getDb()
+    .prepare('UPDATE pdfs SET metadata = ? WHERE id = ?')
+    .run(JSON.stringify(metadata), id)
+}
+
+export function getPdfMetadata(id: number): object | null {
+  const row = getDb()
+    .prepare('SELECT metadata FROM pdfs WHERE id = ?')
+    .get(id) as { metadata: string | null } | undefined
+  if (!row?.metadata) return null
+  try {
+    return JSON.parse(row.metadata)
+  } catch {
+    return null
+  }
+}
+
 // Chunks CRUD
 export function insertChunk(
   pdfId: number,
@@ -399,7 +446,7 @@ export function getMessagesByPdfId(pdfId: number, chapterId: number | null = nul
 }
 
 // Jobs CRUD
-export function insertJob(pdfId: number, chapterId: number | null, type: 'embed'): number {
+export function insertJob(pdfId: number, chapterId: number | null, type: 'embed' | 'summary' | 'metadata'): number {
   const stmt = getDb().prepare(`
     INSERT INTO jobs (pdf_id, chapter_id, type, status)
     VALUES (?, ?, ?, 'pending')

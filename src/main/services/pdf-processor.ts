@@ -132,24 +132,33 @@ export async function processPdf(
     const boundaries = computePageBoundaries(pages)
 
     // Stream TOC chapters from AI
-    const streamedChapters: { id: number; tocChapter: TocChapter; index: number }[] = []
+    const streamedChapters: { id: number; tocChapter: TocChapter; index: number; startIdx: number }[] = []
 
     const tocResult = await parseTocStreaming(pages, (tocChapter, index) => {
-      // Compute start boundary from page number
-      const pageIdx = Math.min(Math.max(tocChapter.pageNumber - 1, 0), boundaries.length - 1)
-      const startIdx = boundaries[pageIdx]?.startIdx ?? 0
-      // Use fullText.length as temporary end (will update when next chapter arrives)
+      // Try to find chapter title in fullText for accurate positioning
+      // Search for the title (case-insensitive, allowing for some flexibility)
+      const titlePattern = tocChapter.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') // Escape regex chars
+      const titleRegex = new RegExp(titlePattern, 'i')
+      const titleMatch = fullText.match(titleRegex)
+
+      let startIdx: number
+      if (titleMatch && titleMatch.index !== undefined) {
+        // Found the title in text - use that position
+        startIdx = titleMatch.index
+        console.log(`[processPdf] Found "${tocChapter.title}" at position ${startIdx} (title search)`)
+      } else {
+        // Fall back to page-based boundary
+        const pageIdx = Math.min(Math.max(tocChapter.pageNumber - 1, 0), boundaries.length - 1)
+        startIdx = boundaries[pageIdx]?.startIdx ?? 0
+        console.log(`[processPdf] "${tocChapter.title}" not found in text, using page ${tocChapter.pageNumber} -> position ${startIdx}`)
+      }
+
+      // Use fullText.length as temporary end (will fix after all chapters are streamed)
       const endIdx = fullText.length
 
       // Insert chapter immediately
       const chapterId = insertChapter(pdfId, tocChapter.title, index, startIdx, endIdx)
-      streamedChapters.push({ id: chapterId, tocChapter, index })
-
-      // Update previous chapter's end boundary
-      if (streamedChapters.length > 1) {
-        const prevChapter = streamedChapters[streamedChapters.length - 2]
-        updateChapterEndIdx(prevChapter.id, startIdx)
-      }
+      streamedChapters.push({ id: chapterId, tocChapter, index, startIdx })
 
       // Notify frontend
       notifyChapterAdded(pdfId, {
@@ -158,10 +167,31 @@ export async function processPdf(
         chapter_index: index,
         status: 'pending'
       })
-
-      // Queue embed job
-      insertJob(pdfId, chapterId, 'embed')
     })
+
+    // After all chapters are streamed, fix end_idx values based on document order (page numbers)
+    // Sort by startIdx (document position) to determine correct boundaries
+    if (streamedChapters.length > 1) {
+      const sortedByPosition = [...streamedChapters].sort((a, b) => a.startIdx - b.startIdx)
+      console.log('[processPdf] Chapters sorted by document position:')
+      for (const ch of sortedByPosition) {
+        console.log(`  - "${ch.tocChapter.title}" (id=${ch.id}, page=${ch.tocChapter.pageNumber}, startIdx=${ch.startIdx})`)
+      }
+      for (let i = 0; i < sortedByPosition.length - 1; i++) {
+        const current = sortedByPosition[i]
+        const next = sortedByPosition[i + 1]
+        console.log(`[processPdf] Setting end_idx for "${current.tocChapter.title}" (id=${current.id}) to ${next.startIdx}`)
+        updateChapterEndIdx(current.id, next.startIdx)
+      }
+    }
+
+    // Queue jobs for all chapters
+    for (const chapter of streamedChapters) {
+      // Queue embed job (priority 1)
+      insertJob(pdfId, chapter.id, 'embed')
+      // Queue summary job (priority 2 - runs after embed)
+      insertJob(pdfId, chapter.id, 'summary')
+    }
 
     // If no chapters were streamed (no TOC), create single "Full Document" chapter
     if (streamedChapters.length === 0) {
@@ -173,7 +203,11 @@ export async function processPdf(
         status: 'pending'
       })
       insertJob(pdfId, chapterId, 'embed')
+      insertJob(pdfId, chapterId, 'summary')
     }
+
+    // Queue metadata job (runs after embed/summary jobs)
+    insertJob(pdfId, null, 'metadata')
 
     updatePdfStatus(pdfId, 'processing', docs.length)
 
@@ -198,6 +232,8 @@ export async function processChapter(
   const chapter = getChapter(chapterId)
   if (!chapter) throw new Error('Chapter not found')
 
+  console.log(`[processChapter] Chapter "${chapter.title}" (id=${chapterId}): start_idx=${chapter.start_idx}, end_idx=${chapter.end_idx}, fullText.length=${fullText.length}`)
+
   // Skip chunking if chunks already exist (retry scenario)
   const existingChunks = getChunksByChapterId(chapterId)
   if (existingChunks.length > 0) return
@@ -205,6 +241,7 @@ export async function processChapter(
   updateChapterStatus(chapterId, 'processing')
 
   const chapterText = fullText.substring(chapter.start_idx, chapter.end_idx)
+  console.log(`[processChapter] Extracted text preview for "${chapter.title}": ${chapterText.substring(0, 150)}...`)
 
   const splitter = new RecursiveCharacterTextSplitter({
     chunkSize: CHUNK_SIZE,
