@@ -13,12 +13,19 @@ import {
   getPdf,
   getChapter,
   updateChapterSummary,
-  updatePdfMetadata
+  updatePdfMetadata,
+  insertConcepts,
+  updateChapterConceptsStatus
 } from './database'
 import { generateEmbeddings } from './embeddings'
 import { getApiKey } from './settings'
 import { deletePdfFile, processChapter } from './pdf-processor'
-import { generateChapterSummary, generatePdfMetadata } from './content-generator'
+import {
+  generateChapterSummary,
+  generatePdfMetadata,
+  generateChapterConcepts,
+  consolidatePdfConcepts
+} from './content-generator'
 
 const MAX_ATTEMPTS = 3
 const BASE_DELAY = 1000
@@ -112,6 +119,56 @@ async function processNextJob(): Promise<void> {
 
       const metadata = await generatePdfMetadata(fullText)
       updatePdfMetadata(job.pdf_id, metadata)
+    } else if (job.type === 'concepts' && job.chapter_id !== null) {
+      // Generate key concepts for chapter
+      updateChapterConceptsStatus(job.chapter_id, 'processing')
+
+      notifyConceptsProgress({
+        pdfId: job.pdf_id,
+        chapterId: job.chapter_id,
+        stage: 'extracting'
+      })
+
+      const chunks = getChunksByChapterId(job.chapter_id)
+      if (chunks.length === 0) {
+        throw new Error('No chunks found for chapter - embed job may not have completed')
+      }
+
+      const chapterText = chunks.map((c) => c.content).join('\n\n')
+      const concepts = await generateChapterConcepts(chapterText)
+
+      if (cancelRequested) {
+        currentPdfId = null
+        currentChapterId = null
+        isProcessing = false
+        processingTimeout = setTimeout(processNextJob, 100)
+        return
+      }
+
+      insertConcepts(job.pdf_id, job.chapter_id, concepts)
+      updateChapterConceptsStatus(job.chapter_id, 'done')
+
+      notifyConceptsProgress({
+        pdfId: job.pdf_id,
+        chapterId: job.chapter_id,
+        stage: 'done',
+        conceptsCount: concepts.length
+      })
+    } else if (job.type === 'consolidate') {
+      // Consolidate all chapter concepts into PDF-level concepts
+      notifyConceptsProgress({
+        pdfId: job.pdf_id,
+        chapterId: null,
+        stage: 'consolidating'
+      })
+
+      await consolidatePdfConcepts(job.pdf_id)
+
+      notifyConceptsProgress({
+        pdfId: job.pdf_id,
+        chapterId: null,
+        stage: 'done'
+      })
     }
 
     if (cancelRequested) {
@@ -148,6 +205,10 @@ async function processNextJob(): Promise<void> {
       // Only update chapter status for embed jobs (the primary processing job)
       if (job.type === 'embed' && job.chapter_id !== null) {
         updateChapterStatus(job.chapter_id, 'error', errorMsg)
+      }
+      // Update concepts status separately (non-blocking for chapter status)
+      if (job.type === 'concepts' && job.chapter_id !== null) {
+        updateChapterConceptsStatus(job.chapter_id, 'error', errorMsg)
       }
     } else {
       updateJobStatus(job.id, 'pending', errorMsg)
@@ -242,6 +303,22 @@ export function notifyChapterProgress(data: ChapterProgressData): void {
   const windows = BrowserWindow.getAllWindows()
   for (const window of windows) {
     window.webContents.send('chapter:progress', data)
+  }
+}
+
+export type ConceptsStage = 'extracting' | 'consolidating' | 'done'
+
+export interface ConceptsProgressData {
+  pdfId: number
+  chapterId: number | null
+  stage: ConceptsStage
+  conceptsCount?: number
+}
+
+export function notifyConceptsProgress(data: ConceptsProgressData): void {
+  const windows = BrowserWindow.getAllWindows()
+  for (const window of windows) {
+    window.webContents.send('concepts:progress', data)
   }
 }
 

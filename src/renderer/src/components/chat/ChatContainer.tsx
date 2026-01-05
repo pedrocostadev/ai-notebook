@@ -100,6 +100,75 @@ export function ChatContainer({ pdfId, chapterId, chapterTitle, chapters, status
       } else {
         setCommandResult({ role: 'assistant', content: `Error: ${result.error}` })
       }
+    } else if (command.name === '/key-concepts') {
+      const chapterToUse = targetChapterId ?? chapterId
+      if (chapterToUse === null) {
+        // In main channel, show consolidated PDF concepts
+        const result = await window.api.getDocumentConcepts(pdfId, true)
+        if ('concepts' in result) {
+          if (result.concepts.length === 0) {
+            setCommandResult({ role: 'assistant', content: 'No key concepts have been extracted for this document yet.' })
+          } else {
+            const lines = ['## Key Concepts (Document-wide)', '']
+            for (const concept of result.concepts) {
+              const stars = '★'.repeat(concept.importance) + '☆'.repeat(5 - concept.importance)
+              lines.push(`### ${concept.name}`)
+              lines.push(`**Importance:** ${stars}`)
+              lines.push('')
+              lines.push(concept.definition)
+              if (concept.quotes.length > 0) {
+                lines.push('')
+                lines.push('**Supporting quotes:**')
+                for (const q of concept.quotes) {
+                  const source = q.chapterTitle ? ` *(${q.chapterTitle})*` : ''
+                  lines.push(`> "${q.text}"${source}`)
+                }
+              }
+              lines.push('')
+              lines.push('---')
+              lines.push('')
+            }
+            setCommandResult({ role: 'assistant', content: lines.join('\n') })
+          }
+        } else if ('pending' in result) {
+          setCommandResult({ role: 'assistant', content: 'Key concepts are still being extracted. Please try again later.' })
+        } else {
+          setCommandResult({ role: 'assistant', content: `Error: ${result.error}` })
+        }
+      } else {
+        // Chapter-specific concepts
+        const result = await window.api.getChapterConcepts(chapterToUse)
+        if ('concepts' in result) {
+          if (result.concepts.length === 0) {
+            setCommandResult({ role: 'assistant', content: 'This chapter doesn\'t contain key concepts to extract (e.g., preface, acknowledgments, or index).' })
+          } else {
+            const lines = ['## Key Concepts', '']
+            for (const concept of result.concepts) {
+              const stars = '★'.repeat(concept.importance) + '☆'.repeat(5 - concept.importance)
+              lines.push(`### ${concept.name}`)
+              lines.push(`**Importance:** ${stars}`)
+              lines.push('')
+              lines.push(concept.definition)
+              if (concept.quotes.length > 0) {
+                lines.push('')
+                lines.push('**Supporting quotes:**')
+                for (const q of concept.quotes) {
+                  const pageInfo = q.pageEstimate ? ` *(p. ${q.pageEstimate})*` : ''
+                  lines.push(`> "${q.text}"${pageInfo}`)
+                }
+              }
+              lines.push('')
+              lines.push('---')
+              lines.push('')
+            }
+            setCommandResult({ role: 'assistant', content: lines.join('\n') })
+          }
+        } else if ('pending' in result) {
+          setCommandResult({ role: 'assistant', content: 'Key concepts are still being extracted. Please try again later.' })
+        } else {
+          setCommandResult({ role: 'assistant', content: `Error: ${result.error}` })
+        }
+      }
     }
   }, [pdfId, chapterId])
 

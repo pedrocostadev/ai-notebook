@@ -9,7 +9,8 @@ export interface SlashCommand {
 
 export const SLASH_COMMANDS: SlashCommand[] = [
   { name: '/summary', description: 'Show chapter summary', scope: 'chapter' },
-  { name: '/book_meta_data', description: 'Show book metadata', scope: 'pdf' }
+  { name: '/book_meta_data', description: 'Show book metadata', scope: 'pdf' },
+  { name: '/key-concepts', description: 'Show key concepts', scope: 'chapter' }
 ]
 
 interface SlashCommandMenuProps {
