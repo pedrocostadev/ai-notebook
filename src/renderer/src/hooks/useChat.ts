@@ -86,6 +86,7 @@ export function useChat(pdfId: number | null, chapterId: number | null) {
     isStreaming,
     streamingContent,
     loading,
-    sendMessage
+    sendMessage,
+    reloadHistory: loadHistory
   }
 }

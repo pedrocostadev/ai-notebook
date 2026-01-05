@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback } from 'react'
 import { MessageList } from './MessageList'
 import { ChatInput } from './ChatInput'
 import { ChapterSelectModal } from './ChapterSelectModal'
@@ -48,132 +48,194 @@ interface ChatContainerProps {
   onUpload: () => void
 }
 
+const COMMAND_LOADING_MESSAGES: Record<string, string> = {
+  '/test-my-knowledge': 'Generating quiz questions...',
+  '/summary': 'Loading summary...',
+  '/book_meta_data': 'Loading metadata...',
+  '/key-concepts': 'Loading key concepts...'
+}
+
 export function ChatContainer({ pdfId, chapterId, chapterTitle, chapters, status, progress, onUpload }: ChatContainerProps) {
-  const { messages, isStreaming, streamingContent, sendMessage } = useChat(pdfId, chapterId)
-  const [commandResult, setCommandResult] = useState<{ role: 'assistant'; content: string } | null>(null)
+  const { messages, isStreaming, streamingContent, sendMessage, reloadHistory } = useChat(pdfId, chapterId)
   const [showChapterSelect, setShowChapterSelect] = useState(false)
   const [pendingCommand, setPendingCommand] = useState<SlashCommand | null>(null)
+  const [isExecutingCommand, setIsExecutingCommand] = useState(false)
+  const [commandLoadingMessage, setCommandLoadingMessage] = useState<string | null>(null)
 
-  // Clear command result when switching channels
-  useEffect(() => {
-    setCommandResult(null)
-  }, [pdfId, chapterId])
+  // Helper to save command interaction and reload
+  const saveCommandResult = useCallback(async (command: string, result: string, targetChapterId?: number, metadata?: object) => {
+    if (!pdfId) return
+    const effectiveChapterId = targetChapterId ?? chapterId
+    // User message already saved before execution, just save assistant response
+    await window.api.saveMessage(pdfId, effectiveChapterId, 'assistant', result, metadata)
+    reloadHistory()
+  }, [pdfId, chapterId, reloadHistory])
+
+  // Save user command immediately for feedback
+  const saveUserCommand = useCallback(async (command: string, targetChapterId?: number) => {
+    if (!pdfId) return
+    const effectiveChapterId = targetChapterId ?? chapterId
+    await window.api.saveMessage(pdfId, effectiveChapterId, 'user', command)
+    reloadHistory()
+  }, [pdfId, chapterId, reloadHistory])
 
   const executeCommand = useCallback(async (command: SlashCommand, targetChapterId?: number) => {
     if (!pdfId) return
 
+    // Handle chapter select modal case - don't show loading yet
     if (command.name === '/summary') {
       const chapterToUse = targetChapterId ?? chapterId
-      console.log('[executeCommand] /summary - targetChapterId:', targetChapterId, 'chapterId prop:', chapterId, 'using:', chapterToUse)
       if (chapterToUse === null) {
-        // In main channel, need to select chapter
         setPendingCommand(command)
         setShowChapterSelect(true)
         return
       }
-
-      const result = await window.api.getChapterSummary(chapterToUse)
-      if ('summary' in result) {
-        setCommandResult({ role: 'assistant', content: result.summary })
-      } else if ('pending' in result) {
-        setCommandResult({ role: 'assistant', content: 'Summary is still being generated. Please try again later.' })
-      } else {
-        setCommandResult({ role: 'assistant', content: `Error: ${result.error}` })
-      }
-    } else if (command.name === '/book_meta_data') {
-      const result = await window.api.getPdfMetadata(pdfId)
-      if ('metadata' in result) {
-        const meta = result.metadata
-        const lines = [
-          `**Title:** ${meta.title ?? 'Not found'}`,
-          `**Author:** ${meta.author ?? 'Not found'}`,
-          `**Publisher:** ${meta.publisher ?? 'Not found'}`,
-          `**Publish Date:** ${meta.publishDate ?? 'Not found'}`,
-          `**ISBN:** ${meta.isbn ?? 'Not found'}`,
-          `**Edition:** ${meta.edition ?? 'Not found'}`,
-          `**Language:** ${meta.language ?? 'Not found'}`,
-          `**Subject:** ${meta.subject ?? 'Not found'}`
-        ]
-        setCommandResult({ role: 'assistant', content: lines.join('\n') })
-      } else if ('pending' in result) {
-        setCommandResult({ role: 'assistant', content: 'Metadata is still being extracted. Please try again later.' })
-      } else {
-        setCommandResult({ role: 'assistant', content: `Error: ${result.error}` })
-      }
-    } else if (command.name === '/key-concepts') {
-      const chapterToUse = targetChapterId ?? chapterId
-      if (chapterToUse === null) {
-        // In main channel, show consolidated PDF concepts
-        const result = await window.api.getDocumentConcepts(pdfId, true)
-        if ('concepts' in result) {
-          if (result.concepts.length === 0) {
-            setCommandResult({ role: 'assistant', content: 'No key concepts have been extracted for this document yet.' })
-          } else {
-            const lines = ['## Key Concepts (Document-wide)', '']
-            for (const concept of result.concepts) {
-              const stars = '★'.repeat(concept.importance) + '☆'.repeat(5 - concept.importance)
-              lines.push(`### ${concept.name}`)
-              lines.push(`**Importance:** ${stars}`)
-              lines.push('')
-              lines.push(concept.definition)
-              if (concept.quotes.length > 0) {
-                lines.push('')
-                lines.push('**Supporting quotes:**')
-                for (const q of concept.quotes) {
-                  const source = q.chapterTitle ? ` *(${q.chapterTitle})*` : ''
-                  lines.push(`> "${q.text}"${source}`)
-                }
-              }
-              lines.push('')
-              lines.push('---')
-              lines.push('')
-            }
-            setCommandResult({ role: 'assistant', content: lines.join('\n') })
-          }
-        } else if ('pending' in result) {
-          setCommandResult({ role: 'assistant', content: 'Key concepts are still being extracted. Please try again later.' })
-        } else {
-          setCommandResult({ role: 'assistant', content: `Error: ${result.error}` })
-        }
-      } else {
-        // Chapter-specific concepts
-        const result = await window.api.getChapterConcepts(chapterToUse)
-        if ('concepts' in result) {
-          if (result.concepts.length === 0) {
-            setCommandResult({ role: 'assistant', content: 'This chapter doesn\'t contain key concepts to extract (e.g., preface, acknowledgments, or index).' })
-          } else {
-            const lines = ['## Key Concepts', '']
-            for (const concept of result.concepts) {
-              const stars = '★'.repeat(concept.importance) + '☆'.repeat(5 - concept.importance)
-              lines.push(`### ${concept.name}`)
-              lines.push(`**Importance:** ${stars}`)
-              lines.push('')
-              lines.push(concept.definition)
-              if (concept.quotes.length > 0) {
-                lines.push('')
-                lines.push('**Supporting quotes:**')
-                for (const q of concept.quotes) {
-                  const pageInfo = q.pageEstimate ? ` *(p. ${q.pageEstimate})*` : ''
-                  lines.push(`> "${q.text}"${pageInfo}`)
-                }
-              }
-              lines.push('')
-              lines.push('---')
-              lines.push('')
-            }
-            setCommandResult({ role: 'assistant', content: lines.join('\n') })
-          }
-        } else if ('pending' in result) {
-          setCommandResult({ role: 'assistant', content: 'Key concepts are still being extracted. Please try again later.' })
-        } else {
-          setCommandResult({ role: 'assistant', content: `Error: ${result.error}` })
-        }
-      }
     }
-  }, [pdfId, chapterId])
+
+    // Show loading state
+    const loadingMessage = COMMAND_LOADING_MESSAGES[command.name] || 'Processing...'
+    setIsExecutingCommand(true)
+    setCommandLoadingMessage(loadingMessage)
+
+    // Save user command immediately for feedback
+    await saveUserCommand(command.name, targetChapterId)
+
+    try {
+      if (command.name === '/summary') {
+        const chapterToUse = targetChapterId ?? chapterId
+        const result = await window.api.getChapterSummary(chapterToUse!)
+        if ('summary' in result) {
+          await saveCommandResult(command.name, result.summary, chapterToUse!)
+        } else if ('empty' in result) {
+          await saveCommandResult(command.name, 'This chapter doesn\'t have enough content to generate a summary (e.g., preface, acknowledgments, or table of contents).', chapterToUse!)
+        } else if ('pending' in result) {
+          await saveCommandResult(command.name, 'Summary is still being generated. Please try again later.', chapterToUse!)
+        } else {
+          await saveCommandResult(command.name, `Error: ${result.error}`, chapterToUse!)
+        }
+      } else if (command.name === '/book_meta_data') {
+        const result = await window.api.getPdfMetadata(pdfId)
+        if ('metadata' in result) {
+          const meta = result.metadata
+          const lines = [
+            `**Title:** ${meta.title ?? 'Not found'}`,
+            `**Author:** ${meta.author ?? 'Not found'}`,
+            `**Publisher:** ${meta.publisher ?? 'Not found'}`,
+            `**Publish Date:** ${meta.publishDate ?? 'Not found'}`,
+            `**ISBN:** ${meta.isbn ?? 'Not found'}`,
+            `**Edition:** ${meta.edition ?? 'Not found'}`,
+            `**Language:** ${meta.language ?? 'Not found'}`,
+            `**Subject:** ${meta.subject ?? 'Not found'}`
+          ]
+          await saveCommandResult(command.name, lines.join('\n'))
+        } else if ('pending' in result) {
+          await saveCommandResult(command.name, 'Metadata is still being extracted. Please try again later.')
+        } else {
+          await saveCommandResult(command.name, `Error: ${result.error}`)
+        }
+      } else if (command.name === '/key-concepts') {
+        const chapterToUse = targetChapterId ?? chapterId
+        if (chapterToUse === null) {
+          // In main channel, show consolidated PDF concepts
+          const result = await window.api.getDocumentConcepts(pdfId, true)
+          if ('concepts' in result) {
+            if (result.concepts.length === 0) {
+              await saveCommandResult(command.name, 'No key concepts have been extracted for this document yet.')
+            } else {
+              const lines = ['## Key Concepts (Document-wide)', '']
+              for (const concept of result.concepts) {
+                const stars = '★'.repeat(concept.importance) + '☆'.repeat(5 - concept.importance)
+                lines.push(`### ${concept.name}`)
+                lines.push(`**Importance:** ${stars}`)
+                lines.push('')
+                lines.push(concept.definition)
+                if (concept.quotes.length > 0) {
+                  lines.push('')
+                  lines.push('**Supporting quotes:**')
+                  for (const q of concept.quotes) {
+                    const source = q.chapterTitle ? ` *(${q.chapterTitle})*` : ''
+                    lines.push(`> "${q.text}"${source}`)
+                  }
+                }
+                lines.push('')
+                lines.push('---')
+                lines.push('')
+              }
+              await saveCommandResult(command.name, lines.join('\n'))
+            }
+          } else if ('pending' in result) {
+            await saveCommandResult(command.name, 'Key concepts are still being extracted. Please try again later.')
+          } else {
+            await saveCommandResult(command.name, `Error: ${result.error}`)
+          }
+        } else {
+          // Chapter-specific concepts
+          const result = await window.api.getChapterConcepts(chapterToUse)
+          if ('concepts' in result) {
+            if (result.concepts.length === 0) {
+              await saveCommandResult(command.name, 'This chapter doesn\'t contain key concepts to extract (e.g., preface, acknowledgments, or index).', chapterToUse)
+            } else {
+              const lines = ['## Key Concepts', '']
+              for (const concept of result.concepts) {
+                const stars = '★'.repeat(concept.importance) + '☆'.repeat(5 - concept.importance)
+                lines.push(`### ${concept.name}`)
+                lines.push(`**Importance:** ${stars}`)
+                lines.push('')
+                lines.push(concept.definition)
+                if (concept.quotes.length > 0) {
+                  lines.push('')
+                  lines.push('**Supporting quotes:**')
+                  for (const q of concept.quotes) {
+                    const pageInfo = q.pageEstimate ? ` *(p. ${q.pageEstimate})*` : ''
+                    lines.push(`> "${q.text}"${pageInfo}`)
+                  }
+                }
+                lines.push('')
+                lines.push('---')
+                lines.push('')
+              }
+              await saveCommandResult(command.name, lines.join('\n'), chapterToUse)
+            }
+          } else if ('pending' in result) {
+            await saveCommandResult(command.name, 'Key concepts are still being extracted. Please try again later.', chapterToUse)
+          } else {
+            await saveCommandResult(command.name, `Error: ${result.error}`, chapterToUse)
+          }
+        }
+      } else if (command.name === '/test-my-knowledge') {
+        const chapterToUse = targetChapterId ?? chapterId
+        const result = await window.api.generateQuiz(pdfId, chapterToUse)
+
+        if ('questions' in result) {
+          await saveCommandResult(
+            command.name,
+            '', // Empty content, quiz is in metadata
+            chapterToUse ?? undefined,
+            { quiz: result.questions }
+          )
+        } else if ('empty' in result) {
+          await saveCommandResult(
+            command.name,
+            'This chapter doesn\'t have key concepts to generate a quiz from (e.g., preface, acknowledgments, or index).',
+            chapterToUse ?? undefined
+          )
+        } else if ('pending' in result) {
+          await saveCommandResult(
+            command.name,
+            'Key concepts are still being extracted. Please try again later.',
+            chapterToUse ?? undefined
+          )
+        } else {
+          await saveCommandResult(command.name, `Error: ${result.error}`, chapterToUse ?? undefined)
+        }
+      }
+    } finally {
+      setIsExecutingCommand(false)
+      setCommandLoadingMessage(null)
+    }
+  }, [pdfId, chapterId, saveCommandResult, saveUserCommand])
 
   const handleSlashCommand = useCallback((command: SlashCommand) => {
-    setCommandResult(null)
     executeCommand(command)
   }, [executeCommand])
 
@@ -229,17 +291,20 @@ export function ChatContainer({ pdfId, chapterId, chapterTitle, chapters, status
         </div>
       )}
       <MessageList
-        messages={commandResult ? [...messages, { id: Date.now(), ...commandResult, metadata: null }] : messages}
+        messages={messages}
         streamingContent={streamingContent}
         isStreaming={isStreaming}
+        commandLoading={commandLoadingMessage}
       />
       <ChatInput
         onSend={sendMessage}
         onSlashCommand={handleSlashCommand}
-        disabled={isStreaming || isProcessing || hasError}
+        disabled={isStreaming || isProcessing || hasError || isExecutingCommand}
         placeholder={
-          isProcessing
-            ? 'Processing...'
+          isExecutingCommand
+            ? commandLoadingMessage || 'Processing...'
+            : isProcessing
+              ? 'Processing...'
             : isChapterView
               ? `Ask a question about "${chapterTitle}"...`
               : 'Ask a question about this PDF...'

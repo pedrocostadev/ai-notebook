@@ -137,3 +137,32 @@ export type Concept = z.infer<typeof ConceptSchema>
 export type ChapterConcepts = z.infer<typeof ChapterConceptsSchema>
 export type ConsolidatedConcept = z.infer<typeof ConsolidatedConceptSchema>
 export type ConsolidatedConcepts = z.infer<typeof ConsolidatedConceptsSchema>
+
+// Quiz schemas
+export const QuizQuestionSchema = z.object({
+  question: z.string().describe('Clear question testing understanding of the concept'),
+  options: z
+    .array(z.string())
+    .length(4)
+    .describe('Exactly 4 answer options (A, B, C, D)'),
+  correctIndex: z
+    .number()
+    .min(0)
+    .max(3)
+    .describe('Index of correct answer (0-3)'),
+  explanation: z
+    .string()
+    .describe('Brief explanation of why the correct answer is right'),
+  conceptName: z.string().describe('Name of the concept this question tests')
+})
+
+export const QuizSchema = z.object({
+  questions: z
+    .array(QuizQuestionSchema)
+    .min(5)
+    .max(10)
+    .describe('5-10 multiple choice questions testing key concepts')
+})
+
+export type QuizQuestion = z.infer<typeof QuizQuestionSchema>
+export type Quiz = z.infer<typeof QuizSchema>
