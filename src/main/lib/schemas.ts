@@ -77,3 +77,63 @@ export const TocSchema = z.object({
 export type RerankedResults = z.infer<typeof RerankedResultsSchema>
 export type ChatResponseMetadata = z.infer<typeof ChatResponseMetadataSchema>
 export type TocResult = z.infer<typeof TocSchema>
+
+// Key Concepts schemas
+export const ConceptQuoteSchema = z.object({
+  text: z.string().describe('Exact quote from the text (1-2 sentences)'),
+  pageEstimate: z.number().optional().describe('Approximate page number if determinable')
+})
+
+export const ConceptSchema = z.object({
+  name: z.string().describe('Concise name for the concept (2-5 words)'),
+  definition: z
+    .string()
+    .describe('Clear definition in 1-3 sentences explaining what this concept means in context'),
+  importance: z
+    .number()
+    .min(1)
+    .max(5)
+    .describe('Importance: 5=fundamental/core, 4=key supporting, 3=notable, 2=minor, 1=tangential'),
+  quotes: z
+    .array(ConceptQuoteSchema)
+    .min(1)
+    .max(3)
+    .describe('1-3 exact quotes from the text that explain or exemplify this concept')
+})
+
+export const ChapterConceptsSchema = z.object({
+  concepts: z
+    .array(ConceptSchema)
+    .max(20)
+    .describe('Key concepts from this chapter, ordered by importance (highest first). Return empty array if chapter has no substantive concepts (e.g., preface, acknowledgments, index).')
+})
+
+export const ConsolidatedConceptSchema = z.object({
+  name: z.string().describe('Unified concept name'),
+  definition: z.string().describe('Consolidated definition combining insights from all chapters'),
+  importance: z.number().min(1).max(5).describe('Overall importance to the document'),
+  sourceConceptNames: z.array(z.string()).describe('Names of chapter concepts this consolidates'),
+  quotes: z
+    .array(
+      z.object({
+        text: z.string(),
+        chapterTitle: z.string()
+      })
+    )
+    .max(3)
+    .describe('Best supporting quotes with chapter attribution')
+})
+
+export const ConsolidatedConceptsSchema = z.object({
+  consolidatedConcepts: z
+    .array(ConsolidatedConceptSchema)
+    .min(15)
+    .max(30)
+    .describe('Document-level concepts merged from chapter concepts')
+})
+
+export type ConceptQuote = z.infer<typeof ConceptQuoteSchema>
+export type Concept = z.infer<typeof ConceptSchema>
+export type ChapterConcepts = z.infer<typeof ChapterConceptsSchema>
+export type ConsolidatedConcept = z.infer<typeof ConsolidatedConceptSchema>
+export type ConsolidatedConcepts = z.infer<typeof ConsolidatedConceptsSchema>

@@ -89,18 +89,50 @@ export async function initDatabase(): Promise<void> {
       id INTEGER PRIMARY KEY,
       pdf_id INTEGER REFERENCES pdfs(id) ON DELETE CASCADE,
       chapter_id INTEGER REFERENCES chapters(id) ON DELETE CASCADE,
-      type TEXT CHECK(type IN ('embed', 'summary', 'metadata')),
+      type TEXT CHECK(type IN ('embed', 'summary', 'metadata', 'concepts', 'consolidate')),
       status TEXT CHECK(status IN ('pending', 'running', 'done', 'failed')) DEFAULT 'pending',
       attempts INTEGER DEFAULT 0,
       last_error TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS concepts (
+      id INTEGER PRIMARY KEY,
+      pdf_id INTEGER REFERENCES pdfs(id) ON DELETE CASCADE,
+      chapter_id INTEGER REFERENCES chapters(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      definition TEXT NOT NULL,
+      importance INTEGER CHECK(importance BETWEEN 1 AND 5),
+      quotes JSON,
+      is_consolidated BOOLEAN DEFAULT FALSE,
+      source_concept_ids JSON,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_concepts_pdf ON concepts(pdf_id);
+    CREATE INDEX IF NOT EXISTS idx_concepts_chapter ON concepts(chapter_id);
   `)
 
   // Migrations for existing databases
   const migrations = [
     'ALTER TABLE pdfs ADD COLUMN metadata JSON',
-    'ALTER TABLE chapters ADD COLUMN summary TEXT'
+    'ALTER TABLE chapters ADD COLUMN summary TEXT',
+    'ALTER TABLE chapters ADD COLUMN concepts_status TEXT DEFAULT NULL',
+    'ALTER TABLE chapters ADD COLUMN concepts_error TEXT DEFAULT NULL',
+    `CREATE TABLE IF NOT EXISTS concepts (
+      id INTEGER PRIMARY KEY,
+      pdf_id INTEGER REFERENCES pdfs(id) ON DELETE CASCADE,
+      chapter_id INTEGER REFERENCES chapters(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      definition TEXT NOT NULL,
+      importance INTEGER CHECK(importance BETWEEN 1 AND 5),
+      quotes JSON,
+      is_consolidated BOOLEAN DEFAULT FALSE,
+      source_concept_ids JSON,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`,
+    'CREATE INDEX IF NOT EXISTS idx_concepts_pdf ON concepts(pdf_id)',
+    'CREATE INDEX IF NOT EXISTS idx_concepts_chapter ON concepts(chapter_id)'
   ]
   for (const migration of migrations) {
     try {
@@ -446,7 +478,9 @@ export function getMessagesByPdfId(pdfId: number, chapterId: number | null = nul
 }
 
 // Jobs CRUD
-export function insertJob(pdfId: number, chapterId: number | null, type: 'embed' | 'summary' | 'metadata'): number {
+export type JobType = 'embed' | 'summary' | 'metadata' | 'concepts' | 'consolidate'
+
+export function insertJob(pdfId: number, chapterId: number | null, type: JobType): number {
   const stmt = getDb().prepare(`
     INSERT INTO jobs (pdf_id, chapter_id, type, status)
     VALUES (?, ?, ?, 'pending')
@@ -567,4 +601,153 @@ function escapeFTS5Query(query: string): string {
     .filter((t) => t.length > 0)
     .map((t) => `"${t}"`)
     .join(' ')
+}
+
+// Concepts CRUD
+export interface ConceptQuote {
+  text: string
+  pageEstimate?: number
+  chapterTitle?: string
+}
+
+export interface Concept {
+  id: number
+  pdf_id: number
+  chapter_id: number | null
+  name: string
+  definition: string
+  importance: number
+  quotes: ConceptQuote[]
+  is_consolidated: boolean
+  source_concept_ids: number[] | null
+  created_at: string
+}
+
+export function insertConcept(
+  pdfId: number,
+  chapterId: number | null,
+  name: string,
+  definition: string,
+  importance: number,
+  quotes: ConceptQuote[],
+  isConsolidated: boolean = false,
+  sourceConceptIds: number[] | null = null
+): number {
+  const stmt = getDb().prepare(`
+    INSERT INTO concepts (pdf_id, chapter_id, name, definition, importance, quotes, is_consolidated, source_concept_ids)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `)
+  const result = stmt.run(
+    pdfId,
+    chapterId,
+    name,
+    definition,
+    importance,
+    JSON.stringify(quotes),
+    isConsolidated ? 1 : 0,
+    sourceConceptIds ? JSON.stringify(sourceConceptIds) : null
+  )
+  return result.lastInsertRowid as number
+}
+
+export function insertConcepts(
+  pdfId: number,
+  chapterId: number | null,
+  concepts: { name: string; definition: string; importance: number; quotes: ConceptQuote[] }[],
+  isConsolidated: boolean = false
+): number[] {
+  const ids: number[] = []
+  for (const c of concepts) {
+    const id = insertConcept(pdfId, chapterId, c.name, c.definition, c.importance, c.quotes, isConsolidated)
+    ids.push(id)
+  }
+  return ids
+}
+
+export function getConceptsByChapterId(chapterId: number): Concept[] {
+  const rows = getDb()
+    .prepare('SELECT * FROM concepts WHERE chapter_id = ? AND is_consolidated = 0 ORDER BY importance DESC')
+    .all(chapterId) as {
+    id: number
+    pdf_id: number
+    chapter_id: number | null
+    name: string
+    definition: string
+    importance: number
+    quotes: string
+    is_consolidated: number
+    source_concept_ids: string | null
+    created_at: string
+  }[]
+  return rows.map(parseConceptRow)
+}
+
+export function getConceptsByPdfId(pdfId: number, consolidatedOnly: boolean = false): Concept[] {
+  const query = consolidatedOnly
+    ? 'SELECT * FROM concepts WHERE pdf_id = ? AND is_consolidated = 1 ORDER BY importance DESC'
+    : 'SELECT * FROM concepts WHERE pdf_id = ? ORDER BY importance DESC'
+  const rows = getDb().prepare(query).all(pdfId) as {
+    id: number
+    pdf_id: number
+    chapter_id: number | null
+    name: string
+    definition: string
+    importance: number
+    quotes: string
+    is_consolidated: number
+    source_concept_ids: string | null
+    created_at: string
+  }[]
+  return rows.map(parseConceptRow)
+}
+
+function parseConceptRow(row: {
+  id: number
+  pdf_id: number
+  chapter_id: number | null
+  name: string
+  definition: string
+  importance: number
+  quotes: string
+  is_consolidated: number
+  source_concept_ids: string | null
+  created_at: string
+}): Concept {
+  return {
+    id: row.id,
+    pdf_id: row.pdf_id,
+    chapter_id: row.chapter_id,
+    name: row.name,
+    definition: row.definition,
+    importance: row.importance,
+    quotes: JSON.parse(row.quotes || '[]'),
+    is_consolidated: row.is_consolidated === 1,
+    source_concept_ids: row.source_concept_ids ? JSON.parse(row.source_concept_ids) : null,
+    created_at: row.created_at
+  }
+}
+
+export function deleteConceptsByPdfId(pdfId: number, consolidatedOnly: boolean = false): void {
+  if (consolidatedOnly) {
+    getDb().prepare('DELETE FROM concepts WHERE pdf_id = ? AND is_consolidated = 1').run(pdfId)
+  } else {
+    getDb().prepare('DELETE FROM concepts WHERE pdf_id = ?').run(pdfId)
+  }
+}
+
+export function updateChapterConceptsStatus(
+  chapterId: number,
+  status: 'pending' | 'processing' | 'done' | 'error',
+  errorMessage?: string
+): void {
+  getDb()
+    .prepare('UPDATE chapters SET concepts_status = ?, concepts_error = ? WHERE id = ?')
+    .run(status, errorMessage ?? null, chapterId)
+}
+
+export function getChapterConceptsStatus(chapterId: number): { status: string | null; error: string | null } {
+  const row = getDb()
+    .prepare('SELECT concepts_status, concepts_error FROM chapters WHERE id = ?')
+    .get(chapterId) as { concepts_status: string | null; concepts_error: string | null } | undefined
+  return { status: row?.concepts_status ?? null, error: row?.concepts_error ?? null }
 }

@@ -61,6 +61,36 @@ export type PdfMetadata = {
 export type SlashSummaryResult = { summary: string } | { pending: true } | { error: string }
 export type SlashMetadataResult = { metadata: PdfMetadata } | { pending: true } | { error: string }
 
+export type ConceptQuote = {
+  text: string
+  pageEstimate?: number
+  chapterTitle?: string
+}
+
+export type Concept = {
+  id: number
+  pdf_id: number
+  chapter_id: number | null
+  name: string
+  definition: string
+  importance: number
+  quotes: ConceptQuote[]
+  is_consolidated: boolean
+  source_concept_ids: number[] | null
+  created_at: string
+}
+
+export type ConceptsResult = { concepts: Concept[] } | { pending: true } | { error: string }
+
+export type ConceptsStage = 'extracting' | 'consolidating' | 'done'
+
+export type ConceptsProgress = {
+  pdfId: number
+  chapterId: number | null
+  stage: ConceptsStage
+  conceptsCount?: number
+}
+
 const api = {
   // Settings
   hasApiKey: (): Promise<boolean> => ipcRenderer.invoke('settings:has-api-key'),
@@ -107,6 +137,12 @@ const api = {
   getPdfMetadata: (pdfId: number): Promise<SlashMetadataResult> =>
     ipcRenderer.invoke('slash:get-metadata', pdfId),
 
+  // Concepts
+  getChapterConcepts: (chapterId: number): Promise<ConceptsResult> =>
+    ipcRenderer.invoke('concepts:get-chapter', chapterId),
+  getDocumentConcepts: (pdfId: number, consolidatedOnly: boolean = true): Promise<ConceptsResult> =>
+    ipcRenderer.invoke('concepts:get-pdf', pdfId, consolidatedOnly),
+
   // Event listeners
   onChatStream: (callback: (chunk: string) => void) => {
     const listener = (_: unknown, chunk: string) => callback(chunk)
@@ -127,6 +163,11 @@ const api = {
     const listener = (_: unknown, data: { pdfId: number; chapter: Chapter }) => callback(data)
     ipcRenderer.on('chapter:added', listener)
     return () => ipcRenderer.removeListener('chapter:added', listener)
+  },
+  onConceptsProgress: (callback: (data: ConceptsProgress) => void) => {
+    const listener = (_: unknown, data: ConceptsProgress) => callback(data)
+    ipcRenderer.on('concepts:progress', listener)
+    return () => ipcRenderer.removeListener('concepts:progress', listener)
   }
 }
 

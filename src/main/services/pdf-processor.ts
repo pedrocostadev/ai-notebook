@@ -191,6 +191,8 @@ export async function processPdf(
       insertJob(pdfId, chapter.id, 'embed')
       // Queue summary job (priority 2 - runs after embed)
       insertJob(pdfId, chapter.id, 'summary')
+      // Queue concepts job (priority 3 - runs after summary)
+      insertJob(pdfId, chapter.id, 'concepts')
     }
 
     // If no chapters were streamed (no TOC), create single "Full Document" chapter
@@ -204,10 +206,13 @@ export async function processPdf(
       })
       insertJob(pdfId, chapterId, 'embed')
       insertJob(pdfId, chapterId, 'summary')
+      insertJob(pdfId, chapterId, 'concepts')
     }
 
     // Queue metadata job (runs after embed/summary jobs)
     insertJob(pdfId, null, 'metadata')
+    // Queue consolidate job (runs last - merges chapter concepts)
+    insertJob(pdfId, null, 'consolidate')
 
     updatePdfStatus(pdfId, 'processing', docs.length)
 

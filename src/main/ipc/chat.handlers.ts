@@ -1,6 +1,15 @@
 import { ipcMain, BrowserWindow } from 'electron'
 import { chat, getChatHistory } from '../services/rag'
-import { getPdf, getChapter, getChapterSummary, getPdfMetadata } from '../services/database'
+import {
+  getPdf,
+  getChapter,
+  getChapterSummary,
+  getPdfMetadata,
+  getConceptsByChapterId,
+  getConceptsByPdfId,
+  getChapterConceptsStatus,
+  type Concept
+} from '../services/database'
 import type { PdfMetadata } from '../services/content-generator'
 
 export function registerChatHandlers(): void {
@@ -68,4 +77,46 @@ export function registerChatHandlers(): void {
 
     return { metadata }
   })
+
+  // Concepts handlers
+  ipcMain.handle(
+    'concepts:get-chapter',
+    (_, chapterId: number): { concepts: Concept[] } | { pending: true } | { error: string } => {
+      const chapter = getChapter(chapterId)
+      if (!chapter) {
+        return { error: 'Chapter not found' }
+      }
+
+      const status = getChapterConceptsStatus(chapterId)
+      if (status.status === 'error') {
+        return { error: status.error || 'Concepts extraction failed' }
+      }
+
+      // If status is 'done', return concepts (even if empty)
+      if (status.status === 'done') {
+        const concepts = getConceptsByChapterId(chapterId)
+        return { concepts }
+      }
+
+      // Still processing or not started
+      return { pending: true }
+    }
+  )
+
+  ipcMain.handle(
+    'concepts:get-pdf',
+    (_, pdfId: number, consolidatedOnly: boolean = true): { concepts: Concept[] } | { pending: true } | { error: string } => {
+      const pdf = getPdf(pdfId)
+      if (!pdf) {
+        return { error: 'PDF not found' }
+      }
+
+      const concepts = getConceptsByPdfId(pdfId, consolidatedOnly)
+      if (concepts.length === 0) {
+        return { pending: true }
+      }
+
+      return { concepts }
+    }
+  )
 }
