@@ -5,8 +5,10 @@ import { getApiKey, getChatModel } from './settings'
 import {
   ChapterConceptsSchema,
   ConsolidatedConceptsSchema,
+  QuizSchema,
   type Concept,
-  type ConsolidatedConcept
+  type ConsolidatedConcept,
+  type QuizQuestion
 } from '../lib/schemas'
 import {
   getConceptsByPdfId,
@@ -29,7 +31,14 @@ export const PdfMetadataSchema = z.object({
 
 export type PdfMetadata = z.infer<typeof PdfMetadataSchema>
 
-export async function generateChapterSummary(chapterText: string): Promise<string> {
+const MIN_CHARS_FOR_SUMMARY = 500 // Minimum characters needed to generate a meaningful summary
+
+export async function generateChapterSummary(chapterText: string): Promise<string | null> {
+  // Skip summary for very short chapters (preface, acknowledgments, etc.)
+  if (chapterText.trim().length < MIN_CHARS_FOR_SUMMARY) {
+    return null
+  }
+
   const apiKey = getApiKey()
   if (!apiKey) {
     throw new Error('API key not configured')
@@ -189,4 +198,50 @@ Given concepts from multiple chapters:
   }))
 
   insertConcepts(pdfId, null, consolidatedConcepts, true)
+}
+
+export async function generateQuizQuestions(
+  concepts: Array<{ name: string; definition: string; importance: number; quotes: Array<{ text: string }> }>
+): Promise<QuizQuestion[]> {
+  const apiKey = getApiKey()
+  if (!apiKey) {
+    throw new Error('API key not configured')
+  }
+
+  if (concepts.length === 0) {
+    return []
+  }
+
+  const chatModel = getChatModel()
+  const google = createGoogleGenerativeAI({ apiKey })
+
+  // Build concept summary for prompt
+  const conceptSummary = concepts
+    .slice(0, 15) // Limit to top 15 concepts
+    .map((c) => {
+      const quotesText = c.quotes.slice(0, 2).map((q) => `"${q.text}"`).join(' ')
+      return `- **${c.name}**: ${c.definition}\n  Evidence: ${quotesText}`
+    })
+    .join('\n\n')
+
+  const { object } = await generateObject({
+    model: google(chatModel),
+    schema: QuizSchema,
+    system: `You are an expert at creating educational assessments.
+Create multiple choice questions that test understanding of the provided concepts.
+
+For each question:
+- Test comprehension, not just recall
+- Make wrong answers plausible but clearly incorrect
+- Include brief explanation of why the correct answer is right
+- Reference which concept the question tests
+
+Question quality guidelines:
+- Avoid "all of the above" or "none of the above"
+- Make options similar in length
+- Test understanding of relationships and applications`,
+    prompt: `Create 5-10 multiple choice questions based on these key concepts:\n\n${conceptSummary}`
+  })
+
+  return object.questions
 }

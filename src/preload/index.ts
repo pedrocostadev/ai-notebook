@@ -1,5 +1,13 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
+export type QuizQuestion = {
+  question: string
+  options: string[]
+  correctIndex: number
+  explanation: string
+  conceptName: string
+}
+
 export type ChatMessage = {
   id: number
   role: 'user' | 'assistant'
@@ -8,6 +16,7 @@ export type ChatMessage = {
     citations?: { chunkId: number; quote: string }[]
     confidence?: 'high' | 'medium' | 'low'
     followUpQuestions?: string[]
+    quiz?: QuizQuestion[]
   } | null
 }
 
@@ -58,7 +67,7 @@ export type PdfMetadata = {
   subject: string | null
 }
 
-export type SlashSummaryResult = { summary: string } | { pending: true } | { error: string }
+export type SlashSummaryResult = { summary: string } | { pending: true } | { error: string } | { empty: true }
 export type SlashMetadataResult = { metadata: PdfMetadata } | { pending: true } | { error: string }
 
 export type ConceptQuote = {
@@ -81,6 +90,8 @@ export type Concept = {
 }
 
 export type ConceptsResult = { concepts: Concept[] } | { pending: true } | { error: string }
+
+export type QuizResult = { questions: QuizQuestion[] } | { pending: true } | { empty: true } | { error: string }
 
 export type ConceptsStage = 'extracting' | 'consolidating' | 'done'
 
@@ -130,6 +141,8 @@ const api = {
     ipcRenderer.invoke('chat:send', pdfId, chapterId, message),
   getChatHistory: (pdfId: number, chapterId: number | null): Promise<ChatMessage[]> =>
     ipcRenderer.invoke('chat:history', pdfId, chapterId),
+  saveMessage: (pdfId: number, chapterId: number | null, role: 'user' | 'assistant', content: string, metadata?: object): Promise<number> =>
+    ipcRenderer.invoke('chat:save-message', pdfId, chapterId, role, content, metadata),
 
   // Slash commands
   getChapterSummary: (chapterId: number): Promise<SlashSummaryResult> =>
@@ -142,6 +155,10 @@ const api = {
     ipcRenderer.invoke('concepts:get-chapter', chapterId),
   getDocumentConcepts: (pdfId: number, consolidatedOnly: boolean = true): Promise<ConceptsResult> =>
     ipcRenderer.invoke('concepts:get-pdf', pdfId, consolidatedOnly),
+
+  // Quiz
+  generateQuiz: (pdfId: number, chapterId: number | null): Promise<QuizResult> =>
+    ipcRenderer.invoke('quiz:generate', pdfId, chapterId),
 
   // Event listeners
   onChatStream: (callback: (chunk: string) => void) => {

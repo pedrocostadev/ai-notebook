@@ -8,9 +8,11 @@ import {
   getConceptsByChapterId,
   getConceptsByPdfId,
   getChapterConceptsStatus,
+  insertMessage,
   type Concept
 } from '../services/database'
-import type { PdfMetadata } from '../services/content-generator'
+import { generateQuizQuestions, type PdfMetadata } from '../services/content-generator'
+import type { QuizQuestion } from '../lib/schemas'
 
 export function registerChatHandlers(): void {
   ipcMain.handle('chat:send', async (event, pdfId: number, chapterId: number | null, message: string) => {
@@ -47,21 +49,35 @@ export function registerChatHandlers(): void {
     return getChatHistory(pdfId, chapterId)
   })
 
+  // Save a message directly (for slash commands)
+  ipcMain.handle(
+    'chat:save-message',
+    (_, pdfId: number, chapterId: number | null, role: 'user' | 'assistant', content: string, metadata?: object) => {
+      return insertMessage(pdfId, chapterId, role, content, metadata)
+    }
+  )
+
   // Slash command handlers
-  ipcMain.handle('slash:get-summary', (_, chapterId: number): { summary: string } | { pending: true } | { error: string } => {
+  ipcMain.handle('slash:get-summary', (_, chapterId: number): { summary: string } | { pending: true } | { error: string } | { empty: true } => {
     const chapter = getChapter(chapterId)
-    console.log('[slash:get-summary] Requested chapterId:', chapterId, 'Chapter title:', chapter?.title)
     if (!chapter) {
       return { error: 'Chapter not found' }
     }
 
     const summary = getChapterSummary(chapterId)
-    console.log('[slash:get-summary] Summary preview:', summary?.substring(0, 100))
-    if (!summary) {
-      return { pending: true }
+
+    // If summary exists, return it
+    if (summary && summary.trim().length > 0) {
+      return { summary }
     }
 
-    return { summary }
+    // If chapter processing is done but no summary, it means chapter had no substantive content
+    if (chapter.status === 'done') {
+      return { empty: true }
+    }
+
+    // Still processing
+    return { pending: true }
   })
 
   ipcMain.handle('slash:get-metadata', (_, pdfId: number): { metadata: PdfMetadata } | { pending: true } | { error: string } => {
@@ -117,6 +133,55 @@ export function registerChatHandlers(): void {
       }
 
       return { concepts }
+    }
+  )
+
+  // Quiz generation
+  ipcMain.handle(
+    'quiz:generate',
+    async (
+      _,
+      pdfId: number,
+      chapterId: number | null
+    ): Promise<{ questions: QuizQuestion[] } | { pending: true } | { empty: true } | { error: string }> => {
+      try {
+        let concepts: Concept[]
+
+        if (chapterId !== null) {
+          // Chapter-specific quiz
+          const chapter = getChapter(chapterId)
+          if (!chapter) {
+            return { error: 'Chapter not found' }
+          }
+
+          const status = getChapterConceptsStatus(chapterId)
+          if (status.status !== 'done') {
+            return { pending: true }
+          }
+
+          concepts = getConceptsByChapterId(chapterId)
+        } else {
+          // PDF-wide quiz using consolidated concepts
+          const pdf = getPdf(pdfId)
+          if (!pdf) {
+            return { error: 'PDF not found' }
+          }
+
+          concepts = getConceptsByPdfId(pdfId, true)
+          if (concepts.length === 0) {
+            return { pending: true }
+          }
+        }
+
+        if (concepts.length === 0) {
+          return { empty: true }
+        }
+
+        const questions = await generateQuizQuestions(concepts)
+        return { questions }
+      } catch (err) {
+        return { error: err instanceof Error ? err.message : String(err) }
+      }
     }
   )
 }

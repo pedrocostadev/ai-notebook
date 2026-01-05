@@ -107,7 +107,10 @@ async function processNextJob(): Promise<void> {
       const chapterText = chunks.map((c) => c.content).join('\n\n')
 
       const summary = await generateChapterSummary(chapterText)
-      updateChapterSummary(job.chapter_id, summary)
+      // Only update if summary was generated (null means chapter was too short)
+      if (summary !== null) {
+        updateChapterSummary(job.chapter_id, summary)
+      }
     } else if (job.type === 'metadata') {
       // Generate PDF metadata
       const pdf = getPdf(job.pdf_id)
