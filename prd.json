@@ -45,7 +45,7 @@
             "Button should have appropriate hover/active states",
             "Verify flow works correctly end-to-end"
         ],
-        "passes": false
+        "passes": true
     },
     {
         "category": "ui",
