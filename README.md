@@ -29,3 +29,16 @@ npm run make       # Package app (run after build)
 npm run test       # Unit tests (Vitest)
 npm run test:e2e   # E2E tests (Playwright)
 ```
+
+## User Data
+
+Stored in `~/Library/Application Support/ai-notebook/`:
+
+- `ai-notebook.db` - SQLite database (chats, embeddings, settings)
+- `pdfs/` - Copied PDF files
+
+To remove all user data:
+
+```bash
+rm -rf ~/Library/Application\ Support/ai-notebook
+```

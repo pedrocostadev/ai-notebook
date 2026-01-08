@@ -1,0 +1,98 @@
+[
+    {
+        "category": "onboarding",
+        "description": "Display welcome screen on first run asking for API key and model selection",
+        "steps": [
+            "Detect first run (no API key configured)",
+            "Display welcome splash screen",
+            "Show API key input field",
+            "Show model selection dropdown with default value pre-selected",
+            "Validate API key before allowing to proceed"
+        ],
+        "passes": false
+    },
+    {
+        "category": "onboarding",
+        "description": "Auto-close splash screen after adding API key and pressing DONE",
+        "steps": [
+            "User enters valid API key",
+            "User selects model (or keeps default)",
+            "User clicks DONE button",
+            "Splash screen closes automatically",
+            "Main interface is displayed"
+        ],
+        "passes": false
+    },
+    {
+        "category": "ui",
+        "description": "Improve key concepts UI with enhanced visual design",
+        "steps": [
+            "Review current key concepts display",
+            "Add visual enhancements (icons, colors, typography)",
+            "Improve layout and spacing",
+            "Ensure responsive design",
+            "Test across different content lengths"
+        ],
+        "passes": false
+    },
+    {
+        "category": "functional",
+        "description": "Follow-up questions should have buttons to trigger them immediately",
+        "steps": [
+            "Identify where follow-up questions are displayed",
+            "Add clickable button for each follow-up question",
+            "Clicking button sends the question as user message",
+            "Button should have appropriate hover/active states",
+            "Verify flow works correctly end-to-end"
+        ],
+        "passes": false
+    },
+    {
+        "category": "ui",
+        "description": "Display empty illustration while chapters are being loaded",
+        "steps": [
+            "Create/add loading illustration for chapters",
+            "Display illustration in chat message area during chapter loading",
+            "Show appropriate loading text/animation",
+            "Transition smoothly to loaded state",
+            "Handle loading errors gracefully"
+        ],
+        "passes": false
+    },
+    {
+        "category": "functional",
+        "description": "Key concept commands should include page references where they are mentioned",
+        "steps": [
+            "Extract page numbers during key concept generation",
+            "Include page references in key concept response",
+            "Display page numbers in key concept UI",
+            "Allow clicking page numbers to navigate to that page",
+            "Handle multiple page references per concept"
+        ],
+        "passes": false
+    },
+    {
+        "category": "ui",
+        "description": "Key concepts messages should have a distinctive/appellative UI",
+        "steps": [
+            "Design special message container for key concepts",
+            "Add distinctive styling (colors, borders, icons)",
+            "Differentiate from regular chat messages",
+            "Ensure readability and accessibility",
+            "Make the UI visually appealing and informative"
+        ],
+        "passes": false
+    },
+    {
+        "category": "ui",
+        "description": "Display illustration when chat is empty",
+        "steps": [
+            "Create/add empty state illustration",
+            "Detect when chat has no messages",
+            "Display illustration centered in chat area",
+            "Add helpful text prompting user to start conversation",
+            "Hide illustration when first message is sent"
+        ],
+        "passes": false
+    }
+]
