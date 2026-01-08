@@ -125,10 +125,11 @@ export async function generateChapterConcepts(chunks: ChunkWithPage[]): Promise<
   // Limit text to avoid token limits
   const truncatedText = formattedText.slice(0, 100000)
 
-  const { object } = await generateObject({
-    model: google(chatModel),
-    schema: ChapterConceptsSchema,
-    system: `You are an expert at extracting key concepts from educational content.
+  try {
+    const { object } = await generateObject({
+      model: google(chatModel),
+      schema: ChapterConceptsSchema,
+      system: `You are an expert at extracting key concepts from educational content.
 Extract 10-20 key concepts from the chapter provided.
 
 The text includes page markers like [Page X] or [Pages X-Y] to indicate where content appears.
@@ -146,10 +147,22 @@ Focus on:
 - Key arguments or claims made
 
 Order concepts by importance (highest first).`,
-    prompt: `Extract key concepts from this chapter:\n\n${truncatedText}`
-  })
+      prompt: `Extract key concepts from this chapter:\n\n${truncatedText}`
+    })
 
-  return object.concepts
+    return object.concepts
+  } catch (err) {
+    // Log detailed error info to diagnose schema failures
+    console.error('[generateChapterConcepts] Failed:', err)
+    if (err instanceof Error) {
+      console.error('[generateChapterConcepts] Message:', err.message)
+      // @ts-expect-error - AI SDK errors may have cause/value properties
+      if (err.cause) console.error('[generateChapterConcepts] Cause:', JSON.stringify(err.cause, null, 2))
+      // @ts-expect-error - check for validation errors
+      if (err.value) console.error('[generateChapterConcepts] Value:', JSON.stringify(err.value, null, 2))
+    }
+    throw err // Re-throw to let job queue handle retry
+  }
 }
 
 export async function consolidatePdfConcepts(pdfId: number): Promise<void> {

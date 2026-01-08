@@ -104,7 +104,7 @@ export const ConceptSchema = z.object({
 export const ChapterConceptsSchema = z.object({
   concepts: z
     .array(ConceptSchema)
-    .max(20)
+    .transform((arr) => arr.slice(0, 20)) // Keep top 20 by importance
     .describe('Key concepts from this chapter, ordered by importance (highest first). Return empty array if chapter has no substantive concepts (e.g., preface, acknowledgments, index).')
 })
 
