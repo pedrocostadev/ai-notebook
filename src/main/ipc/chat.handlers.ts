@@ -6,6 +6,7 @@ import {
   getPdf,
   getChapter,
   getChapterSummary,
+  updateChapterSummary,
   getPdfMetadata,
   getConceptsByChapterId,
   getConceptsByPdfId,
@@ -230,4 +231,14 @@ export function registerChatHandlers(): void {
       }
     }
   )
+
+  // Test-only: Set chapter summary directly
+  ipcMain.handle('chat:test-set-chapter-summary', (_, chapterId: number, summary: string): boolean => {
+    const chapter = getChapter(chapterId)
+    if (!chapter) {
+      return false
+    }
+    updateChapterSummary(chapterId, summary)
+    return true
+  })
 }
