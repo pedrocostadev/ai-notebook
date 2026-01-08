@@ -134,7 +134,9 @@ export async function chat(
     system: `You are a helpful assistant that answers questions about a PDF document.
              Answer based ONLY on the provided context. If the context doesn't contain
              enough information to answer, say so clearly.
-             Do not make up information not present in the context.`,
+             Do not make up information not present in the context.
+             Answer directly without meta-references like "The text mentions...",
+             "According to the document...", or "The provided context...".`,
     prompt: `Context from the PDF:\n${context}\n\nQuestion: ${query}`
   })
 
