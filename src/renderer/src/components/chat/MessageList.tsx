@@ -55,7 +55,7 @@ export function MessageList({ messages, streamingContent, isStreaming, commandLo
   const showLoadingState = isEmpty && isChapterLoading
 
   return (
-    <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+    <ScrollArea className="flex-1 p-4" viewportRef={scrollRef}>
       {showLoadingState ? (
         <div className="h-full flex flex-col items-center justify-center text-muted-foreground py-16">
           <div className="relative">
