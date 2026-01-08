@@ -106,3 +106,24 @@
   - Expandable cards reduce visual clutter while allowing drill-down
 
 ---
+
+## 2026-01-08 - Chapter Loading Illustration
+
+- What was implemented:
+  - Added loading illustration in chat area when chapter is being processed
+  - Shows BookOpen icon with animated Loader2 spinner overlay
+  - Displays "Preparing chapter" with chapter title if available
+  - Shows helpful message about processing taking time for longer chapters
+  - Loading state only shows when in chapter view AND chapter is processing AND no messages
+
+- Files changed:
+  - `src/renderer/src/components/chat/MessageList.tsx` - Added isChapterLoading/chapterTitle props, loading illustration
+  - `src/renderer/src/components/chat/ChatContainer.tsx` - Pass loading state props to MessageList
+
+- **Learnings:**
+  - Using `relative` parent with `absolute` child for the spinner overlay works well
+  - The existing `isProcessing` state from ChatContainer covers pending/processing status
+  - Combining `isChapterView && isProcessing` gives precise chapter loading state
+  - Ternary chaining (loading ? ... : isEmpty ? ... : ...) handles multiple states cleanly
+
+---

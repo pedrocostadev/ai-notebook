@@ -33,7 +33,7 @@
             "Ensure responsive design",
             "Test across different content lengths"
         ],
-        "passes": false
+        "passes": true
     },
     {
         "category": "functional",
@@ -57,7 +57,7 @@
             "Transition smoothly to loaded state",
             "Handle loading errors gracefully"
         ],
-        "passes": false
+        "passes": true
     },
     {
         "category": "functional",
