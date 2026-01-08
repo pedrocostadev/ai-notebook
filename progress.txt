@@ -18,3 +18,21 @@
   - Using `text-left` on buttons ensures longer questions wrap properly
 
 ---
+
+## 2026-01-08 - Empty Chat Illustration
+
+- What was implemented:
+  - Added empty state display when chat has no messages
+  - Used `MessageSquareText` icon from lucide-react as visual illustration
+  - Added helpful text prompting user to start conversation or use slash commands
+  - Empty state shows only when: no messages, not streaming, no command loading
+
+- Files changed:
+  - `src/renderer/src/components/chat/MessageList.tsx` - Added isEmpty check and empty state UI
+
+- **Learnings:**
+  - The ternary conditional inside JSX requires careful bracket/parenthesis matching
+  - Reusing the same icon styling pattern (h-16 w-16 opacity-20) as "No PDF Selected" keeps consistency
+  - Using `py-16` instead of `h-full` works better for centering in ScrollArea contexts
+
+---

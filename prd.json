@@ -93,6 +93,6 @@
             "Add helpful text prompting user to start conversation",
             "Hide illustration when first message is sent"
         ],
-        "passes": false
+        "passes": true
     }
 ]
