@@ -147,18 +147,34 @@ export async function processPdf(
       const windowEnd = boundaries[windowEndPage]?.endIdx ?? fullText.length
 
       // Search for title only within this window
-      const titlePattern = tocChapter.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-      const titleRegex = new RegExp(titlePattern, 'i')
+      // Match title at START of a line to avoid matching forward references in previous chapter
+      const escapedTitle = tocChapter.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
       const windowText = fullText.substring(windowStart, windowEnd)
-      const titleMatch = windowText.match(titleRegex)
+
+      // Try to find title at start of line first (chapter headings are typically on their own line)
+      const headingRegex = new RegExp(`(?:^|\\n)\\s*${escapedTitle}`, 'i')
+      const headingMatch = windowText.match(headingRegex)
 
       let startIdx: number
-      if (titleMatch && titleMatch.index !== undefined) {
-        // Found title within window - use that position
-        startIdx = windowStart + titleMatch.index
+      if (headingMatch && headingMatch.index !== undefined) {
+        // Found title as heading - skip the newline/whitespace prefix
+        const matchStart = headingMatch.index
+        const prefixLength = headingMatch[0].length - tocChapter.title.length
+        startIdx = windowStart + matchStart + prefixLength
       } else {
-        // Use page-based boundary directly
-        startIdx = pageBasedStart
+        // Fallback: find LAST occurrence (more likely to be the actual chapter, not a forward reference)
+        const titleRegex = new RegExp(escapedTitle, 'gi')
+        let lastMatch: RegExpExecArray | null = null
+        let match: RegExpExecArray | null
+        while ((match = titleRegex.exec(windowText)) !== null) {
+          lastMatch = match
+        }
+        if (lastMatch) {
+          startIdx = windowStart + lastMatch.index
+        } else {
+          // Use page-based boundary directly
+          startIdx = pageBasedStart
+        }
       }
 
       // Use fullText.length as temporary end (will fix after all chapters are streamed)
