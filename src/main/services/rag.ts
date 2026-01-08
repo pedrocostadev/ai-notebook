@@ -1,7 +1,15 @@
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
-import { streamText, generateObject } from 'ai'
+import { streamText, generateObject, generateText } from 'ai'
 import { BrowserWindow } from 'electron'
-import { vectorSearch, ftsSearch, getChunksByIds, insertMessage, getMessagesByPdfId } from './database'
+import {
+  vectorSearch,
+  ftsSearch,
+  getChunksByIds,
+  insertMessage,
+  getMessagesByPdfId,
+  getConversationSummary,
+  upsertConversationSummary
+} from './database'
 import { generateEmbedding } from './embeddings'
 import { getApiKey, getChatModel } from './settings'
 import { estimateTokens } from '../lib/token-counter'
@@ -9,6 +17,7 @@ import { RerankedResultsSchema, ChatResponseMetadataSchema } from '../lib/schema
 import type { ChatResponseMetadata } from '../lib/schemas'
 
 const MAX_CONTEXT_TOKENS = 8000
+const MAX_HISTORY_TOKENS = 16000
 const RRF_K = 60
 
 interface RankedChunk {
@@ -19,6 +28,78 @@ interface RankedChunk {
   page_end: number
   token_count: number
   score: number
+}
+
+interface Message {
+  id: number
+  role: string
+  content: string
+}
+
+async function summarizeMessages(
+  messages: Message[],
+  google: ReturnType<typeof createGoogleGenerativeAI>,
+  model: string
+): Promise<string> {
+  const formatted = messages
+    .map((m) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
+    .join('\n\n')
+
+  const { text } = await generateText({
+    model: google(model),
+    system: 'Summarize this conversation in 2-3 sentences, capturing key topics discussed and conclusions reached.',
+    prompt: formatted
+  })
+  return text
+}
+
+export async function buildConversationHistory(
+  pdfId: number,
+  chapterId: number | null,
+  google: ReturnType<typeof createGoogleGenerativeAI>,
+  model: string
+): Promise<string> {
+  const messages = getMessagesByPdfId(pdfId, chapterId)
+  if (messages.length === 0) return ''
+
+  // Calculate total tokens
+  let totalTokens = 0
+  const tokenCounts: number[] = []
+  for (const msg of messages) {
+    const tokens = estimateTokens(`${msg.role}: ${msg.content}`)
+    tokenCounts.push(tokens)
+    totalTokens += tokens
+  }
+
+  // Format message for output
+  const formatMessage = (m: Message) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`
+
+  // Under budget: return all messages verbatim
+  if (totalTokens <= MAX_HISTORY_TOKENS) {
+    return messages.map(formatMessage).join('\n\n')
+  }
+
+  // Over budget: split 50/50, summarize older half
+  const midpoint = Math.floor(messages.length / 2)
+  const olderMessages = messages.slice(0, midpoint)
+  const recentMessages = messages.slice(midpoint)
+
+  // Check if we have a valid cached summary
+  const cached = getConversationSummary(pdfId, chapterId)
+  const lastOldMessageId = olderMessages[olderMessages.length - 1]?.id
+
+  let summary: string
+  if (cached && cached.lastMessageId === lastOldMessageId) {
+    summary = cached.summary
+  } else {
+    summary = await summarizeMessages(olderMessages, google, model)
+    if (lastOldMessageId) {
+      upsertConversationSummary(pdfId, chapterId, summary, lastOldMessageId)
+    }
+  }
+
+  const recentFormatted = recentMessages.map(formatMessage).join('\n\n')
+  return `[Earlier in conversation: ${summary}]\n\n${recentFormatted}`
 }
 
 export async function chat(
@@ -37,6 +118,9 @@ export async function chat(
 
   // Save user message
   insertMessage(pdfId, chapterId, 'user', query)
+
+  // Build conversation history
+  const history = await buildConversationHistory(pdfId, chapterId, google, chatModel)
 
   // Step 1: Embed query
   const queryEmbedding = await generateEmbedding(query)
@@ -129,15 +213,20 @@ export async function chat(
     .join('\n\n---\n\n')
 
   // Step 6: Stream response
+  const prompt = history
+    ? `Conversation history:\n${history}\n\nContext from the PDF:\n${context}\n\nQuestion: ${query}`
+    : `Context from the PDF:\n${context}\n\nQuestion: ${query}`
+
   const { textStream, text } = streamText({
     model: google(chatModel),
     system: `You are a helpful assistant that answers questions about a PDF document.
-             Answer based ONLY on the provided context. If the context doesn't contain
+             Use conversation history for context about prior discussion.
+             Answer based ONLY on the provided PDF context. If the context doesn't contain
              enough information to answer, say so clearly.
              Do not make up information not present in the context.
              Answer directly without meta-references like "The text mentions...",
              "According to the document...", or "The provided context...".`,
-    prompt: `Context from the PDF:\n${context}\n\nQuestion: ${query}`
+    prompt
   })
 
   let fullResponse = ''
