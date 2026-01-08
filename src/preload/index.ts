@@ -127,6 +127,18 @@ const api = {
     filePath: string
   ): Promise<{ pdfId: number; duplicate: boolean; existingPdfId?: number } | { error: string }> =>
     ipcRenderer.invoke('pdf:upload-file', filePath),
+  // Test-only: Get conversation history stats
+  getHistoryStats: (
+    pdfId: number,
+    chapterId: number | null
+  ): Promise<{ messageCount: number; totalTokens: number; cachedSummary: string | null }> =>
+    ipcRenderer.invoke('chat:test-history-stats', pdfId, chapterId),
+  // Test-only: Build conversation history
+  buildHistory: (
+    pdfId: number,
+    chapterId: number | null
+  ): Promise<{ history: string } | { error: string }> =>
+    ipcRenderer.invoke('chat:test-build-history', pdfId, chapterId),
   listPdfs: (): Promise<{ id: number; filename: string; status: string; created_at: string }[]> =>
     ipcRenderer.invoke('pdf:list'),
   getPdf: (id: number): Promise<Pdf | undefined> => ipcRenderer.invoke('pdf:get', id),

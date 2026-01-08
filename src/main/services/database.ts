@@ -111,6 +111,16 @@ export async function initDatabase(): Promise<void> {
 
     CREATE INDEX IF NOT EXISTS idx_concepts_pdf ON concepts(pdf_id);
     CREATE INDEX IF NOT EXISTS idx_concepts_chapter ON concepts(chapter_id);
+
+    CREATE TABLE IF NOT EXISTS conversation_summaries (
+      id INTEGER PRIMARY KEY,
+      pdf_id INTEGER REFERENCES pdfs(id) ON DELETE CASCADE,
+      chapter_id INTEGER REFERENCES chapters(id) ON DELETE CASCADE,
+      summary TEXT NOT NULL,
+      last_message_id INTEGER NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(pdf_id, chapter_id)
+    );
   `)
 
   // Migrations for existing databases
@@ -132,7 +142,16 @@ export async function initDatabase(): Promise<void> {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`,
     'CREATE INDEX IF NOT EXISTS idx_concepts_pdf ON concepts(pdf_id)',
-    'CREATE INDEX IF NOT EXISTS idx_concepts_chapter ON concepts(chapter_id)'
+    'CREATE INDEX IF NOT EXISTS idx_concepts_chapter ON concepts(chapter_id)',
+    `CREATE TABLE IF NOT EXISTS conversation_summaries (
+      id INTEGER PRIMARY KEY,
+      pdf_id INTEGER REFERENCES pdfs(id) ON DELETE CASCADE,
+      chapter_id INTEGER REFERENCES chapters(id) ON DELETE CASCADE,
+      summary TEXT NOT NULL,
+      last_message_id INTEGER NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(pdf_id, chapter_id)
+    )`
   ]
   for (const migration of migrations) {
     try {
@@ -750,4 +769,50 @@ export function getChapterConceptsStatus(chapterId: number): { status: string | 
     .prepare('SELECT concepts_status, concepts_error FROM chapters WHERE id = ?')
     .get(chapterId) as { concepts_status: string | null; concepts_error: string | null } | undefined
   return { status: row?.concepts_status ?? null, error: row?.concepts_error ?? null }
+}
+
+// Conversation Summaries CRUD
+export function getConversationSummary(
+  pdfId: number,
+  chapterId: number | null
+): { summary: string; lastMessageId: number } | null {
+  const row = chapterId === null
+    ? getDb()
+        .prepare('SELECT summary, last_message_id FROM conversation_summaries WHERE pdf_id = ? AND chapter_id IS NULL')
+        .get(pdfId) as { summary: string; last_message_id: number } | undefined
+    : getDb()
+        .prepare('SELECT summary, last_message_id FROM conversation_summaries WHERE pdf_id = ? AND chapter_id = ?')
+        .get(pdfId, chapterId) as { summary: string; last_message_id: number } | undefined
+  if (!row) return null
+  return { summary: row.summary, lastMessageId: row.last_message_id }
+}
+
+export function upsertConversationSummary(
+  pdfId: number,
+  chapterId: number | null,
+  summary: string,
+  lastMessageId: number
+): void {
+  getDb()
+    .prepare(`
+      INSERT INTO conversation_summaries (pdf_id, chapter_id, summary, last_message_id)
+      VALUES (?, ?, ?, ?)
+      ON CONFLICT(pdf_id, chapter_id) DO UPDATE SET
+        summary = excluded.summary,
+        last_message_id = excluded.last_message_id,
+        created_at = CURRENT_TIMESTAMP
+    `)
+    .run(pdfId, chapterId, summary, lastMessageId)
+}
+
+export function deleteConversationSummary(pdfId: number, chapterId: number | null): void {
+  if (chapterId === null) {
+    getDb()
+      .prepare('DELETE FROM conversation_summaries WHERE pdf_id = ? AND chapter_id IS NULL')
+      .run(pdfId)
+  } else {
+    getDb()
+      .prepare('DELETE FROM conversation_summaries WHERE pdf_id = ? AND chapter_id = ?')
+      .run(pdfId, chapterId)
+  }
 }

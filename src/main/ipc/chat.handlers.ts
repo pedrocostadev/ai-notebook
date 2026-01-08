@@ -1,5 +1,7 @@
 import { ipcMain, BrowserWindow } from 'electron'
-import { chat, getChatHistory } from '../services/rag'
+import { chat, getChatHistory, buildConversationHistory } from '../services/rag'
+import { createGoogleGenerativeAI } from '@ai-sdk/google'
+import { getApiKey, getChatModel } from '../services/settings'
 import {
   getPdf,
   getChapter,
@@ -9,8 +11,11 @@ import {
   getConceptsByPdfId,
   getChapterConceptsStatus,
   insertMessage,
+  getMessagesByPdfId,
+  getConversationSummary,
   type Concept
 } from '../services/database'
+import { estimateTokens } from '../lib/token-counter'
 import { generateQuizQuestions, type PdfMetadata } from '../services/content-generator'
 import type { QuizQuestion } from '../lib/schemas'
 
@@ -179,6 +184,47 @@ export function registerChatHandlers(): void {
 
         const questions = await generateQuizQuestions(concepts)
         return { questions }
+      } catch (err) {
+        return { error: err instanceof Error ? err.message : String(err) }
+      }
+    }
+  )
+
+  // Test-only: Get conversation history stats (no API call needed)
+  ipcMain.handle(
+    'chat:test-history-stats',
+    (
+      _,
+      pdfId: number,
+      chapterId: number | null
+    ): { messageCount: number; totalTokens: number; cachedSummary: string | null } => {
+      const messages = getMessagesByPdfId(pdfId, chapterId)
+      let totalTokens = 0
+      for (const msg of messages) {
+        totalTokens += estimateTokens(`${msg.role}: ${msg.content}`)
+      }
+      const cached = getConversationSummary(pdfId, chapterId)
+      return {
+        messageCount: messages.length,
+        totalTokens,
+        cachedSummary: cached?.summary ?? null
+      }
+    }
+  )
+
+  // Test-only: Build conversation history (requires valid API key for summarization)
+  ipcMain.handle(
+    'chat:test-build-history',
+    async (_, pdfId: number, chapterId: number | null): Promise<{ history: string } | { error: string }> => {
+      try {
+        const apiKey = getApiKey()
+        if (!apiKey) {
+          return { error: 'API key not configured' }
+        }
+        const chatModel = getChatModel()
+        const google = createGoogleGenerativeAI({ apiKey })
+        const history = await buildConversationHistory(pdfId, chapterId, google, chatModel)
+        return { history }
       } catch (err) {
         return { error: err instanceof Error ? err.message : String(err) }
       }
