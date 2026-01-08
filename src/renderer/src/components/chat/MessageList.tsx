@@ -3,7 +3,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import { QuizMessage, type QuizQuestion } from './QuizMessage'
 import { KeyConceptsMessage, type Concept } from './KeyConceptsMessage'
-import { MessageSquareText } from 'lucide-react'
+import { MessageSquareText, BookOpen, Loader2 } from 'lucide-react'
 
 interface ChatMessage {
   id: number
@@ -25,9 +25,11 @@ interface MessageListProps {
   isStreaming: boolean
   commandLoading?: string | null
   onFollowUpClick?: (question: string) => void
+  isChapterLoading?: boolean
+  chapterTitle?: string
 }
 
-export function MessageList({ messages, streamingContent, isStreaming, commandLoading, onFollowUpClick }: MessageListProps) {
+export function MessageList({ messages, streamingContent, isStreaming, commandLoading, onFollowUpClick, isChapterLoading, chapterTitle }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -50,10 +52,29 @@ export function MessageList({ messages, streamingContent, isStreaming, commandLo
   }
 
   const isEmpty = messages.length === 0 && !isStreaming && !commandLoading
+  const showLoadingState = isEmpty && isChapterLoading
 
   return (
     <ScrollArea className="flex-1 p-4" ref={scrollRef}>
-      {isEmpty ? (
+      {showLoadingState ? (
+        <div className="h-full flex flex-col items-center justify-center text-muted-foreground py-16">
+          <div className="relative">
+            <BookOpen className="h-16 w-16 mb-4 opacity-20" />
+            <Loader2 className="h-6 w-6 absolute -bottom-1 -right-1 animate-spin text-primary" />
+          </div>
+          <h3 className="text-lg font-medium mb-2">Preparing chapter</h3>
+          <p className="text-sm text-center max-w-xs">
+            {chapterTitle ? (
+              <>Processing "<span className="font-medium">{chapterTitle}</span>"...</>
+            ) : (
+              'Extracting text and generating embeddings...'
+            )}
+          </p>
+          <p className="text-xs text-muted-foreground/70 mt-2">
+            This may take a moment for longer chapters
+          </p>
+        </div>
+      ) : isEmpty ? (
         <div className="h-full flex flex-col items-center justify-center text-muted-foreground py-16">
           <MessageSquareText className="h-16 w-16 mb-4 opacity-20" />
           <h3 className="text-lg font-medium mb-2">Start a conversation</h3>
