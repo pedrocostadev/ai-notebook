@@ -38,8 +38,15 @@ function ImportanceStars({ importance }: { importance: number }) {
   )
 }
 
+const INITIAL_QUOTES_SHOWN = 3
+
 function ConceptCard({ concept, isDocumentLevel }: { concept: Concept; isDocumentLevel?: boolean }) {
   const [isExpanded, setIsExpanded] = useState(false)
+  const [showAllQuotes, setShowAllQuotes] = useState(false)
+
+  const hasMoreQuotes = concept.quotes.length > INITIAL_QUOTES_SHOWN
+  const visibleQuotes = showAllQuotes ? concept.quotes : concept.quotes.slice(0, INITIAL_QUOTES_SHOWN)
+  const hiddenCount = concept.quotes.length - INITIAL_QUOTES_SHOWN
 
   return (
     <div className="border rounded-lg overflow-hidden bg-card">
@@ -74,7 +81,7 @@ function ConceptCard({ concept, isDocumentLevel }: { concept: Concept; isDocumen
             Supporting Evidence
           </p>
           <div className="space-y-2">
-            {concept.quotes.map((quote, i) => (
+            {visibleQuotes.map((quote, i) => (
               <blockquote
                 key={i}
                 className="text-sm border-l-2 border-amber-500/50 pl-3 py-1"
@@ -95,6 +102,14 @@ function ConceptCard({ concept, isDocumentLevel }: { concept: Concept; isDocumen
               </blockquote>
             ))}
           </div>
+          {hasMoreQuotes && (
+            <button
+              onClick={() => setShowAllQuotes(!showAllQuotes)}
+              className="mt-2 text-xs text-amber-600 dark:text-amber-400 hover:underline"
+            >
+              {showAllQuotes ? 'Show less' : `Show all references (+${hiddenCount})`}
+            </button>
+          )}
         </div>
       )}
     </div>

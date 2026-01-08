@@ -97,8 +97,7 @@ export const ConceptSchema = z.object({
   quotes: z
     .array(ConceptQuoteSchema)
     .min(1)
-    .max(3)
-    .describe('1-3 exact quotes from the text that explain or exemplify this concept')
+    .describe('Exact quotes from the text, ordered by relevance (most relevant first)')
 })
 
 export const ChapterConceptsSchema = z.object({

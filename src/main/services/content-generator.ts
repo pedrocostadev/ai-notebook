@@ -138,7 +138,7 @@ For each concept:
 - Name: Short, memorable identifier (2-5 words)
 - Definition: Clear explanation in context of this material (1-3 sentences)
 - Importance: Rate 1-5 (5=fundamental/core idea, 4=key supporting concept, 3=notable, 2=minor, 1=tangential)
-- Quotes: 1-3 exact quotes from the text as evidence. For each quote, include the pageEstimate based on the [Page X] marker where that quote appears.
+- Quotes: 1-5 exact quotes as evidence, ORDERED BY RELEVANCE (most important quote first). For each quote, include the pageEstimate based on the [Page X] marker.
 
 Focus on:
 - Core ideas the author emphasizes
