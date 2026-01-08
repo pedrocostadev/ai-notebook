@@ -52,3 +52,10 @@ e2e/                 # Playwright E2E tests
 
 1. PDF uploaded -> TOC parsed -> chapters created -> chunks extracted -> embeddings generated (background job)
 2. User query -> embed query -> hybrid search (vector + FTS5) -> RRF fusion -> semantic re-rank -> stream response
+
+### User Data Location
+
+Stored in `~/Library/Application Support/ai-notebook/`:
+
+- `ai-notebook.db` - SQLite database
+- `pdfs/` - Copied PDF files
