@@ -156,11 +156,9 @@ export async function processPdf(
       if (titleMatch && titleMatch.index !== undefined) {
         // Found title within window - use that position
         startIdx = windowStart + titleMatch.index
-        console.log(`[processPdf] Found "${tocChapter.title}" at position ${startIdx} (within page ${pageIdx + 1}-${windowEndPage + 1} window)`)
       } else {
         // Use page-based boundary directly
         startIdx = pageBasedStart
-        console.log(`[processPdf] "${tocChapter.title}" not found in window, using page ${tocChapter.pageNumber} -> position ${startIdx}`)
       }
 
       // Use fullText.length as temporary end (will fix after all chapters are streamed)
@@ -183,14 +181,9 @@ export async function processPdf(
     // Sort by startIdx (document position) to determine correct boundaries
     if (streamedChapters.length > 1) {
       const sortedByPosition = [...streamedChapters].sort((a, b) => a.startIdx - b.startIdx)
-      console.log('[processPdf] Chapters sorted by document position:')
-      for (const ch of sortedByPosition) {
-        console.log(`  - "${ch.tocChapter.title}" (id=${ch.id}, page=${ch.tocChapter.pageNumber}, startIdx=${ch.startIdx})`)
-      }
       for (let i = 0; i < sortedByPosition.length - 1; i++) {
         const current = sortedByPosition[i]
         const next = sortedByPosition[i + 1]
-        console.log(`[processPdf] Setting end_idx for "${current.tocChapter.title}" (id=${current.id}) to ${next.startIdx}`)
         updateChapterEndIdx(current.id, next.startIdx)
       }
     }
@@ -247,8 +240,6 @@ export async function processChapter(
   const chapter = getChapter(chapterId)
   if (!chapter) throw new Error('Chapter not found')
 
-  console.log(`[processChapter] Chapter "${chapter.title}" (id=${chapterId}): start_idx=${chapter.start_idx}, end_idx=${chapter.end_idx}, fullText.length=${fullText.length}`)
-
   // Skip chunking if chunks already exist (retry scenario)
   const existingChunks = getChunksByChapterId(chapterId)
   if (existingChunks.length > 0) return
@@ -256,7 +247,6 @@ export async function processChapter(
   updateChapterStatus(chapterId, 'processing')
 
   const chapterText = fullText.substring(chapter.start_idx, chapter.end_idx)
-  console.log(`[processChapter] Extracted text preview for "${chapter.title}": ${chapterText.substring(0, 150)}...`)
 
   const splitter = new RecursiveCharacterTextSplitter({
     chunkSize: CHUNK_SIZE,

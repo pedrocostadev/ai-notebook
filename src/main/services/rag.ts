@@ -106,8 +106,8 @@ export async function chat(
       rerankedChunks = reranked.rankedChunkIds
         .map((id) => rerankedMap.get(id))
         .filter((c): c is RankedChunk => c !== undefined)
-    } catch {
-      // Fall back to RRF ranking on error
+    } catch (err) {
+      console.error('[RAG] Re-ranking failed, using RRF ranking:', err)
     }
   }
 
@@ -165,8 +165,8 @@ Context chunks used (with IDs and pages):
 ${contextChunks.map((c) => `[ID: ${c.id}, Pages: ${c.page_start}-${c.page_end}] ${c.content.slice(0, 300)}`).join('\n\n')}`
     })
     metadata = object
-  } catch {
-    // Use default metadata on error
+  } catch (err) {
+    console.error('[RAG] Metadata generation failed:', err)
   }
 
   // Save assistant message

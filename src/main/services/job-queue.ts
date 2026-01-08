@@ -208,6 +208,7 @@ async function processNextJob(): Promise<void> {
     }
 
     const errorMsg = err instanceof Error ? err.message : String(err)
+    console.error(`[JobQueue] Job ${job.id} (${job.type}) failed:`, errorMsg)
 
     if (job.attempts + 1 >= MAX_ATTEMPTS) {
       updateJobStatus(job.id, 'failed', errorMsg)
