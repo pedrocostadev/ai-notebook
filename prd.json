@@ -9,7 +9,7 @@
             "Show model selection dropdown with default value pre-selected",
             "Validate API key before allowing to proceed"
         ],
-        "passes": false
+        "passes": true
     },
     {
         "category": "onboarding",
@@ -21,7 +21,7 @@
             "Splash screen closes automatically",
             "Main interface is displayed"
         ],
-        "passes": false
+        "passes": true
     },
     {
         "category": "ui",

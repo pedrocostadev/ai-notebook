@@ -36,3 +36,26 @@
   - Using `py-16` instead of `h-full` works better for centering in ScrollArea contexts
 
 ---
+
+## 2026-01-08 - Welcome Screen Onboarding
+
+- What was implemented:
+  - Created new `WelcomeScreen` component for first-run experience
+  - Full-screen welcome UI with app icon, title, and description
+  - API key input with Enter key support and link to Google AI Studio
+  - Model selection dropdown with default pre-selected
+  - "Done" button validates API key before allowing to proceed
+  - Auto-closes and shows main interface once valid key is saved
+  - Covers both onboarding PRD stories in one implementation
+
+- Files changed:
+  - `src/renderer/src/components/settings/WelcomeScreen.tsx` - New component
+  - `src/renderer/src/App.tsx` - Import WelcomeScreen, render on first run instead of SettingsDialog
+
+- **Learnings:**
+  - Conditional early return pattern (`if (!hasApiKey) return <WelcomeScreen />`) cleanly separates first-run from normal flow
+  - The existing useSettings hook already had all needed methods (saveApiKey, setModel)
+  - Removed the auto-open SettingsDialog useEffect - full-screen component is cleaner for onboarding
+  - Added helpful link to Google AI Studio for getting API keys
+
+---

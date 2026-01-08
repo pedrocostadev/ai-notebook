@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { ChatContainer } from '@/components/chat/ChatContainer'
 import { SettingsDialog } from '@/components/settings/SettingsDialog'
+import { WelcomeScreen } from '@/components/settings/WelcomeScreen'
 import { useSettings } from '@/hooks/useSettings'
 import { usePdfs } from '@/hooks/usePdfs'
 
@@ -11,12 +12,15 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'info' } | null>(null)
 
-  // Show settings on first run
-  useEffect(() => {
-    if (!settings.loading && !settings.hasApiKey) {
-      setSettingsOpen(true)
+  // Handle welcome screen completion
+  const handleWelcomeComplete = async (apiKey: string, model: string): Promise<boolean> => {
+    const success = await settings.saveApiKey(apiKey)
+    if (success) {
+      await settings.setModel(model)
+      return true
     }
-  }, [settings.loading, settings.hasApiKey])
+    return false
+  }
 
   const handleUpload = async () => {
     const result = await pdfs.uploadPdf()
@@ -46,6 +50,17 @@ export default function App() {
       <div className="h-screen flex items-center justify-center">
         <div className="animate-pulse">Loading...</div>
       </div>
+    )
+  }
+
+  // Show welcome screen on first run (no API key)
+  if (!settings.hasApiKey) {
+    return (
+      <WelcomeScreen
+        models={settings.models}
+        defaultModel={settings.currentModel}
+        onComplete={handleWelcomeComplete}
+      />
     )
   }
 
