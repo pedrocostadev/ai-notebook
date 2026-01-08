@@ -1,20 +1,45 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { Send } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { SlashCommandMenu, getFilteredCommands, type SlashCommand } from './SlashCommandMenu'
+
+const MAX_HISTORY_TOKENS = 16000
 
 interface ChatInputProps {
   onSend: (message: string) => void
   onSlashCommand: (command: SlashCommand) => void
   disabled: boolean
   placeholder?: string
+  pdfId?: number | null
+  chapterId?: number | null
 }
 
-export function ChatInput({ onSend, onSlashCommand, disabled, placeholder = 'Ask a question...' }: ChatInputProps) {
+export function ChatInput({ onSend, onSlashCommand, disabled, placeholder = 'Ask a question...', pdfId, chapterId }: ChatInputProps) {
   const [message, setMessage] = useState('')
   const [showSlashMenu, setShowSlashMenu] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(0)
+  const [contextUsage, setContextUsage] = useState<number | null>(null)
+
+  // Fetch context usage in dev mode
+  useEffect(() => {
+    if (!import.meta.env.DEV || !pdfId) {
+      setContextUsage(null)
+      return
+    }
+
+    const fetchStats = async () => {
+      try {
+        const stats = await window.api.getHistoryStats(pdfId, chapterId ?? null)
+        const percentage = Math.round((stats.totalTokens / MAX_HISTORY_TOKENS) * 100)
+        setContextUsage(percentage)
+      } catch {
+        setContextUsage(null)
+      }
+    }
+
+    fetchStats()
+  }, [pdfId, chapterId, disabled]) // Re-fetch when disabled changes (after message sent)
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
@@ -89,7 +114,7 @@ export function ChatInput({ onSend, onSlashCommand, disabled, placeholder = 'Ask
         onSelect={handleCommandSelect}
         visible={showSlashMenu}
       />
-      <div className="flex gap-2 max-w-3xl mx-auto">
+      <div className="flex gap-2 max-w-3xl mx-auto items-center">
         <Input
           value={message}
           onChange={handleInputChange}
@@ -101,6 +126,14 @@ export function ChatInput({ onSend, onSlashCommand, disabled, placeholder = 'Ask
         <Button type="submit" disabled={disabled || !message.trim()} data-testid="chat-submit">
           <Send className="h-4 w-4" />
         </Button>
+        {import.meta.env.DEV && contextUsage !== null && (
+          <span
+            className="text-xs text-muted-foreground whitespace-nowrap"
+            title="Conversation history token usage"
+          >
+            {contextUsage}%
+          </span>
+        )}
       </div>
     </form>
   )

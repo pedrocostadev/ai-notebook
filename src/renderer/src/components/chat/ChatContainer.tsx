@@ -288,6 +288,8 @@ export function ChatContainer({ pdfId, chapterId, chapterTitle, chapters, status
               ? `Ask a question about "${chapterTitle}"...`
               : 'Ask a question about this PDF...'
         }
+        pdfId={pdfId}
+        chapterId={chapterId}
       />
       <ChapterSelectModal
         open={showChapterSelect}
