@@ -1,8 +1,10 @@
 import { useState, useCallback, useEffect } from 'react'
-import { Send } from 'lucide-react'
+import { Send, MessageSquare } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { SlashCommandMenu, getFilteredCommands, type SlashCommand } from './SlashCommandMenu'
+import { cn } from '@/lib/utils'
 
 const MAX_HISTORY_TOKENS = 16000
 
@@ -127,12 +129,24 @@ export function ChatInput({ onSend, onSlashCommand, disabled, placeholder = 'Ask
           <Send className="h-4 w-4" />
         </Button>
         {import.meta.env.DEV && contextUsage !== null && (
-          <span
-            className="text-xs text-muted-foreground whitespace-nowrap"
-            title="Conversation history token usage"
-          >
-            {contextUsage}%
-          </span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div
+                className={cn(
+                  'flex items-center gap-1 px-2 py-1 rounded-md text-xs tabular-nums',
+                  contextUsage < 50 && 'text-muted-foreground bg-muted/50',
+                  contextUsage >= 50 && contextUsage < 80 && 'text-yellow-600 bg-yellow-500/10',
+                  contextUsage >= 80 && 'text-red-600 bg-red-500/10'
+                )}
+              >
+                <MessageSquare className="h-3 w-3" />
+                <span>{contextUsage}%</span>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <p>Conversation history: {contextUsage}% of 16k tokens</p>
+            </TooltipContent>
+          </Tooltip>
         )}
       </div>
     </form>
