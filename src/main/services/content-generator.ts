@@ -96,7 +96,13 @@ Return null for any field you cannot find with confidence.`,
   return object
 }
 
-export async function generateChapterConcepts(chapterText: string): Promise<Concept[]> {
+export interface ChunkWithPage {
+  content: string
+  pageStart: number
+  pageEnd: number
+}
+
+export async function generateChapterConcepts(chunks: ChunkWithPage[]): Promise<Concept[]> {
   const apiKey = getApiKey()
   if (!apiKey) {
     throw new Error('API key not configured')
@@ -105,8 +111,19 @@ export async function generateChapterConcepts(chapterText: string): Promise<Conc
   const chatModel = getChatModel()
   const google = createGoogleGenerativeAI({ apiKey })
 
+  // Format chunks with page markers for the AI
+  const formattedText = chunks
+    .map((chunk) => {
+      const pageLabel =
+        chunk.pageStart === chunk.pageEnd
+          ? `[Page ${chunk.pageStart}]`
+          : `[Pages ${chunk.pageStart}-${chunk.pageEnd}]`
+      return `${pageLabel}\n${chunk.content}`
+    })
+    .join('\n\n')
+
   // Limit text to avoid token limits
-  const truncatedText = chapterText.slice(0, 100000)
+  const truncatedText = formattedText.slice(0, 100000)
 
   const { object } = await generateObject({
     model: google(chatModel),
@@ -114,11 +131,13 @@ export async function generateChapterConcepts(chapterText: string): Promise<Conc
     system: `You are an expert at extracting key concepts from educational content.
 Extract 10-20 key concepts from the chapter provided.
 
+The text includes page markers like [Page X] or [Pages X-Y] to indicate where content appears.
+
 For each concept:
 - Name: Short, memorable identifier (2-5 words)
 - Definition: Clear explanation in context of this material (1-3 sentences)
 - Importance: Rate 1-5 (5=fundamental/core idea, 4=key supporting concept, 3=notable, 2=minor, 1=tangential)
-- Quotes: 1-3 exact quotes from the text as evidence
+- Quotes: 1-3 exact quotes from the text as evidence. For each quote, include the pageEstimate based on the [Page X] marker where that quote appears.
 
 Focus on:
 - Core ideas the author emphasizes

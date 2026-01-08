@@ -59,3 +59,25 @@
   - Added helpful link to Google AI Studio for getting API keys
 
 ---
+
+## 2026-01-08 - Key Concepts Page References
+
+- What was implemented:
+  - Modified `generateChapterConcepts` to accept chunks with page information instead of plain text
+  - Created `ChunkWithPage` interface to type chunk data with `pageStart`/`pageEnd`
+  - Formatted input text with `[Page X]` or `[Pages X-Y]` markers before each chunk
+  - Updated AI system prompt to instruct extraction of `pageEstimate` based on page markers
+  - Updated job-queue to pass chunk data with page info to concept generator
+
+- Files changed:
+  - `src/main/services/content-generator.ts` - Changed function signature, added page marker formatting
+  - `src/main/services/job-queue.ts` - Pass chunks with page info instead of concatenated text
+
+- **Learnings:**
+  - The `pageEstimate` field already existed in `ConceptQuoteSchema` but was never populated
+  - The UI in `ChatContainer.tsx` already handled displaying `pageEstimate` (line 189)
+  - The key insight was that page info was lost when chunks were joined into plain text
+  - Page markers in the prompt (`[Page X]`) allow the AI to associate quotes with page numbers
+  - Chunk data in database includes `page_start` and `page_end` from PDF processing
+
+---

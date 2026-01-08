@@ -69,7 +69,7 @@
             "Allow clicking page numbers to navigate to that page",
             "Handle multiple page references per concept"
         ],
-        "passes": false
+        "passes": true
     },
     {
         "category": "ui",
