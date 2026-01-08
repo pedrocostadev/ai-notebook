@@ -81,3 +81,28 @@
   - Chunk data in database includes `page_start` and `page_end` from PDF processing
 
 ---
+
+## 2026-01-08 - Key Concepts Distinctive UI
+
+- What was implemented:
+  - Created `KeyConceptsMessage` component with rich visual design
+  - Concepts displayed as expandable cards with lightbulb icons
+  - Visual importance rating with amber-colored stars
+  - Concepts grouped by importance: Core (4-5), Notable (3), Supporting (1-2)
+  - Expandable quotes section with page references and chapter attribution
+  - Store concepts in message metadata instead of markdown text
+  - Wide layout (95% width) for key concepts like quiz messages
+
+- Files changed:
+  - `src/renderer/src/components/chat/KeyConceptsMessage.tsx` - New component
+  - `src/renderer/src/components/chat/MessageList.tsx` - Import and render KeyConceptsMessage
+  - `src/renderer/src/components/chat/ChatContainer.tsx` - Store concepts in metadata
+
+- **Learnings:**
+  - Following the QuizMessage pattern (metadata + custom component) works well
+  - Grouping concepts by importance makes the list more scannable
+  - Using `line-clamp-2` in collapsed state keeps cards compact
+  - The `cn()` utility from shadcn makes conditional class composition clean
+  - Expandable cards reduce visual clutter while allowing drill-down
+
+---
