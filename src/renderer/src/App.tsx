@@ -3,6 +3,7 @@ import { Sidebar } from '@/components/layout/Sidebar'
 import { ChatContainer } from '@/components/chat/ChatContainer'
 import { SettingsDialog } from '@/components/settings/SettingsDialog'
 import { WelcomeScreen } from '@/components/settings/WelcomeScreen'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { useSettings } from '@/hooks/useSettings'
 import { usePdfs } from '@/hooks/usePdfs'
 
@@ -81,6 +82,7 @@ export default function App() {
   }
 
   return (
+    <TooltipProvider>
     <div className="h-screen flex">
       <Sidebar
         pdfs={pdfs.pdfs}
@@ -125,5 +127,6 @@ export default function App() {
         </div>
       )}
     </div>
+    </TooltipProvider>
   )
 }
