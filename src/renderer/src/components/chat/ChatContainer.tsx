@@ -295,6 +295,7 @@ export function ChatContainer({ pdfId, chapterId, chapterTitle, chapters, status
         streamingContent={streamingContent}
         isStreaming={isStreaming}
         commandLoading={commandLoadingMessage}
+        onFollowUpClick={sendMessage}
       />
       <ChatInput
         onSend={sendMessage}

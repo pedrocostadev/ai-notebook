@@ -1,0 +1,20 @@
+## 2026-01-08 - Follow-up Questions Buttons
+
+- What was implemented:
+  - Converted follow-up questions from a simple bulleted list to clickable buttons
+  - Added `onFollowUpClick` callback prop to `MessageList` component
+  - Styled buttons with pill/chip design using Tailwind (rounded-full, primary colors with transparency)
+  - Wired up ChatContainer to pass `sendMessage` as the click handler
+  - Clicking a follow-up question now sends it as a new user message
+
+- Files changed:
+  - `src/renderer/src/components/chat/MessageList.tsx` - Added prop, replaced `<li>` with `<button>` elements
+  - `src/renderer/src/components/chat/ChatContainer.tsx` - Passed `onFollowUpClick={sendMessage}` prop
+
+- **Learnings:**
+  - The `sendMessage` function from `useChat` hook handles optimistic UI updates automatically
+  - The optional chaining `onFollowUpClick?.(q)` pattern is clean for optional callbacks
+  - Follow-up questions were already stored in `message.metadata.followUpQuestions` array
+  - Using `text-left` on buttons ensures longer questions wrap properly
+
+---

@@ -20,9 +20,10 @@ interface MessageListProps {
   streamingContent: string
   isStreaming: boolean
   commandLoading?: string | null
+  onFollowUpClick?: (question: string) => void
 }
 
-export function MessageList({ messages, streamingContent, isStreaming, commandLoading }: MessageListProps) {
+export function MessageList({ messages, streamingContent, isStreaming, commandLoading, onFollowUpClick }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -90,13 +91,19 @@ export function MessageList({ messages, streamingContent, isStreaming, commandLo
                           </div>
                         )}
                         {message.metadata.followUpQuestions && message.metadata.followUpQuestions.length > 0 && (
-                          <div className="space-y-1">
+                          <div className="space-y-2">
                             <p className="text-xs font-medium">Follow-up questions:</p>
-                            <ul className="text-xs text-muted-foreground list-disc list-inside">
+                            <div className="flex flex-wrap gap-2">
                               {message.metadata.followUpQuestions.map((q, i) => (
-                                <li key={i}>{q}</li>
+                                <button
+                                  key={i}
+                                  onClick={() => onFollowUpClick?.(q)}
+                                  className="text-xs text-left px-3 py-1.5 rounded-full bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 transition-colors cursor-pointer"
+                                >
+                                  {q}
+                                </button>
                               ))}
-                            </ul>
+                            </div>
                           </div>
                         )}
                       </div>
