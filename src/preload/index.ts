@@ -139,6 +139,9 @@ const api = {
     chapterId: number | null
   ): Promise<{ history: string } | { error: string }> =>
     ipcRenderer.invoke('chat:test-build-history', pdfId, chapterId),
+  // Test-only: Set chapter summary directly
+  setChapterSummary: (chapterId: number, summary: string): Promise<boolean> =>
+    ipcRenderer.invoke('chat:test-set-chapter-summary', chapterId, summary),
   listPdfs: (): Promise<{ id: number; filename: string; status: string; created_at: string }[]> =>
     ipcRenderer.invoke('pdf:list'),
   getPdf: (id: number): Promise<Pdf | undefined> => ipcRenderer.invoke('pdf:get', id),

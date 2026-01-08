@@ -63,19 +63,18 @@ export function ChatContainer({ pdfId, chapterId, chapterTitle, chapters, status
   const [commandLoadingMessage, setCommandLoadingMessage] = useState<string | null>(null)
 
   // Helper to save command interaction and reload
-  const saveCommandResult = useCallback(async (command: string, result: string, targetChapterId?: number, metadata?: object) => {
+  // Always save to current view context (chapterId), not target chapter
+  const saveCommandResult = useCallback(async (command: string, result: string, _targetChapterId?: number, metadata?: object) => {
     if (!pdfId) return
-    const effectiveChapterId = targetChapterId ?? chapterId
-    // User message already saved before execution, just save assistant response
-    await window.api.saveMessage(pdfId, effectiveChapterId, 'assistant', result, metadata)
+    await window.api.saveMessage(pdfId, chapterId, 'assistant', result, metadata)
     reloadHistory()
   }, [pdfId, chapterId, reloadHistory])
 
   // Save user command immediately for feedback
-  const saveUserCommand = useCallback(async (command: string, targetChapterId?: number) => {
+  // Always save to current view context (chapterId), not target chapter
+  const saveUserCommand = useCallback(async (command: string, _targetChapterId?: number) => {
     if (!pdfId) return
-    const effectiveChapterId = targetChapterId ?? chapterId
-    await window.api.saveMessage(pdfId, effectiveChapterId, 'user', command)
+    await window.api.saveMessage(pdfId, chapterId, 'user', command)
     reloadHistory()
   }, [pdfId, chapterId, reloadHistory])
 
