@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import { QuizMessage, type QuizQuestion } from './QuizMessage'
+import { MessageSquareText } from 'lucide-react'
 
 interface ChatMessage {
   id: number
@@ -45,8 +46,19 @@ export function MessageList({ messages, streamingContent, isStreaming, commandLo
     )
   }
 
+  const isEmpty = messages.length === 0 && !isStreaming && !commandLoading
+
   return (
     <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+      {isEmpty ? (
+        <div className="h-full flex flex-col items-center justify-center text-muted-foreground py-16">
+          <MessageSquareText className="h-16 w-16 mb-4 opacity-20" />
+          <h3 className="text-lg font-medium mb-2">Start a conversation</h3>
+          <p className="text-sm text-center max-w-xs">
+            Ask a question about this document or use a slash command like /summary or /key-concepts
+          </p>
+        </div>
+      ) : (
       <div className="space-y-4 max-w-3xl mx-auto">
         {messages.map((message) => {
           const hasQuiz = message.metadata?.quiz && message.metadata.quiz.length > 0
@@ -135,6 +147,7 @@ export function MessageList({ messages, streamingContent, isStreaming, commandLo
           </div>
         )}
       </div>
+      )}
     </ScrollArea>
   )
 }
