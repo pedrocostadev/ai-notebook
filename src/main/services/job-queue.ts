@@ -24,7 +24,8 @@ import {
   generateChapterSummary,
   generatePdfMetadata,
   generateChapterConcepts,
-  consolidatePdfConcepts
+  consolidatePdfConcepts,
+  type ChunkWithPage
 } from './content-generator'
 
 const MAX_ATTEMPTS = 3
@@ -137,8 +138,13 @@ async function processNextJob(): Promise<void> {
         throw new Error('No chunks found for chapter - embed job may not have completed')
       }
 
-      const chapterText = chunks.map((c) => c.content).join('\n\n')
-      const concepts = await generateChapterConcepts(chapterText)
+      // Pass chunks with page info for page references in quotes
+      const chunksWithPages: ChunkWithPage[] = chunks.map((c) => ({
+        content: c.content,
+        pageStart: c.page_start,
+        pageEnd: c.page_end
+      }))
+      const concepts = await generateChapterConcepts(chunksWithPages)
 
       if (cancelRequested) {
         currentPdfId = null
