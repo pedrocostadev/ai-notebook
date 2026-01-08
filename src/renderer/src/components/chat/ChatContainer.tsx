@@ -142,26 +142,14 @@ export function ChatContainer({ pdfId, chapterId, chapterTitle, chapters, status
             if (result.concepts.length === 0) {
               await saveCommandResult(command.name, 'No key concepts have been extracted for this document yet.')
             } else {
-              const lines = ['## Key Concepts (Document-wide)', '']
-              for (const concept of result.concepts) {
-                const stars = '★'.repeat(concept.importance) + '☆'.repeat(5 - concept.importance)
-                lines.push(`### ${concept.name}`)
-                lines.push(`**Importance:** ${stars}`)
-                lines.push('')
-                lines.push(concept.definition)
-                if (concept.quotes.length > 0) {
-                  lines.push('')
-                  lines.push('**Supporting quotes:**')
-                  for (const q of concept.quotes) {
-                    const source = q.chapterTitle ? ` *(${q.chapterTitle})*` : ''
-                    lines.push(`> "${q.text}"${source}`)
-                  }
-                }
-                lines.push('')
-                lines.push('---')
-                lines.push('')
-              }
-              await saveCommandResult(command.name, lines.join('\n'))
+              // Store concepts in metadata for rich UI rendering
+              const concepts = result.concepts.map((c) => ({
+                name: c.name,
+                definition: c.definition,
+                importance: c.importance,
+                quotes: c.quotes
+              }))
+              await saveCommandResult(command.name, '', undefined, { concepts, isDocumentLevel: true })
             }
           } else if ('pending' in result) {
             await saveCommandResult(command.name, 'Key concepts are still being extracted. Please try again later.')
@@ -175,26 +163,14 @@ export function ChatContainer({ pdfId, chapterId, chapterTitle, chapters, status
             if (result.concepts.length === 0) {
               await saveCommandResult(command.name, 'This chapter doesn\'t contain key concepts to extract (e.g., preface, acknowledgments, or index).', chapterToUse)
             } else {
-              const lines = ['## Key Concepts', '']
-              for (const concept of result.concepts) {
-                const stars = '★'.repeat(concept.importance) + '☆'.repeat(5 - concept.importance)
-                lines.push(`### ${concept.name}`)
-                lines.push(`**Importance:** ${stars}`)
-                lines.push('')
-                lines.push(concept.definition)
-                if (concept.quotes.length > 0) {
-                  lines.push('')
-                  lines.push('**Supporting quotes:**')
-                  for (const q of concept.quotes) {
-                    const pageInfo = q.pageEstimate ? ` *(p. ${q.pageEstimate})*` : ''
-                    lines.push(`> "${q.text}"${pageInfo}`)
-                  }
-                }
-                lines.push('')
-                lines.push('---')
-                lines.push('')
-              }
-              await saveCommandResult(command.name, lines.join('\n'), chapterToUse)
+              // Store concepts in metadata for rich UI rendering
+              const concepts = result.concepts.map((c) => ({
+                name: c.name,
+                definition: c.definition,
+                importance: c.importance,
+                quotes: c.quotes
+              }))
+              await saveCommandResult(command.name, '', chapterToUse, { concepts, isDocumentLevel: false })
             }
           } else if ('pending' in result) {
             await saveCommandResult(command.name, 'Key concepts are still being extracted. Please try again later.', chapterToUse)

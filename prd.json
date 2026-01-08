@@ -81,7 +81,7 @@
             "Ensure readability and accessibility",
             "Make the UI visually appealing and informative"
         ],
-        "passes": false
+        "passes": true
     },
     {
         "category": "ui",
