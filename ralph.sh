@@ -2,6 +2,8 @@
 # ralph.sh
 # Usage: ./ralph.sh <iterations>
 
+# Stricter bash settings:
+# -e: exit on error, -u: error on unset vars, -o pipefail: fail pipeline if any command fails.
 set -euo pipefail
 
 iterations="${1:-}"

@@ -135,22 +135,32 @@ export async function processPdf(
     const streamedChapters: { id: number; tocChapter: TocChapter; index: number; startIdx: number }[] = []
 
     const tocResult = await parseTocStreaming(pages, (tocChapter, index) => {
-      // Try to find chapter title in fullText for accurate positioning
-      // Search for the title (case-insensitive, allowing for some flexibility)
-      const titlePattern = tocChapter.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') // Escape regex chars
+      // Use TOC page number as primary source, with title search to refine within a window
+      const pageIdx = Math.min(Math.max(tocChapter.pageNumber - 1, 0), boundaries.length - 1)
+      const pageBasedStart = boundaries[pageIdx]?.startIdx ?? 0
+
+      // Define a search window: from the TOC page to a few pages after
+      // This avoids matching TOC entries (which are before) or body text mentions (which are far after)
+      const windowStartPage = pageIdx
+      const windowEndPage = Math.min(pageIdx + 3, boundaries.length - 1)
+      const windowStart = boundaries[windowStartPage]?.startIdx ?? 0
+      const windowEnd = boundaries[windowEndPage]?.endIdx ?? fullText.length
+
+      // Search for title only within this window
+      const titlePattern = tocChapter.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
       const titleRegex = new RegExp(titlePattern, 'i')
-      const titleMatch = fullText.match(titleRegex)
+      const windowText = fullText.substring(windowStart, windowEnd)
+      const titleMatch = windowText.match(titleRegex)
 
       let startIdx: number
       if (titleMatch && titleMatch.index !== undefined) {
-        // Found the title in text - use that position
-        startIdx = titleMatch.index
-        console.log(`[processPdf] Found "${tocChapter.title}" at position ${startIdx} (title search)`)
+        // Found title within window - use that position
+        startIdx = windowStart + titleMatch.index
+        console.log(`[processPdf] Found "${tocChapter.title}" at position ${startIdx} (within page ${pageIdx + 1}-${windowEndPage + 1} window)`)
       } else {
-        // Fall back to page-based boundary
-        const pageIdx = Math.min(Math.max(tocChapter.pageNumber - 1, 0), boundaries.length - 1)
-        startIdx = boundaries[pageIdx]?.startIdx ?? 0
-        console.log(`[processPdf] "${tocChapter.title}" not found in text, using page ${tocChapter.pageNumber} -> position ${startIdx}`)
+        // Use page-based boundary directly
+        startIdx = pageBasedStart
+        console.log(`[processPdf] "${tocChapter.title}" not found in window, using page ${tocChapter.pageNumber} -> position ${startIdx}`)
       }
 
       // Use fullText.length as temporary end (will fix after all chapters are streamed)
