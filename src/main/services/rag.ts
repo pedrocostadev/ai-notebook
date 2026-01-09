@@ -140,11 +140,9 @@ export async function chat(
   // Step 1: Embed query
   const queryEmbedding = await generateEmbedding(query)
 
-  // Step 2: Parallel search (scoped to chapter if provided)
-  const [vectorResults, ftsResults] = await Promise.all([
-    Promise.resolve(vectorSearch(queryEmbedding, 20, chapterId ?? undefined)),
-    Promise.resolve(ftsSearch(query, 20, chapterId ?? undefined))
-  ])
+  // Step 2: Search (scoped to chapter if provided)
+  const vectorResults = vectorSearch(queryEmbedding, 20, chapterId ?? undefined)
+  const ftsResults = ftsSearch(query, 20, chapterId ?? undefined)
 
   // Step 3: RRF fusion
   const vectorRanks = new Map<number, number>()

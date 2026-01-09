@@ -82,27 +82,28 @@ function detectPageOffset(pages: string[]): number {
   const midPoint = Math.floor(pages.length / 2)
   const sampleIndices = [midPoint - 2, midPoint - 1, midPoint, midPoint + 1]
 
+  type Location = 'header' | 'footer'
+
+  // Helper to create patterns for both header and footer
+  function forBoth(regex: RegExp): { regex: RegExp; location: Location }[] {
+    return [
+      { regex, location: 'footer' },
+      { regex, location: 'header' }
+    ]
+  }
+
   // Page number patterns to try (ordered by specificity)
-  const patterns = [
+  const patterns: { regex: RegExp; location: Location }[] = [
     // "X of Y" formats - space separated (common after PDF text extraction)
-    // "title 115 of 242" or just "115 of 242"
-    { regex: /(\d{1,3})\s+of\s*\d+/i, location: 'footer' as const },
-    { regex: /(\d{1,3})\s+of\s*\d+/i, location: 'header' as const },
+    ...forBoth(/(\d{1,3})\s+of\s*\d+/i),
     // "X of Y" with pipes: "| 115 | of 242"
-    { regex: /\|\s*(\d{1,3})\s*\|\s*of\s*\d+/i, location: 'footer' as const },
-    { regex: /(\d{1,3})\s*\|\s*of\s*\d+/i, location: 'footer' as const },
-    { regex: /\|\s*(\d{1,3})\s*\|\s*of\s*\d+/i, location: 'header' as const },
-    { regex: /(\d{1,3})\s*\|\s*of\s*\d+/i, location: 'header' as const },
-    // O'Reilly style: "PageNum | Chapter Title" (left page footer)
-    { regex: /^(\d{1,3})\s*\|/, location: 'footer' as const },
-    // O'Reilly style: "Chapter Title | PageNum" (right page footer)
-    { regex: /\|\s*(\d{1,3})\s*$/, location: 'footer' as const },
-    // Header with page number at start/end
-    { regex: /^(\d{1,3})\s*\|/, location: 'header' as const },
-    { regex: /\|\s*(\d{1,3})\s*$/, location: 'header' as const },
+    ...forBoth(/\|\s*(\d{1,3})\s*\|\s*of\s*\d+/i),
+    ...forBoth(/(\d{1,3})\s*\|\s*of\s*\d+/i),
+    // O'Reilly style: "PageNum | Chapter Title" or "Chapter Title | PageNum"
+    ...forBoth(/^(\d{1,3})\s*\|/),
+    ...forBoth(/\|\s*(\d{1,3})\s*$/),
     // Standalone page number
-    { regex: /^(\d{1,3})$/, location: 'footer' as const },
-    { regex: /^(\d{1,3})$/, location: 'header' as const }
+    ...forBoth(/^(\d{1,3})$/)
   ]
 
   for (const physicalIdx of sampleIndices) {

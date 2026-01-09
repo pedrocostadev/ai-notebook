@@ -243,6 +243,13 @@ export function ChatContainer({ pdfId, chapterId, chapterTitle, chapters, status
   const hasError = status === 'error'
   const isChapterView = chapterId !== null
 
+  function getPlaceholder(): string {
+    if (isExecutingCommand) return commandLoadingMessage || 'Processing...'
+    if (isProcessing) return 'Processing...'
+    if (isChapterView) return `Ask a question about "${chapterTitle}"...`
+    return 'Ask a question about this PDF...'
+  }
+
   return (
     <div className="flex-1 flex flex-col">
       {/* Chapter header */}
@@ -280,15 +287,7 @@ export function ChatContainer({ pdfId, chapterId, chapterTitle, chapters, status
         onSend={sendMessage}
         onSlashCommand={handleSlashCommand}
         disabled={isStreaming || isProcessing || hasError || isExecutingCommand}
-        placeholder={
-          isExecutingCommand
-            ? commandLoadingMessage || 'Processing...'
-            : isProcessing
-              ? 'Processing...'
-            : isChapterView
-              ? `Ask a question about "${chapterTitle}"...`
-              : 'Ask a question about this PDF...'
-        }
+        placeholder={getPlaceholder()}
         pdfId={pdfId}
         chapterId={chapterId}
       />
