@@ -1,9 +1,9 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import { QuizMessage, type QuizQuestion } from './QuizMessage'
 import { KeyConceptsMessage, type Concept } from './KeyConceptsMessage'
-import { MessageSquareText, BookOpen, Loader2 } from 'lucide-react'
+import { MessageSquareText, BookOpen, Loader2, History, ChevronDown, ChevronUp } from 'lucide-react'
 
 interface ChatMessage {
   id: number
@@ -27,10 +27,33 @@ interface MessageListProps {
   onFollowUpClick?: (question: string) => void
   isChapterLoading?: boolean
   chapterTitle?: string
+  pdfId?: number | null
+  chapterId?: number | null
 }
 
-export function MessageList({ messages, streamingContent, isStreaming, commandLoading, onFollowUpClick, isChapterLoading, chapterTitle }: MessageListProps) {
+export function MessageList({ messages, streamingContent, isStreaming, commandLoading, onFollowUpClick, isChapterLoading, chapterTitle, pdfId, chapterId }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
+  const [compactionInfo, setCompactionInfo] = useState<{ isCompacted: boolean; summarizedCount: number; summary: string | null } | null>(null)
+  const [showSummary, setShowSummary] = useState(false)
+
+  // Fetch compaction info in dev mode
+  useEffect(() => {
+    if (!import.meta.env.DEV || !pdfId) {
+      setCompactionInfo(null)
+      return
+    }
+
+    const fetchStats = async () => {
+      try {
+        const stats = await window.api.getHistoryStats(pdfId, chapterId ?? null)
+        setCompactionInfo({ isCompacted: stats.isCompacted, summarizedCount: stats.summarizedCount, summary: stats.cachedSummary })
+      } catch {
+        setCompactionInfo(null)
+      }
+    }
+
+    fetchStats()
+  }, [pdfId, chapterId, messages.length])
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -84,16 +107,36 @@ export function MessageList({ messages, streamingContent, isStreaming, commandLo
         </div>
       ) : (
       <div className="space-y-4 max-w-3xl mx-auto">
-        {messages.map((message) => {
+        {messages.map((message, index) => {
+          const showCompactionDivider = compactionInfo?.isCompacted && index === compactionInfo.summarizedCount
           const hasQuiz = message.metadata?.quiz && message.metadata.quiz.length > 0
           const hasConcepts = message.metadata?.concepts && message.metadata.concepts.length > 0
           const isWideMessage = hasQuiz || hasConcepts
 
           return (
-            <div
-              key={message.id}
-              className={cn('flex', message.role === 'user' ? 'justify-end' : 'justify-start')}
-            >
+            <div key={message.id}>
+              {showCompactionDivider && (
+                <div className="mb-4">
+                  <div className="flex items-center gap-3 py-2">
+                    <div className="flex-1 border-t border-dashed border-muted-foreground/30" />
+                    <button
+                      onClick={() => setShowSummary(!showSummary)}
+                      className="text-xs text-muted-foreground flex items-center gap-1.5 hover:text-foreground transition-colors"
+                    >
+                      <History className="h-3 w-3" />
+                      above summarized
+                      {showSummary ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                    </button>
+                    <div className="flex-1 border-t border-dashed border-muted-foreground/30" />
+                  </div>
+                  {showSummary && (
+                    <div className="mt-2 p-3 rounded-md bg-muted/50 text-xs text-muted-foreground italic">
+                      {compactionInfo?.summary || 'Summary will be generated on next chat message'}
+                    </div>
+                  )}
+                </div>
+              )}
+              <div className={cn('flex', message.role === 'user' ? 'justify-end' : 'justify-start')}>
               <div
                 className={cn(
                   'rounded-lg px-4 py-2',
@@ -153,6 +196,7 @@ export function MessageList({ messages, streamingContent, isStreaming, commandLo
                     )}
                   </>
                 )}
+              </div>
               </div>
             </div>
           )

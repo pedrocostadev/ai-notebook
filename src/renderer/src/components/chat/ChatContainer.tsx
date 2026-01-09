@@ -273,6 +273,8 @@ export function ChatContainer({ pdfId, chapterId, chapterTitle, chapters, status
         onFollowUpClick={sendMessage}
         isChapterLoading={isChapterView && isProcessing}
         chapterTitle={chapterTitle}
+        pdfId={pdfId}
+        chapterId={chapterId}
       />
       <ChatInput
         onSend={sendMessage}

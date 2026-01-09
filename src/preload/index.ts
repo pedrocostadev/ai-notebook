@@ -131,8 +131,13 @@ const api = {
   getHistoryStats: (
     pdfId: number,
     chapterId: number | null
-  ): Promise<{ messageCount: number; totalTokens: number; cachedSummary: string | null }> =>
-    ipcRenderer.invoke('chat:test-history-stats', pdfId, chapterId),
+  ): Promise<{
+    messageCount: number
+    totalTokens: number
+    cachedSummary: string | null
+    isCompacted: boolean
+    summarizedCount: number
+  }> => ipcRenderer.invoke('chat:test-history-stats', pdfId, chapterId),
   // Test-only: Build conversation history
   buildHistory: (
     pdfId: number,
