@@ -1,5 +1,5 @@
 import { ipcMain, dialog } from 'electron'
-import { getAllPdfs, getPdf, deletePdf as dbDeletePdf, getChaptersByPdfId } from '../services/database'
+import { getAllPdfs, getPdf, deletePdf as dbDeletePdf, getChaptersByPdfId, updatePdfStatus, updateChapterStatus } from '../services/database'
 import { processPdf, deletePdfFile } from '../services/pdf-processor'
 import { startJobQueue, cancelProcessing } from '../services/job-queue'
 
@@ -90,5 +90,19 @@ export function registerPdfHandlers(): void {
 
   ipcMain.handle('chapter:list', (_, pdfId: number) => {
     return getChaptersByPdfId(pdfId)
+  })
+
+  // Test-only: Set PDF and chapter status directly (bypasses embedding)
+  ipcMain.handle('pdf:set-status-test', (_, pdfId: number, status: string) => {
+    if (process.env.NODE_ENV !== 'test') {
+      return { error: 'Not allowed outside test environment' }
+    }
+    updatePdfStatus(pdfId, status)
+    // Also update all chapters to same status
+    const chapters = getChaptersByPdfId(pdfId)
+    for (const chapter of chapters) {
+      updateChapterStatus(chapter.id, status as 'pending' | 'processing' | 'done' | 'error')
+    }
+    return { success: true }
   })
 }
