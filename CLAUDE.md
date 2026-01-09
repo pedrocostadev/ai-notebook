@@ -66,3 +66,11 @@ Stored in `~/Library/Application Support/ai-notebook/`:
 
 - `ai-notebook.db` - SQLite database
 - `pdfs/` - Copied PDF files
+
+## General Rules
+
+- In all interactions and commit messages be extremely concise. Sacrifice grammar for the sake of concision.
+
+## Plans
+
+- At the end of each plan, give me a list of unresolved questions to answer, if any. Make the questions extremely concise. Sacrifice grammar for the sake of concision.

@@ -29,7 +29,7 @@
         "steps": [
             "Replace multiple upload/processing indicators with one main indicator shown in the primary chat view",
             "Show the indicator while a PDF is uploading or chapters are processing",
-            "On hover, display a tooltip like \"Processing chapter 3 of 10\" (or equivalent upload progress)",
+            "Display a message like \"Processing chapter 3 of 10\" on top header of the main chat",
             "When all chapters are processed, switch the indicator to a green \"completed\" state",
             "Ensure progress updates smoothly and remains accurate across multi-chapter PDFs",
             "Only display the chapter entry when the chapter finishes processing"
@@ -57,6 +57,26 @@
             "Ensure the illustration scales well with different window sizes",
             "Maintain clear hierarchy for inputs/actions (API key, model selection, etc.)",
             "Confirm the splash screen feels polished and consistent with the rest of the app"
+        ],
+        "passes": false
+    },
+    {
+        "category": "functional",
+        "description": "Every PDF chapter can be opened from the app",
+        "steps": [
+            "When a chapter finishes processing and loads into the app sidebar, we should display a button to open that chapter",
+            "The button should be displayed in the top header of the chat",
+            "The button should open only that chapter, not the entire PDF"
+        ],
+        "passes": false
+    },
+    {
+        "category": "functional",
+        "description": "Every PDF can be opened from the app",
+        "steps": [
+            "When a pdf finishes processing we should display a button to open the entire pdf",
+            "The button should be displayed in the top header of the main chat",
+            "The button should open the entire PDF"
         ],
         "passes": false
     }
