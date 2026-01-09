@@ -4,7 +4,7 @@ import { join, basename } from 'path'
 import { app, BrowserWindow } from 'electron'
 import { PDFLoader } from '@langchain/community/document_loaders/fs/pdf'
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters'
-import { parseTocStreaming, TocChapter } from './toc-parser'
+import { parseOutlineFromPdf, parseTocStreaming, TocChapter } from './toc-parser'
 import { estimateTokens } from '../lib/token-counter'
 import {
   insertPdf,
@@ -202,10 +202,10 @@ export async function processPdf(
     const fullText = pages.join('\n\n')
     const boundaries = computePageBoundaries(pages)
 
-    // Stream TOC chapters from AI - collect them first, then calculate boundaries with offset detection
+    // Extract TOC - try PDF outline first (structured), fall back to AI parsing
     const collectedChapters: { id: number; tocChapter: TocChapter; index: number }[] = []
 
-    const tocResult = await parseTocStreaming(pages, (tocChapter, index) => {
+    const onChapterFound = (tocChapter: TocChapter, index: number): void => {
       // Insert chapter with temporary boundaries (will fix after all chapters collected)
       const chapterId = insertChapter(pdfId, tocChapter.title, index, 0, fullText.length)
       collectedChapters.push({ id: chapterId, tocChapter, index })
@@ -217,7 +217,15 @@ export async function processPdf(
         chapter_index: index,
         status: 'pending'
       })
-    })
+    }
+
+    // Try PDF outline first (most reliable - uses embedded bookmarks)
+    let tocResult = await parseOutlineFromPdf(destPath, onChapterFound)
+
+    // Fall back to AI parsing if no outline found
+    if (!tocResult.hasToc || tocResult.chapters.length === 0) {
+      tocResult = await parseTocStreaming(pages, onChapterFound)
+    }
 
     // After all chapters collected, find actual chapter positions
     if (collectedChapters.length > 0) {
