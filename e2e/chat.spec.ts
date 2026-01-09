@@ -8,8 +8,9 @@ const DB_PATH = join(homedir(), 'Library/Application Support/ai-notebook/ai-note
 const SAMPLE_PDF = resolve(__dirname, '../pdfs/sample.pdf')
 
 function cleanupDb() {
-  if (existsSync(DB_PATH)) {
-    unlinkSync(DB_PATH)
+  for (const suffix of ['', '-shm', '-wal']) {
+    const path = DB_PATH + suffix
+    if (existsSync(path)) unlinkSync(path)
   }
 }
 
@@ -56,10 +57,18 @@ test.describe('AI Notebook', () => {
     const window = await app.firstWindow()
     await window.waitForLoadState('domcontentloaded')
 
+    // Set test API key to bypass settings dialog
+    await window.evaluate(async () => {
+      const api = (window as unknown as { api: { setKeyTest: (key: string) => Promise<boolean> } }).api
+      await api.setKeyTest('test-api-key-12345')
+    })
+    await window.reload()
+    await window.waitForLoadState('domcontentloaded')
+
     // App title should be visible
     await expect(window.locator('text=AI Notebook')).toBeVisible({ timeout: 10000 })
 
-    // Upload button should exist (in sidebar, may be behind dialog)
+    // Upload button should exist in sidebar
     const uploadButton = window.locator('text=Upload PDF').first()
     await expect(uploadButton).toBeVisible()
 
