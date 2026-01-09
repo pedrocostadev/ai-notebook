@@ -13,6 +13,7 @@
 7. Commit: `feat: small descriptive commit message`
 8. Update prd.json: `passes: true`
 9. Append learnings to progress.txt
+10. Start over from step 1
 
 ## Progress Format
 
