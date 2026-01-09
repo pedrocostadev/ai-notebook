@@ -11,6 +11,7 @@ import {
   getConceptsByChapterId,
   getConceptsByPdfId,
   getChapterConceptsStatus,
+  getChunksByChapterId,
   insertMessage,
   getMessagesByPdfId,
   getConversationSummary,
@@ -158,6 +159,13 @@ export function registerChatHandlers(): void {
           const chapter = getChapter(chapterId)
           if (!chapter) {
             return { error: 'Chapter not found' }
+          }
+
+          // Check if chapter has enough content for meaningful quiz
+          const chunks = getChunksByChapterId(chapterId)
+          const totalTokens = chunks.reduce((sum, c) => sum + c.token_count, 0)
+          if (totalTokens < 500) {
+            return { error: 'This chapter does not have enough content to generate a quiz' }
           }
 
           const status = getChapterConceptsStatus(chapterId)

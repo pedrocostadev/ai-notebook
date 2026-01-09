@@ -1,7 +1,7 @@
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
-import { streamObject } from 'ai'
+import { streamObject, generateObject } from 'ai'
 import { getApiKey, getChatModel } from './settings'
-import { TocSchema } from '../lib/schemas'
+import { TocSchema, ChapterClassificationSchema } from '../lib/schemas'
 
 // pdfjs-dist types
 interface PDFDocumentProxy {
@@ -20,6 +20,7 @@ interface OutlineItem {
 export interface TocChapter {
   title: string
   pageNumber: number
+  isAuxiliary?: boolean
 }
 
 export interface ParsedToc {
@@ -135,7 +136,12 @@ Rules:
     for await (const partial of partialObjectStream) {
       if (partial.chapters && Array.isArray(partial.chapters)) {
         for (const chapter of partial.chapters) {
-          if (chapter && typeof chapter.title === 'string' && typeof chapter.pageNumber === 'number') {
+          if (
+            chapter &&
+            typeof chapter.title === 'string' &&
+            typeof chapter.pageNumber === 'number' &&
+            typeof chapter.isAuxiliary === 'boolean'
+          ) {
             const key = `${chapter.title}::${chapter.pageNumber}`
             if (!emittedChapters.has(key)) {
               emittedChapters.add(key)
@@ -153,7 +159,8 @@ Rules:
           (c): c is TocChapter =>
             c !== undefined &&
             typeof c.title === 'string' &&
-            typeof c.pageNumber === 'number'
+            typeof c.pageNumber === 'number' &&
+            typeof c.isAuxiliary === 'boolean'
         )
       }
     }
@@ -162,5 +169,47 @@ Rules:
   } catch (error) {
     console.error('TOC parsing error:', error)
     return { hasToc: false, chapters: [] }
+  }
+}
+
+/**
+ * Classify chapter titles as auxiliary or main content using AI.
+ * Used for outline-based TOC extraction where we don't have AI classification built-in.
+ */
+export async function classifyChapterTitles(titles: string[]): Promise<Map<string, boolean>> {
+  const apiKey = getApiKey()
+  if (!apiKey || titles.length === 0) {
+    return new Map()
+  }
+
+  const chatModel = getChatModel()
+  const google = createGoogleGenerativeAI({ apiKey })
+
+  try {
+    const { object } = await generateObject({
+      model: google(chatModel),
+      schema: ChapterClassificationSchema,
+      system: `You classify chapter titles as either auxiliary content or main content.
+
+Auxiliary content includes: Table of Contents, Index, Bibliography, Acknowledgments,
+Preface, Foreword, Appendix, Glossary, List of Figures, List of Tables, About the Author,
+Copyright, Dedication, Notes, References, Introduction (if it's just a brief intro),
+Conclusion (if it's just a summary), Epilogue, Prologue.
+
+Main content includes: Numbered chapters (Chapter 1, Part I), topical chapters with
+substantive titles, any chapter that appears to contain the core material of the book.
+
+When in doubt, classify as main content (isAuxiliary: false).`,
+      prompt: `Classify each of these chapter titles:\n\n${titles.map((t, i) => `${i + 1}. "${t}"`).join('\n')}`
+    })
+
+    const result = new Map<string, boolean>()
+    for (const c of object.classifications) {
+      result.set(c.title, c.isAuxiliary)
+    }
+    return result
+  } catch (error) {
+    console.error('Chapter classification error:', error)
+    return new Map()
   }
 }
