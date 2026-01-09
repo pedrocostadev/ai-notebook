@@ -31,6 +31,12 @@ interface MessageListProps {
   chapterId?: number | null
 }
 
+const CONFIDENCE_COLORS: Record<string, string> = {
+  high: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+  medium: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+  low: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+}
+
 export function MessageList({ messages, streamingContent, isStreaming, commandLoading, onFollowUpClick, isChapterLoading, chapterTitle, pdfId, chapterId }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [compactionInfo, setCompactionInfo] = useState<{ isCompacted: boolean; summarizedCount: number; summary: string | null } | null>(null)
@@ -61,14 +67,9 @@ export function MessageList({ messages, streamingContent, isStreaming, commandLo
     }
   }, [messages, streamingContent, commandLoading])
 
-  const getConfidenceBadge = (confidence: string) => {
-    const colors = {
-      high: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-      medium: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-      low: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-    }
+  function renderConfidenceBadge(confidence: string) {
     return (
-      <span className={cn('text-xs px-2 py-0.5 rounded-full', colors[confidence as keyof typeof colors])}>
+      <span className={cn('text-xs px-2 py-0.5 rounded-full', CONFIDENCE_COLORS[confidence])}>
         {confidence} confidence
       </span>
     )
@@ -159,7 +160,7 @@ export function MessageList({ messages, streamingContent, isStreaming, commandLo
                     <p className="whitespace-pre-wrap">{message.content}</p>
                     {message.metadata && message.role === 'assistant' && (
                       <div className="mt-2 pt-2 border-t border-border/50 space-y-2">
-                        {message.metadata.confidence && getConfidenceBadge(message.metadata.confidence)}
+                        {message.metadata.confidence && renderConfidenceBadge(message.metadata.confidence)}
                         {message.metadata.citations && message.metadata.citations.length > 0 && (
                           <div className="space-y-1">
                             <p className="text-xs font-medium">Sources:</p>

@@ -11,68 +11,47 @@ interface CircularProgressProps {
   strokeWidth?: number
 }
 
+function getProgressColor(percentage: number): string {
+  if (percentage >= 80) return 'hsl(0 84% 60%)' // red
+  if (percentage >= 50) return 'hsl(45 93% 47%)' // yellow
+  return 'hsl(173 80% 40%)' // teal
+}
+
 function CircularProgress({ percentage, size = 36, strokeWidth = 3 }: CircularProgressProps) {
   const radius = (size - strokeWidth) / 2
   const segmentCount = 12
   const filledSegments = Math.round((percentage / 100) * segmentCount)
+  const color = getProgressColor(percentage)
 
-  const getColor = () => {
-    if (percentage >= 80) return 'hsl(0 84% 60%)' // red
-    if (percentage >= 50) return 'hsl(45 93% 47%)' // yellow
-    return 'hsl(173 80% 40%)' // teal
+  function renderSegment(index: number, stroke: string) {
+    const angle = (index / segmentCount) * 360
+    const startAngle = (angle * Math.PI) / 180
+    const endAngle = ((angle + 360 / segmentCount - 8) * Math.PI) / 180
+    const x1 = size / 2 + radius * Math.cos(startAngle)
+    const y1 = size / 2 + radius * Math.sin(startAngle)
+    const x2 = size / 2 + radius * Math.cos(endAngle)
+    const y2 = size / 2 + radius * Math.sin(endAngle)
+    return (
+      <path
+        key={index}
+        d={`M ${x1} ${y1} A ${radius} ${radius} 0 0 1 ${x2} ${y2}`}
+        fill="none"
+        stroke={stroke}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+      />
+    )
   }
 
   return (
     <div className="relative" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90">
-        {/* Background segments */}
-        {Array(segmentCount)
-          .fill(0)
-          .map((_, i) => {
-            const angle = (i / segmentCount) * 360
-            const startAngle = (angle * Math.PI) / 180
-            const endAngle = ((angle + 360 / segmentCount - 8) * Math.PI) / 180
-            const x1 = size / 2 + radius * Math.cos(startAngle)
-            const y1 = size / 2 + radius * Math.sin(startAngle)
-            const x2 = size / 2 + radius * Math.cos(endAngle)
-            const y2 = size / 2 + radius * Math.sin(endAngle)
-            return (
-              <path
-                key={i}
-                d={`M ${x1} ${y1} A ${radius} ${radius} 0 0 1 ${x2} ${y2}`}
-                fill="none"
-                stroke="#4b5563"
-                strokeWidth={strokeWidth}
-                strokeLinecap="round"
-              />
-            )
-          })}
-        {/* Filled segments */}
-        {Array(filledSegments)
-          .fill(0)
-          .map((_, i) => {
-            const angle = (i / segmentCount) * 360
-            const startAngle = (angle * Math.PI) / 180
-            const endAngle = ((angle + 360 / segmentCount - 8) * Math.PI) / 180
-            const x1 = size / 2 + radius * Math.cos(startAngle)
-            const y1 = size / 2 + radius * Math.sin(startAngle)
-            const x2 = size / 2 + radius * Math.cos(endAngle)
-            const y2 = size / 2 + radius * Math.sin(endAngle)
-            return (
-              <path
-                key={i}
-                d={`M ${x1} ${y1} A ${radius} ${radius} 0 0 1 ${x2} ${y2}`}
-                fill="none"
-                stroke={getColor()}
-                strokeWidth={strokeWidth}
-                strokeLinecap="round"
-              />
-            )
-          })}
+        {Array(segmentCount).fill(0).map((_, i) => renderSegment(i, '#4b5563'))}
+        {Array(filledSegments).fill(0).map((_, i) => renderSegment(i, color))}
       </svg>
       <span
         className="absolute inset-0 flex items-center justify-center text-[9px] font-medium tabular-nums"
-        style={{ color: getColor() }}
+        style={{ color }}
       >
         {percentage}%
       </span>
