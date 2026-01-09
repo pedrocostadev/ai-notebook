@@ -70,6 +70,7 @@ Stored in `~/Library/Application Support/ai-notebook/`:
 ## General Rules
 
 - In all interactions and commit messages be extremely concise. Sacrifice grammar for the sake of concision.
+- Add a new E2E test every time you implement a new feature.
 
 ## Plans
 

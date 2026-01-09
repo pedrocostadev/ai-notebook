@@ -5,7 +5,6 @@ This should be the one YOU decide has the highest priority,
 2. Check any feedback loops, such as types and tests.
 3. Append your progress to the progress.txt file.
 4. Make a git commit of that feature.
-5. Go to step 1.
 ONLY WORK ON A SINGLE FEATURE.
 If, while implementing the feature, you notice that all work
 is complete, output <promise>COMPLETE</promise>.
