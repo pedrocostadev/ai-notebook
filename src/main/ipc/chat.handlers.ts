@@ -1,5 +1,5 @@
 import { ipcMain, BrowserWindow } from 'electron'
-import { chat, getChatHistory, buildConversationHistory } from '../services/rag'
+import { chat, getChatHistory, buildConversationHistory, MAX_HISTORY_TOKENS } from '../services/rag'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { getApiKey, getChatModel } from '../services/settings'
 import {
@@ -192,23 +192,61 @@ export function registerChatHandlers(): void {
   )
 
   // Test-only: Get conversation history stats (no API call needed)
+  // Returns effective tokens (accounting for compaction when over budget)
   ipcMain.handle(
     'chat:test-history-stats',
     (
       _,
       pdfId: number,
       chapterId: number | null
-    ): { messageCount: number; totalTokens: number; cachedSummary: string | null } => {
+    ): {
+      messageCount: number
+      totalTokens: number
+      cachedSummary: string | null
+      isCompacted: boolean
+      summarizedCount: number
+    } => {
       const messages = getMessagesByPdfId(pdfId, chapterId)
+      const tokenCounts: number[] = []
       let totalTokens = 0
       for (const msg of messages) {
-        totalTokens += estimateTokens(`${msg.role}: ${msg.content}`)
+        const tokens = estimateTokens(`${msg.role}: ${msg.content}`)
+        tokenCounts.push(tokens)
+        totalTokens += tokens
       }
       const cached = getConversationSummary(pdfId, chapterId)
+
+      // Calculate effective tokens (same logic as buildConversationHistory)
+      let effectiveTokens = totalTokens
+      let isCompacted = false
+      let summarizedCount = 0
+      if (totalTokens > MAX_HISTORY_TOKENS && messages.length > 0) {
+        isCompacted = true
+
+        // Find split point to fit within budget (same as buildConversationHistory)
+        const summaryBudget = 200
+        const recentBudget = MAX_HISTORY_TOKENS - summaryBudget
+
+        let recentTokens = 0
+        let splitIndex = messages.length
+        for (let i = messages.length - 1; i >= 0; i--) {
+          if (recentTokens + tokenCounts[i] > recentBudget) break
+          recentTokens += tokenCounts[i]
+          splitIndex = i
+        }
+        if (splitIndex === 0) splitIndex = 1
+
+        summarizedCount = splitIndex
+        const summaryTokens = cached ? estimateTokens(cached.summary) : summaryBudget
+        effectiveTokens = summaryTokens + recentTokens
+      }
+
       return {
         messageCount: messages.length,
-        totalTokens,
-        cachedSummary: cached?.summary ?? null
+        totalTokens: effectiveTokens,
+        cachedSummary: cached?.summary ?? null,
+        isCompacted,
+        summarizedCount
       }
     }
   )

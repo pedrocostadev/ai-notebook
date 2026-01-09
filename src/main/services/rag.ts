@@ -17,7 +17,7 @@ import { RerankedResultsSchema, ChatResponseMetadataSchema } from '../lib/schema
 import type { ChatResponseMetadata } from '../lib/schemas'
 
 const MAX_CONTEXT_TOKENS = 8000
-const MAX_HISTORY_TOKENS = 16000
+export const MAX_HISTORY_TOKENS = 16000
 const RRF_K = 60
 
 interface RankedChunk {
@@ -79,10 +79,25 @@ export async function buildConversationHistory(
     return messages.map(formatMessage).join('\n\n')
   }
 
-  // Over budget: split 50/50, summarize older half
-  const midpoint = Math.floor(messages.length / 2)
-  const olderMessages = messages.slice(0, midpoint)
-  const recentMessages = messages.slice(midpoint)
+  // Over budget: find split point to fit within budget
+  // Reserve ~200 tokens for summary, keep as many recent messages as possible
+  const summaryBudget = 200
+  const recentBudget = MAX_HISTORY_TOKENS - summaryBudget
+
+  // Find how many recent messages fit in budget (from newest to oldest)
+  let recentTokens = 0
+  let splitIndex = messages.length
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (recentTokens + tokenCounts[i] > recentBudget) break
+    recentTokens += tokenCounts[i]
+    splitIndex = i
+  }
+
+  // Ensure we summarize at least 1 message
+  if (splitIndex === 0) splitIndex = 1
+
+  const olderMessages = messages.slice(0, splitIndex)
+  const recentMessages = messages.slice(splitIndex)
 
   // Check if we have a valid cached summary
   const cached = getConversationSummary(pdfId, chapterId)
