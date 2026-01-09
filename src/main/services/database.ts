@@ -10,6 +10,132 @@ export function getDb(): Database.Database {
   return db
 }
 
+export function closeDb(): void {
+  if (db) {
+    db.close()
+    db = null
+  }
+}
+
+// Initialize an in-memory database for testing (no electron dependency)
+export function initTestDatabase(): void {
+  closeDb()
+  db = new Database(':memory:')
+
+  // Create core tables (subset for testing, no vector extensions)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS pdfs (
+      id INTEGER PRIMARY KEY,
+      filename TEXT NOT NULL,
+      filepath TEXT NOT NULL,
+      file_hash TEXT UNIQUE,
+      file_size INTEGER,
+      page_count INTEGER,
+      metadata JSON,
+      status TEXT CHECK(status IN ('pending', 'processing', 'done', 'error')) DEFAULT 'pending',
+      error_message TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS chapters (
+      id INTEGER PRIMARY KEY,
+      pdf_id INTEGER REFERENCES pdfs(id) ON DELETE CASCADE,
+      title TEXT NOT NULL,
+      chapter_index INTEGER,
+      start_idx INTEGER,
+      end_idx INTEGER,
+      summary TEXT,
+      concepts_status TEXT DEFAULT NULL,
+      concepts_error TEXT DEFAULT NULL,
+      status TEXT CHECK(status IN ('pending', 'processing', 'done', 'error')) DEFAULT 'pending',
+      error_message TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS chunks (
+      id INTEGER PRIMARY KEY,
+      pdf_id INTEGER REFERENCES pdfs(id) ON DELETE CASCADE,
+      chapter_id INTEGER REFERENCES chapters(id) ON DELETE CASCADE,
+      chunk_index INTEGER,
+      content TEXT,
+      heading TEXT,
+      page_start INTEGER,
+      page_end INTEGER,
+      token_count INTEGER
+    );
+
+    CREATE TABLE IF NOT EXISTS messages (
+      id INTEGER PRIMARY KEY,
+      pdf_id INTEGER REFERENCES pdfs(id) ON DELETE CASCADE,
+      chapter_id INTEGER REFERENCES chapters(id) ON DELETE CASCADE,
+      role TEXT CHECK(role IN ('user', 'assistant')),
+      content TEXT,
+      metadata JSON,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS jobs (
+      id INTEGER PRIMARY KEY,
+      pdf_id INTEGER REFERENCES pdfs(id) ON DELETE CASCADE,
+      chapter_id INTEGER REFERENCES chapters(id) ON DELETE CASCADE,
+      type TEXT CHECK(type IN ('embed', 'summary', 'metadata', 'concepts', 'consolidate')),
+      status TEXT CHECK(status IN ('pending', 'running', 'done', 'failed')) DEFAULT 'pending',
+      attempts INTEGER DEFAULT 0,
+      last_error TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS concepts (
+      id INTEGER PRIMARY KEY,
+      pdf_id INTEGER REFERENCES pdfs(id) ON DELETE CASCADE,
+      chapter_id INTEGER REFERENCES chapters(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      definition TEXT NOT NULL,
+      importance INTEGER CHECK(importance BETWEEN 1 AND 5),
+      quotes JSON,
+      is_consolidated BOOLEAN DEFAULT FALSE,
+      source_concept_ids JSON,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_concepts_pdf ON concepts(pdf_id);
+    CREATE INDEX IF NOT EXISTS idx_concepts_chapter ON concepts(chapter_id);
+
+    CREATE TABLE IF NOT EXISTS conversation_summaries (
+      id INTEGER PRIMARY KEY,
+      pdf_id INTEGER REFERENCES pdfs(id) ON DELETE CASCADE,
+      chapter_id INTEGER REFERENCES chapters(id) ON DELETE CASCADE,
+      summary TEXT NOT NULL,
+      last_message_id INTEGER NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(pdf_id, chapter_id)
+    );
+
+    CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
+      content,
+      tokenize='porter unicode61'
+    );
+
+    CREATE TRIGGER IF NOT EXISTS chunks_ai AFTER INSERT ON chunks BEGIN
+      INSERT INTO chunks_fts(rowid, content) VALUES (new.id, new.content);
+    END;
+
+    CREATE TRIGGER IF NOT EXISTS chunks_au AFTER UPDATE ON chunks BEGIN
+      DELETE FROM chunks_fts WHERE rowid = old.id;
+      INSERT INTO chunks_fts(rowid, content) VALUES (new.id, new.content);
+    END;
+
+    CREATE TRIGGER IF NOT EXISTS chunks_ad AFTER DELETE ON chunks BEGIN
+      DELETE FROM chunks_fts WHERE rowid = old.id;
+    END;
+  `)
+}
+
 export async function initDatabase(): Promise<void> {
   const userDataPath = app.getPath('userData')
   const dbPath = join(userDataPath, 'ai-notebook.db')

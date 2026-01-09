@@ -4,7 +4,7 @@ import { homedir } from 'os'
 import { join, resolve } from 'path'
 
 // Paths
-export const DB_PATH = join(homedir(), 'Library/Application Support/ai-notebook/ai-notebook.db')
+const DB_PATH = join(homedir(), 'Library/Application Support/ai-notebook/ai-notebook.db')
 export const SAMPLE_PDF = resolve(__dirname, '../pdfs/sample.pdf')
 
 // Clean up database files (including WAL files)
@@ -69,22 +69,6 @@ export async function waitForChapters(window: Page, pdfId: number, timeout = 300
   }
 
   return chapters
-}
-
-// Wait for PDF status to be "done"
-export async function waitForPdfDone(window: Page, pdfId: number, timeout = 60000): Promise<void> {
-  const startTime = Date.now()
-  while (Date.now() - startTime < timeout) {
-    const pdf = await window.evaluate(async (id) => {
-      const api = (window as unknown as { api: { getPdf: (id: number) => Promise<{ status: string } | undefined> } }).api
-      return await api.getPdf(id)
-    }, pdfId)
-
-    if (pdf?.status === 'done') return
-    await window.waitForTimeout(500)
-  }
-
-  throw new Error(`PDF ${pdfId} did not reach "done" status within ${timeout}ms`)
 }
 
 // Mark PDF as done directly (test-only, bypasses embedding)
@@ -175,85 +159,4 @@ export async function buildHistory(
     },
     { pdfId, chapterId }
   )
-}
-
-// Page Object for common UI interactions
-export class AppPage {
-  constructor(public window: Page) {}
-
-  // Sidebar
-  async clickUploadPdf(): Promise<void> {
-    await this.window.locator('[data-testid="upload-pdf-btn"]').click()
-  }
-
-  async clickSettings(): Promise<void> {
-    await this.window.locator('[data-testid="settings-btn"]').click()
-  }
-
-  async selectPdf(filename: string): Promise<void> {
-    await this.window.locator(`[data-testid="pdf-row"]:has-text("${filename}")`).click()
-  }
-
-  async expandPdf(filename: string): Promise<void> {
-    const row = this.window.locator(`[data-testid="pdf-row"]:has-text("${filename}")`)
-    await row.locator('[data-testid="expand-btn"]').click()
-  }
-
-  async deletePdf(filename: string): Promise<void> {
-    const row = this.window.locator(`[data-testid="pdf-row"]:has-text("${filename}")`)
-    await row.hover()
-    await row.locator('[data-testid="delete-pdf-btn"]').click()
-    await this.window.locator('button:text("Delete")').click()
-  }
-
-  async selectChapter(title: string): Promise<void> {
-    await this.window.locator(`[data-testid="chapter-row"]:has-text("${title}")`).click()
-  }
-
-  // Chat
-  async sendMessage(text: string): Promise<void> {
-    await this.window.locator('[data-testid="chat-input"]').fill(text)
-    await this.window.locator('[data-testid="chat-submit"]').click()
-  }
-
-  async typeSlashCommand(command: string): Promise<void> {
-    await this.window.locator('[data-testid="chat-input"]').fill(command)
-  }
-
-  async selectSlashCommand(name: string): Promise<void> {
-    await this.window.locator(`[data-testid="slash-command-${name}"]`).click()
-  }
-
-  // Settings dialog
-  async enterApiKey(key: string): Promise<void> {
-    await this.window.locator('[data-testid="api-key-input"]').fill(key)
-  }
-
-  async clickSaveApiKey(): Promise<void> {
-    await this.window.locator('[data-testid="save-api-key-btn"]').click()
-  }
-
-  async selectModel(modelName: string): Promise<void> {
-    await this.window.locator('[data-testid="model-select"]').click()
-    await this.window.locator(`[data-testid="model-option-${modelName}"]`).click()
-  }
-
-  async closeSettings(): Promise<void> {
-    await this.window.locator('[data-testid="close-settings-btn"]').click()
-  }
-
-  // Welcome screen
-  async completeWelcome(apiKey: string): Promise<void> {
-    await this.window.locator('[data-testid="welcome-api-key-input"]').fill(apiKey)
-    await this.window.locator('[data-testid="welcome-done-btn"]').click()
-  }
-
-  // Assertions helpers
-  async waitForToast(text: string): Promise<void> {
-    await this.window.locator(`[data-testid="toast"]:has-text("${text}")`).waitFor({ state: 'visible' })
-  }
-
-  async waitForNoToast(): Promise<void> {
-    await this.window.locator('[data-testid="toast"]').waitFor({ state: 'hidden', timeout: 6000 })
-  }
 }
