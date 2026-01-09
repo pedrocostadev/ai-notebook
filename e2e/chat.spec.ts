@@ -1,41 +1,20 @@
-import { test, expect, _electron as electron, ElectronApplication } from '@playwright/test'
-import { resolve } from 'path'
-import { unlinkSync, existsSync } from 'fs'
-import { homedir } from 'os'
-import { join } from 'path'
-
-const DB_PATH = join(homedir(), 'Library/Application Support/ai-notebook/ai-notebook.db')
-const SAMPLE_PDF = resolve(__dirname, '../pdfs/sample.pdf')
-
-function cleanupDb() {
-  for (const suffix of ['', '-shm', '-wal']) {
-    const path = DB_PATH + suffix
-    if (existsSync(path)) unlinkSync(path)
-  }
-}
+import { test, expect, ElectronApplication } from '@playwright/test'
+import { cleanupDb, launchApp, setupApiKey, uploadPdf, waitForChapters, SAMPLE_PDF } from './fixtures'
 
 test.describe('AI Notebook', () => {
-  test('app launches and shows settings dialog on first run', async () => {
+  test('app launches and shows welcome screen on first run', async () => {
     cleanupDb()
-    const app = await electron.launch({
-      args: ['.'],
-      env: {
-        ...process.env,
-        NODE_ENV: 'test'
-      }
-    })
-
+    const app = await launchApp()
     const window = await app.firstWindow()
 
-    // Wait for app to load
     await window.waitForLoadState('domcontentloaded')
 
-    // Settings dialog should appear on first run (no API key)
-    const settingsTitle = window.locator('text=Settings')
-    await expect(settingsTitle).toBeVisible({ timeout: 10000 })
+    // Welcome screen should appear on first run (no API key)
+    const welcomeTitle = window.locator('text=Welcome to AI Notebook')
+    await expect(welcomeTitle).toBeVisible({ timeout: 10000 })
 
     // API key input should be present
-    const apiKeyInput = window.locator('input[type="password"]')
+    const apiKeyInput = window.locator('[data-testid="welcome-api-key-input"]')
     await expect(apiKeyInput).toBeVisible()
 
     // Should show prompt for API key
@@ -46,31 +25,22 @@ test.describe('AI Notebook', () => {
 
   test('sidebar and main area render correctly', async () => {
     cleanupDb()
-    const app = await electron.launch({
-      args: ['.'],
-      env: {
-        ...process.env,
-        NODE_ENV: 'test'
-      }
-    })
-
+    const app = await launchApp()
     const window = await app.firstWindow()
     await window.waitForLoadState('domcontentloaded')
 
-    // Set test API key to bypass settings dialog
-    await window.evaluate(async () => {
-      const api = (window as unknown as { api: { setKeyTest: (key: string) => Promise<boolean> } }).api
-      await api.setKeyTest('test-api-key-12345')
-    })
-    await window.reload()
-    await window.waitForLoadState('domcontentloaded')
+    await setupApiKey(window)
 
     // App title should be visible
     await expect(window.locator('text=AI Notebook')).toBeVisible({ timeout: 10000 })
 
     // Upload button should exist in sidebar
-    const uploadButton = window.locator('text=Upload PDF').first()
+    const uploadButton = window.locator('[data-testid="upload-pdf-btn"]')
     await expect(uploadButton).toBeVisible()
+
+    // Settings button should exist
+    const settingsButton = window.locator('[data-testid="settings-btn"]')
+    await expect(settingsButton).toBeVisible()
 
     await app.close()
   })
@@ -90,42 +60,18 @@ test.describe('Chapter Processing', () => {
   })
 
   test('PDF upload creates chapters', async () => {
-    app = await electron.launch({
-      args: ['.'],
-      env: {
-        ...process.env,
-        NODE_ENV: 'test'
-      }
-    })
-
+    app = await launchApp()
     const window = await app.firstWindow()
     await window.waitForLoadState('domcontentloaded')
 
-    // Set test API key to bypass settings dialog
-    await window.evaluate(async () => {
-      const api = (window as unknown as { api: { setKeyTest: (key: string) => Promise<boolean> } }).api
-      await api.setKeyTest('test-api-key-12345')
-    })
-
-    // Reload to get fresh state with API key set
-    await window.reload()
-    await window.waitForLoadState('domcontentloaded')
-    await window.waitForTimeout(500)
+    await setupApiKey(window)
 
     // Upload PDF via test-only IPC
-    await window.evaluate(async (pdfPath) => {
-      const api = (window as unknown as { api: { uploadPdfFile: (path: string) => Promise<unknown> } }).api
-      return await api.uploadPdfFile(pdfPath)
-    }, SAMPLE_PDF)
+    await uploadPdf(window, SAMPLE_PDF)
 
-    // Verify chapters were created in database
-    await expect(async () => {
-      const chapters = await window.evaluate(async () => {
-        const api = (window as unknown as { api: { listChapters: (pdfId: number) => Promise<unknown[]> } }).api
-        return await api.listChapters(1)
-      })
-      expect((chapters as unknown[]).length).toBeGreaterThan(0)
-    }).toPass({ timeout: 30000 })
+    // Verify chapters were created
+    const chapters = await waitForChapters(window, 1)
+    expect(chapters.length).toBeGreaterThan(0)
 
     // Verify PDF appears in sidebar after reload
     await window.reload()
@@ -134,58 +80,33 @@ test.describe('Chapter Processing', () => {
   })
 
   test('chapter status indicators are visible', async () => {
-    app = await electron.launch({
-      args: ['.'],
-      env: {
-        ...process.env,
-        NODE_ENV: 'test'
-      }
-    })
-
+    app = await launchApp()
     const window = await app.firstWindow()
     await window.waitForLoadState('domcontentloaded')
 
-    // Set test API key
-    await window.evaluate(async () => {
-      const api = (window as unknown as { api: { setKeyTest: (key: string) => Promise<boolean> } }).api
-      await api.setKeyTest('test-api-key-12345')
-    })
+    await setupApiKey(window)
 
-    await window.reload()
-    await window.waitForLoadState('domcontentloaded')
-    await window.waitForTimeout(500)
+    // Upload PDF
+    await uploadPdf(window, SAMPLE_PDF)
 
-    // Upload PDF - this auto-expands the PDF and shows chapters
-    await window.evaluate(async (pdfPath) => {
-      const api = (window as unknown as { api: { uploadPdfFile: (path: string) => Promise<unknown> } }).api
-      return await api.uploadPdfFile(pdfPath)
-    }, SAMPLE_PDF)
-
-    // Wait for chapters to appear in database
-    await expect(async () => {
-      const chapters = await window.evaluate(async () => {
-        const api = (window as unknown as { api: { listChapters: (pdfId: number) => Promise<unknown[]> } }).api
-        return await api.listChapters(1)
-      })
-      expect((chapters as unknown[]).length).toBeGreaterThan(0)
-    }).toPass({ timeout: 30000 })
+    // Wait for chapters
+    await waitForChapters(window, 1)
 
     // Reload to see PDF in list
     await window.reload()
     await window.waitForLoadState('domcontentloaded')
-    await window.waitForTimeout(500)
 
     // PDF should be visible
     await expect(window.locator('text=sample.pdf')).toBeVisible({ timeout: 10000 })
 
-    // Click expand chevron to show chapters
-    const pdfRow = window.locator('text=sample.pdf').locator('..')
-    const expandBtn = pdfRow.locator('button').first()
-    await expandBtn.click()
-    await window.waitForTimeout(300)
+    // Ensure chapters are visible (expand if needed, localStorage may have persisted state)
+    const chapterRows = window.locator('[data-testid="chapter-row"]')
+    if (!(await chapterRows.first().isVisible())) {
+      const expandBtn = window.locator('[data-testid="expand-btn"]').first()
+      await expandBtn.click()
+    }
 
     // Chapter rows should now be visible
-    const chapterRows = window.locator('[data-testid="chapter-row"]')
     await expect(chapterRows.first()).toBeVisible({ timeout: 10000 })
 
     const count = await chapterRows.count()
@@ -202,36 +123,15 @@ test.describe('Chapter Processing', () => {
     }
   })
 
-  // Note: Test for chapter-specific chat requires waiting for embeddings to complete,
-  // which takes too long for E2E tests. This would need mocking or a pre-processed fixture.
-
   test('can cancel/delete PDF stuck in processing state', async () => {
-    app = await electron.launch({
-      args: ['.'],
-      env: {
-        ...process.env,
-        NODE_ENV: 'test'
-      }
-    })
-
+    app = await launchApp()
     const window = await app.firstWindow()
     await window.waitForLoadState('domcontentloaded')
 
-    // Set test API key
-    await window.evaluate(async () => {
-      const api = (window as unknown as { api: { setKeyTest: (key: string) => Promise<boolean> } }).api
-      await api.setKeyTest('test-api-key-12345')
-    })
-
-    await window.reload()
-    await window.waitForLoadState('domcontentloaded')
-    await window.waitForTimeout(500)
+    await setupApiKey(window)
 
     // Upload PDF
-    await window.evaluate(async (pdfPath) => {
-      const api = (window as unknown as { api: { uploadPdfFile: (path: string) => Promise<unknown> } }).api
-      return await api.uploadPdfFile(pdfPath)
-    }, SAMPLE_PDF)
+    await uploadPdf(window, SAMPLE_PDF)
 
     // Reload to see PDF in list
     await window.reload()
@@ -241,27 +141,19 @@ test.describe('Chapter Processing', () => {
     // Close and reopen app (simulates restart with stale processing state)
     await app.close()
 
-    app = await electron.launch({
-      args: ['.'],
-      env: {
-        ...process.env,
-        NODE_ENV: 'test'
-      }
-    })
-
+    app = await launchApp()
     const window2 = await app.firstWindow()
     await window2.waitForLoadState('domcontentloaded')
-    await window2.waitForTimeout(500)
 
     // PDF should still be visible
     await expect(window2.locator('text=sample.pdf')).toBeVisible({ timeout: 10000 })
 
-    // Try to cancel/delete the PDF (hover to show button, then click)
-    const pdfRow = window2.locator('text=sample.pdf').locator('..')
+    // Try to delete the PDF
+    const pdfRow = window2.locator('[data-testid="pdf-row"]').first()
     await pdfRow.hover()
 
-    // Click the cancel/delete button (X or trash icon)
-    const deleteButton = pdfRow.locator('button').filter({ has: window2.locator('svg') }).last()
+    // Click the delete button
+    const deleteButton = pdfRow.locator('[data-testid="delete-pdf-btn"], [data-testid="cancel-pdf-btn"]')
     await deleteButton.click()
 
     // Confirm deletion in dialog
