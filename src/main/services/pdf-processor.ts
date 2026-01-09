@@ -16,6 +16,7 @@ import {
   getChapter,
   updateChapterStatus,
   updateChapterEndIdx,
+  updateChapterStartIdx,
   getPdf,
   getChunksByChapterId
 } from './database'
@@ -65,6 +66,76 @@ function computePageBoundaries(pages: string[]): PageBoundary[] {
   }
 
   return boundaries
+}
+
+/**
+ * Detects the page offset between physical PDF pages and logical page numbers
+ * by sampling pages from the middle of the document where formatting is stable.
+ *
+ * Returns the offset to add to a TOC page number to get the physical page index.
+ * Example: if TOC says "Chapter 4...159" and it's on physical page 180, offset = 21
+ */
+function detectPageOffset(pages: string[]): number {
+  if (pages.length < 10) return 0
+
+  // Sample 4 pages from the middle (around 50% mark)
+  const midPoint = Math.floor(pages.length / 2)
+  const sampleIndices = [midPoint - 2, midPoint - 1, midPoint, midPoint + 1]
+
+  // Page number patterns to try (ordered by specificity)
+  const patterns = [
+    // "X of Y" formats - space separated (common after PDF text extraction)
+    // "title 115 of 242" or just "115 of 242"
+    { regex: /(\d{1,3})\s+of\s*\d+/i, location: 'footer' as const },
+    { regex: /(\d{1,3})\s+of\s*\d+/i, location: 'header' as const },
+    // "X of Y" with pipes: "| 115 | of 242"
+    { regex: /\|\s*(\d{1,3})\s*\|\s*of\s*\d+/i, location: 'footer' as const },
+    { regex: /(\d{1,3})\s*\|\s*of\s*\d+/i, location: 'footer' as const },
+    { regex: /\|\s*(\d{1,3})\s*\|\s*of\s*\d+/i, location: 'header' as const },
+    { regex: /(\d{1,3})\s*\|\s*of\s*\d+/i, location: 'header' as const },
+    // O'Reilly style: "PageNum | Chapter Title" (left page footer)
+    { regex: /^(\d{1,3})\s*\|/, location: 'footer' as const },
+    // O'Reilly style: "Chapter Title | PageNum" (right page footer)
+    { regex: /\|\s*(\d{1,3})\s*$/, location: 'footer' as const },
+    // Header with page number at start/end
+    { regex: /^(\d{1,3})\s*\|/, location: 'header' as const },
+    { regex: /\|\s*(\d{1,3})\s*$/, location: 'header' as const },
+    // Standalone page number
+    { regex: /^(\d{1,3})$/, location: 'footer' as const },
+    { regex: /^(\d{1,3})$/, location: 'header' as const }
+  ]
+
+  for (const physicalIdx of sampleIndices) {
+    if (physicalIdx < 0 || physicalIdx >= pages.length) continue
+
+    const content = pages[physicalIdx]
+    const lines = content.split('\n').filter((l) => l.trim().length > 0)
+    if (lines.length < 4) continue
+
+    // Get header (first 2 lines) and footer (last 3 lines)
+    const headerText = lines.slice(0, 2).join(' ')
+    const footerText = lines.slice(-3).join(' ')
+
+    for (const pattern of patterns) {
+      const text = pattern.location === 'header' ? headerText : footerText
+      const match = text.match(pattern.regex)
+
+      if (match) {
+        const logicalPage = parseInt(match[1], 10)
+        // Sanity check: logical page should be reasonable
+        if (logicalPage > 0 && logicalPage < pages.length) {
+          const physicalPage = physicalIdx + 1
+          const offset = physicalPage - logicalPage
+          // Offset should be positive (front matter adds pages) and reasonable
+          if (offset >= 0 && offset < 100) {
+            return offset
+          }
+        }
+      }
+    }
+  }
+
+  return 0 // No pattern detected, assume no offset
 }
 
 export async function processPdf(
@@ -131,58 +202,13 @@ export async function processPdf(
     const fullText = pages.join('\n\n')
     const boundaries = computePageBoundaries(pages)
 
-    // Stream TOC chapters from AI
-    const streamedChapters: { id: number; tocChapter: TocChapter; index: number; startIdx: number }[] = []
+    // Stream TOC chapters from AI - collect them first, then calculate boundaries with offset detection
+    const collectedChapters: { id: number; tocChapter: TocChapter; index: number }[] = []
 
     const tocResult = await parseTocStreaming(pages, (tocChapter, index) => {
-      // Use TOC page number as primary source, with title search to refine within a window
-      const pageIdx = Math.min(Math.max(tocChapter.pageNumber - 1, 0), boundaries.length - 1)
-      const pageBasedStart = boundaries[pageIdx]?.startIdx ?? 0
-
-      // Define a search window: from the TOC page to a few pages after
-      // This avoids matching TOC entries (which are before) or body text mentions (which are far after)
-      const windowStartPage = pageIdx
-      const windowEndPage = Math.min(pageIdx + 3, boundaries.length - 1)
-      const windowStart = boundaries[windowStartPage]?.startIdx ?? 0
-      const windowEnd = boundaries[windowEndPage]?.endIdx ?? fullText.length
-
-      // Search for title only within this window
-      // Match title at START of a line to avoid matching forward references in previous chapter
-      const escapedTitle = tocChapter.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-      const windowText = fullText.substring(windowStart, windowEnd)
-
-      // Try to find title at start of line first (chapter headings are typically on their own line)
-      const headingRegex = new RegExp(`(?:^|\\n)\\s*${escapedTitle}`, 'i')
-      const headingMatch = windowText.match(headingRegex)
-
-      let startIdx: number
-      if (headingMatch && headingMatch.index !== undefined) {
-        // Found title as heading - skip the newline/whitespace prefix
-        const matchStart = headingMatch.index
-        const prefixLength = headingMatch[0].length - tocChapter.title.length
-        startIdx = windowStart + matchStart + prefixLength
-      } else {
-        // Fallback: find LAST occurrence (more likely to be the actual chapter, not a forward reference)
-        const titleRegex = new RegExp(escapedTitle, 'gi')
-        let lastMatch: RegExpExecArray | null = null
-        let match: RegExpExecArray | null
-        while ((match = titleRegex.exec(windowText)) !== null) {
-          lastMatch = match
-        }
-        if (lastMatch) {
-          startIdx = windowStart + lastMatch.index
-        } else {
-          // Use page-based boundary directly
-          startIdx = pageBasedStart
-        }
-      }
-
-      // Use fullText.length as temporary end (will fix after all chapters are streamed)
-      const endIdx = fullText.length
-
-      // Insert chapter immediately
-      const chapterId = insertChapter(pdfId, tocChapter.title, index, startIdx, endIdx)
-      streamedChapters.push({ id: chapterId, tocChapter, index, startIdx })
+      // Insert chapter with temporary boundaries (will fix after all chapters collected)
+      const chapterId = insertChapter(pdfId, tocChapter.title, index, 0, fullText.length)
+      collectedChapters.push({ id: chapterId, tocChapter, index })
 
       // Notify frontend
       notifyChapterAdded(pdfId, {
@@ -193,19 +219,55 @@ export async function processPdf(
       })
     })
 
-    // After all chapters are streamed, fix end_idx values based on document order (page numbers)
-    // Sort by startIdx (document position) to determine correct boundaries
-    if (streamedChapters.length > 1) {
-      const sortedByPosition = [...streamedChapters].sort((a, b) => a.startIdx - b.startIdx)
-      for (let i = 0; i < sortedByPosition.length - 1; i++) {
-        const current = sortedByPosition[i]
-        const next = sortedByPosition[i + 1]
-        updateChapterEndIdx(current.id, next.startIdx)
+    // After all chapters collected, find actual chapter positions
+    if (collectedChapters.length > 0) {
+      // Detect page offset by sampling middle pages for page number patterns
+      const pageOffset = detectPageOffset(pages)
+
+      // Apply offset to find each chapter's position
+      const streamedChapters: { id: number; tocChapter: TocChapter; index: number; startIdx: number }[] = []
+
+      for (const chapter of collectedChapters) {
+        // Calculate expected physical page with offset
+        const tocPageIdx = chapter.tocChapter.pageNumber - 1
+        const expectedPageIdx = Math.min(Math.max(0, tocPageIdx + pageOffset), boundaries.length - 1)
+        const expectedStart = boundaries[expectedPageIdx]?.startIdx ?? 0
+        const searchWindowStart = Math.max(0, expectedStart - 5000) // Look 5000 chars before
+        const searchWindowEnd = Math.min(fullText.length, expectedStart + 20000) // Look 20000 chars after
+
+        // Search for title within this window
+        const escapedTitle = chapter.tocChapter.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        const windowText = fullText.substring(searchWindowStart, searchWindowEnd)
+        const headingRegex = new RegExp(`(?:^|\\n)\\s*${escapedTitle}`, 'i')
+        const headingMatch = windowText.match(headingRegex)
+
+        let startIdx: number
+        if (headingMatch && headingMatch.index !== undefined) {
+          // Found heading in window - calculate position and skip prefix
+          const prefixLength = headingMatch[0].length - chapter.tocChapter.title.length
+          startIdx = searchWindowStart + headingMatch.index + prefixLength
+        } else {
+          // Fall back to page boundary
+          startIdx = expectedStart
+        }
+
+        updateChapterStartIdx(chapter.id, startIdx)
+        streamedChapters.push({ id: chapter.id, tocChapter: chapter.tocChapter, index: chapter.index, startIdx })
+      }
+
+      // Step 3: Fix end_idx values based on document order
+      if (streamedChapters.length > 1) {
+        const sortedByPosition = [...streamedChapters].sort((a, b) => a.startIdx - b.startIdx)
+        for (let i = 0; i < sortedByPosition.length - 1; i++) {
+          const current = sortedByPosition[i]
+          const next = sortedByPosition[i + 1]
+          updateChapterEndIdx(current.id, next.startIdx)
+        }
       }
     }
 
     // Queue jobs for all chapters
-    for (const chapter of streamedChapters) {
+    for (const chapter of collectedChapters) {
       // Queue embed job (priority 1)
       insertJob(pdfId, chapter.id, 'embed')
       // Queue summary job (priority 2 - runs after embed)
@@ -215,7 +277,7 @@ export async function processPdf(
     }
 
     // If no chapters were streamed (no TOC), create single "Full Document" chapter
-    if (streamedChapters.length === 0) {
+    if (collectedChapters.length === 0) {
       const chapterId = insertChapter(pdfId, 'Full Document', 0, 0, fullText.length)
       notifyChapterAdded(pdfId, {
         id: chapterId,

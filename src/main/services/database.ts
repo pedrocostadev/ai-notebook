@@ -348,6 +348,12 @@ export function updateChapterEndIdx(id: number, endIdx: number): void {
     .run(endIdx, id)
 }
 
+export function updateChapterStartIdx(id: number, startIdx: number): void {
+  getDb()
+    .prepare('UPDATE chapters SET start_idx = ? WHERE id = ?')
+    .run(startIdx, id)
+}
+
 export function updateChapterSummary(id: number, summary: string): void {
   getDb()
     .prepare('UPDATE chapters SET summary = ? WHERE id = ?')
