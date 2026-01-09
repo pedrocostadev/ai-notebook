@@ -13,7 +13,7 @@
     },
     {
         "category": "ui",
-        "description": "Show a loading state immediately after selecting a PDF to upload (especially on first upload)",
+        "description": "Show a loading state immediately after selecting a PDF to upload",
         "steps": [
             "When the user selects a PDF file, immediately transition away from the empty state",
             "Display a clear loading/uploading placeholder while the upload begins",

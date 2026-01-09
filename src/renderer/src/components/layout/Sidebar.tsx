@@ -65,7 +65,7 @@ export function Sidebar({
     <div className="w-80 border-r flex flex-col h-full bg-muted/30 overflow-hidden">
       <div className="p-4 border-b flex items-center justify-between">
         <h1 className="font-semibold">AI Notebook</h1>
-        <Button variant="ghost" size="icon" onClick={onOpenSettings}>
+        <Button variant="ghost" size="icon" onClick={onOpenSettings} data-testid="settings-btn">
           <Settings className="h-4 w-4" />
         </Button>
       </div>

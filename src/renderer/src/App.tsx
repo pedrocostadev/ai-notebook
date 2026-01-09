@@ -119,6 +119,8 @@ export default function App() {
       />
       {toast && (
         <div
+          data-testid="toast"
+          data-toast-type={toast.type}
           className={`fixed bottom-4 right-4 px-4 py-2 rounded-md shadow-lg ${
             toast.type === 'error' ? 'bg-destructive text-destructive-foreground' : 'bg-primary text-primary-foreground'
           }`}

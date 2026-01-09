@@ -138,6 +138,7 @@ export function PdfList({
             <div key={pdf.id}>
               {/* PDF Row */}
               <div
+                data-testid="pdf-row"
                 className={cn(
                   'flex items-center gap-1 rounded-md px-2 py-1.5 cursor-pointer hover:bg-accent group',
                   selectedPdfId === pdf.id && selectedChapterId === null && 'bg-accent'
@@ -149,6 +150,7 @@ export function PdfList({
                     variant="ghost"
                     size="icon"
                     className="h-5 w-5 p-0"
+                    data-testid="expand-btn"
                     onClick={(e) => {
                       e.stopPropagation()
                       onToggleExpand(pdf.id)
@@ -173,6 +175,7 @@ export function PdfList({
                         variant="ghost"
                         size="icon"
                         className="h-6 w-6 opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive"
+                        data-testid="cancel-pdf-btn"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <X className="h-3.5 w-3.5" />
@@ -203,6 +206,7 @@ export function PdfList({
                         variant="ghost"
                         size="icon"
                         className="h-6 w-6 opacity-0 group-hover:opacity-100"
+                        data-testid="delete-pdf-btn"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <Trash2 className="h-3 w-3" />

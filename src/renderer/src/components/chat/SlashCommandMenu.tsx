@@ -47,6 +47,7 @@ export function SlashCommandMenu({ filter, selectedIndex, onSelect, visible }: S
               <button
                 key={command.name}
                 ref={(el) => { itemRefs.current[index] = el }}
+                data-testid={`slash-command-${command.name.slice(1)}`}
                 className={`w-full text-left px-3 py-2 rounded-md flex items-center gap-3 transition-colors ${
                   index === selectedIndex
                     ? 'bg-accent text-accent-foreground'
