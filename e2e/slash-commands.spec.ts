@@ -7,8 +7,9 @@ const DB_PATH = join(homedir(), 'Library/Application Support/ai-notebook/ai-note
 const SAMPLE_PDF = resolve(__dirname, '../pdfs/sample.pdf')
 
 function cleanupDb() {
-  if (existsSync(DB_PATH)) {
-    unlinkSync(DB_PATH)
+  for (const suffix of ['', '-shm', '-wal']) {
+    const path = DB_PATH + suffix
+    if (existsSync(path)) unlinkSync(path)
   }
 }
 
