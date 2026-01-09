@@ -12,22 +12,16 @@ AI Notebook - Electron desktop app for chatting with PDFs using RAG (Retrieval-A
 npm run dev          # Start dev server
 npm run build        # Build for production
 npm run make         # Package app (after build)
-npm run test         # Run unit tests (Vitest)
-npm run test:watch   # Run unit tests in watch mode
-npm run test:e2e     # Run E2E tests (Playwright)
+npm run test         # Run E2E tests (Playwright)
 ```
 
-## Testing Requirements
+## Testing
 
-**Always run tests after making changes:**
+**Run `npm run test` after making changes.**
 
-1. **Unit tests** (`npm run test`) - Run after changes to main process code
-2. **E2E tests** (`npm run test:e2e`) - Run after any UI/renderer changes
+Tests: `e2e/*.spec.ts` (chat, settings, slash-commands, ui-interactions, conversation-history)
 
-Unit tests: `src/main/**/*.test.ts` (database, rag, token-counter)
-E2E tests: `e2e/*.spec.ts` (chat, settings, slash-commands, ui-interactions, conversation-history)
-
-E2E tests require `npm run build` first (uses compiled app).
+Requires `npm run build` first (uses compiled app).
 
 ## Architecture
 
