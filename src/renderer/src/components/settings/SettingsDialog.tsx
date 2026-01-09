@@ -89,9 +89,10 @@ export function SettingsDialog({
               placeholder={hasApiKey ? 'Enter new key to replace' : 'Enter your API key'}
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
+              data-testid="api-key-input"
             />
-            {error && <p className="text-sm text-destructive">{error}</p>}
-            <Button onClick={handleSaveKey} disabled={saving || !apiKey.trim()} className="w-full">
+            {error && <p className="text-sm text-destructive" data-testid="api-key-error">{error}</p>}
+            <Button onClick={handleSaveKey} disabled={saving || !apiKey.trim()} className="w-full" data-testid="save-api-key-btn">
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {hasApiKey ? 'Update API Key' : 'Save API Key'}
             </Button>
@@ -101,7 +102,7 @@ export function SettingsDialog({
             <div className="space-y-2">
               <Label htmlFor="model">Chat Model</Label>
               <Select value={currentModel} onValueChange={onSetModel}>
-                <SelectTrigger>
+                <SelectTrigger data-testid="model-select">
                   <SelectValue placeholder="Select a model" />
                 </SelectTrigger>
                 <SelectContent>
@@ -118,7 +119,7 @@ export function SettingsDialog({
 
         {canClose && (
           <DialogFooter>
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+            <Button variant="outline" onClick={() => onOpenChange(false)} data-testid="close-settings-btn">
               Close
             </Button>
           </DialogFooter>

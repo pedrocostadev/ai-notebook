@@ -8,12 +8,12 @@
 3. Pick highest priority story
    where `passes: false`
 4. Implement that ONE story
-5. Run typecheck and tests
+5. Run typecheck and tests. Update tests if necessary.
 6. Update `progress.txt` with learnings
 7. Commit: `feat: small descriptive commit message`
 8. Update prd.json: `passes: true`
 9. Append learnings to progress.txt
-10. Start over from step 1
+10. Don't ask me anything, Start over from step 1
 
 ## Progress Format
 

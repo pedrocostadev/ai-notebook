@@ -7,7 +7,7 @@ interface PdfUploadProps {
 
 export function PdfUpload({ onUpload }: PdfUploadProps) {
   return (
-    <Button variant="outline" className="w-full" onClick={onUpload}>
+    <Button variant="outline" className="w-full" onClick={onUpload} data-testid="upload-pdf-btn">
       <Upload className="mr-2 h-4 w-4" />
       Upload PDF
     </Button>

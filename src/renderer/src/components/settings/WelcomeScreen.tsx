@@ -60,8 +60,9 @@ export function WelcomeScreen({ models, defaultModel, onComplete }: WelcomeScree
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleDone()}
+              data-testid="welcome-api-key-input"
             />
-            {error && <p className="text-sm text-destructive">{error}</p>}
+            {error && <p className="text-sm text-destructive" data-testid="welcome-error">{error}</p>}
             <p className="text-xs text-muted-foreground">
               Get your API key from{' '}
               <a
@@ -78,7 +79,7 @@ export function WelcomeScreen({ models, defaultModel, onComplete }: WelcomeScree
           <div className="space-y-2">
             <Label htmlFor="model">Chat Model</Label>
             <Select value={selectedModel} onValueChange={setSelectedModel}>
-              <SelectTrigger>
+              <SelectTrigger data-testid="welcome-model-select">
                 <SelectValue placeholder="Select a model" />
               </SelectTrigger>
               <SelectContent>
@@ -99,6 +100,7 @@ export function WelcomeScreen({ models, defaultModel, onComplete }: WelcomeScree
             disabled={saving || !apiKey.trim()}
             className="w-full"
             size="lg"
+            data-testid="welcome-done-btn"
           >
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {saving ? 'Validating...' : 'Done'}
