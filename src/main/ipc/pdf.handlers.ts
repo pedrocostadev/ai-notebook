@@ -88,8 +88,8 @@ export function registerPdfHandlers(): void {
     return cancelProcessing(id)
   })
 
-  ipcMain.handle('chapter:list', (_, pdfId: number) => {
-    return getChaptersByPdfId(pdfId)
+  ipcMain.handle('chapter:list', (_, pdfId: number, excludeAuxiliary: boolean = true) => {
+    return getChaptersByPdfId(pdfId, excludeAuxiliary)
   })
 
   // Test-only: Set PDF and chapter status directly (bypasses embedding)

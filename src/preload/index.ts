@@ -34,6 +34,7 @@ export type Chapter = {
   pdf_id: number
   title: string
   chapter_index: number
+  is_auxiliary: boolean
   status: 'pending' | 'processing' | 'done' | 'error'
   error_message: string | null
 }

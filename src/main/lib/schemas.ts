@@ -64,7 +64,15 @@ export const TocSchema = z.object({
     .array(
       z.object({
         title: z.string().describe('Chapter title as it appears in the TOC'),
-        pageNumber: z.number().describe('Page number where the chapter starts')
+        pageNumber: z.number().describe('Page number where the chapter starts'),
+        isAuxiliary: z
+          .boolean()
+          .describe(
+            'True if this is auxiliary content (Table of Contents, Index, Bibliography, ' +
+              'Acknowledgments, Preface, Foreword, Appendix, Glossary, List of Figures, ' +
+              'List of Tables, About the Author, Copyright, Dedication, Notes, References). ' +
+              'False if this is a main content chapter with substantive material.'
+          )
       })
     )
     .describe(
@@ -72,6 +80,24 @@ export const TocSchema = z.object({
         'Include main chapters only, not sub-sections. ' +
         'Page numbers should be the actual document page numbers.'
     )
+})
+
+export const ChapterClassificationSchema = z.object({
+  classifications: z
+    .array(
+      z.object({
+        title: z.string().describe('The chapter title exactly as provided'),
+        isAuxiliary: z
+          .boolean()
+          .describe(
+            'True if auxiliary content (Table of Contents, Index, Bibliography, ' +
+              'Acknowledgments, Preface, Foreword, Appendix, Glossary, List of Figures, ' +
+              'List of Tables, About the Author, Copyright, Dedication, Notes, References). ' +
+              'False if main content chapter with substantive material.'
+          )
+      })
+    )
+    .describe('Classification for each chapter title')
 })
 
 export type ChatResponseMetadata = z.infer<typeof ChatResponseMetadataSchema>
@@ -139,13 +165,14 @@ export const QuizQuestionSchema = z.object({
   question: z.string().describe('Clear question testing understanding of the concept'),
   options: z
     .array(z.string())
-    .length(4)
-    .describe('Exactly 4 answer options (A, B, C, D)'),
+    .min(2)
+    .max(6)
+    .describe('2-6 answer options'),
   correctIndex: z
     .number()
     .min(0)
-    .max(3)
-    .describe('Index of correct answer (0-3)'),
+    .max(5)
+    .describe('Index of correct answer'),
   explanation: z
     .string()
     .describe('Brief explanation of why the correct answer is right'),
@@ -155,9 +182,9 @@ export const QuizQuestionSchema = z.object({
 export const QuizSchema = z.object({
   questions: z
     .array(QuizQuestionSchema)
-    .min(5)
-    .max(10)
-    .describe('5-10 multiple choice questions testing key concepts')
+    .min(1)
+    .max(15)
+    .describe('Multiple choice questions testing key concepts')
 })
 
 export type QuizQuestion = z.infer<typeof QuizQuestionSchema>

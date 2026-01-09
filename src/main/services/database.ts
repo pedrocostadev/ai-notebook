@@ -65,6 +65,7 @@ export async function initDatabase(): Promise<void> {
       start_idx INTEGER,
       end_idx INTEGER,
       summary TEXT,
+      is_auxiliary BOOLEAN DEFAULT FALSE,
       status TEXT CHECK(status IN ('pending', 'processing', 'done', 'error')) DEFAULT 'pending',
       error_message TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -136,6 +137,7 @@ export async function initDatabase(): Promise<void> {
     'ALTER TABLE chapters ADD COLUMN summary TEXT',
     'ALTER TABLE chapters ADD COLUMN concepts_status TEXT DEFAULT NULL',
     'ALTER TABLE chapters ADD COLUMN concepts_error TEXT DEFAULT NULL',
+    'ALTER TABLE chapters ADD COLUMN is_auxiliary BOOLEAN DEFAULT FALSE',
     `CREATE TABLE IF NOT EXISTS concepts (
       id INTEGER PRIMARY KEY,
       pdf_id INTEGER REFERENCES pdfs(id) ON DELETE CASCADE,
@@ -291,31 +293,37 @@ export function insertChapter(
   title: string,
   chapterIndex: number,
   startIdx: number,
-  endIdx: number
+  endIdx: number,
+  isAuxiliary: boolean = false
 ): number {
   const stmt = getDb().prepare(`
-    INSERT INTO chapters (pdf_id, title, chapter_index, start_idx, end_idx, status)
-    VALUES (?, ?, ?, ?, ?, 'pending')
+    INSERT INTO chapters (pdf_id, title, chapter_index, start_idx, end_idx, is_auxiliary, status)
+    VALUES (?, ?, ?, ?, ?, ?, 'pending')
   `)
-  const result = stmt.run(pdfId, title, chapterIndex, startIdx, endIdx)
+  const result = stmt.run(pdfId, title, chapterIndex, startIdx, endIdx, isAuxiliary ? 1 : 0)
   return result.lastInsertRowid as number
 }
 
-export function getChaptersByPdfId(pdfId: number): {
+export function getChaptersByPdfId(pdfId: number, excludeAuxiliary: boolean = false): {
   id: number
   pdf_id: number
   title: string
   chapter_index: number
+  is_auxiliary: boolean
   status: string
   error_message: string | null
 }[] {
+  const query = excludeAuxiliary
+    ? 'SELECT id, pdf_id, title, chapter_index, is_auxiliary, status, error_message FROM chapters WHERE pdf_id = ? AND is_auxiliary = 0 ORDER BY chapter_index'
+    : 'SELECT id, pdf_id, title, chapter_index, is_auxiliary, status, error_message FROM chapters WHERE pdf_id = ? ORDER BY chapter_index'
   return getDb()
-    .prepare('SELECT id, pdf_id, title, chapter_index, status, error_message FROM chapters WHERE pdf_id = ? ORDER BY chapter_index')
+    .prepare(query)
     .all(pdfId) as {
     id: number
     pdf_id: number
     title: string
     chapter_index: number
+    is_auxiliary: boolean
     status: string
     error_message: string | null
   }[]
@@ -365,6 +373,12 @@ export function updateChapterSummary(id: number, summary: string): void {
   getDb()
     .prepare('UPDATE chapters SET summary = ? WHERE id = ?')
     .run(summary, id)
+}
+
+export function updateChapterAuxiliary(id: number, isAuxiliary: boolean): void {
+  getDb()
+    .prepare('UPDATE chapters SET is_auxiliary = ? WHERE id = ?')
+    .run(isAuxiliary ? 1 : 0, id)
 }
 
 export function getChapterSummary(id: number): string | null {

@@ -4,7 +4,7 @@ import { join, basename } from 'path'
 import { app, BrowserWindow } from 'electron'
 import { PDFLoader } from '@langchain/community/document_loaders/fs/pdf'
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters'
-import { parseOutlineFromPdf, parseTocStreaming, TocChapter } from './toc-parser'
+import { parseOutlineFromPdf, parseTocStreaming, classifyChapterTitles, TocChapter } from './toc-parser'
 import { estimateTokens } from '../lib/token-counter'
 import {
   insertPdf,
@@ -17,6 +17,7 @@ import {
   updateChapterStatus,
   updateChapterEndIdx,
   updateChapterStartIdx,
+  updateChapterAuxiliary,
   getPdf,
   getChunksByChapterId
 } from './database'
@@ -205,10 +206,12 @@ export async function processPdf(
 
     // Extract TOC - try PDF outline first (structured), fall back to AI parsing
     const collectedChapters: { id: number; tocChapter: TocChapter; index: number }[] = []
+    let usedOutlineParsing = false
 
     const onChapterFound = (tocChapter: TocChapter, index: number): void => {
       // Insert chapter with temporary boundaries (will fix after all chapters collected)
-      const chapterId = insertChapter(pdfId, tocChapter.title, index, 0, fullText.length)
+      // For AI-based parsing, isAuxiliary comes from the stream; for outline, it's undefined (classified later)
+      const chapterId = insertChapter(pdfId, tocChapter.title, index, 0, fullText.length, tocChapter.isAuxiliary ?? false)
       collectedChapters.push({ id: chapterId, tocChapter, index })
 
       // Notify frontend
@@ -222,10 +225,23 @@ export async function processPdf(
 
     // Try PDF outline first (most reliable - uses embedded bookmarks)
     let tocResult = await parseOutlineFromPdf(destPath, onChapterFound)
+    usedOutlineParsing = tocResult.hasToc && tocResult.chapters.length > 0
 
     // Fall back to AI parsing if no outline found
-    if (!tocResult.hasToc || tocResult.chapters.length === 0) {
+    if (!usedOutlineParsing) {
       tocResult = await parseTocStreaming(pages, onChapterFound)
+    }
+
+    // For outline-based parsing, classify chapters to set is_auxiliary
+    if (usedOutlineParsing && collectedChapters.length > 0) {
+      const titles = collectedChapters.map((c) => c.tocChapter.title)
+      const classifications = await classifyChapterTitles(titles)
+      for (const chapter of collectedChapters) {
+        const isAuxiliary = classifications.get(chapter.tocChapter.title)
+        if (isAuxiliary !== undefined) {
+          updateChapterAuxiliary(chapter.id, isAuxiliary)
+        }
+      }
     }
 
     // After all chapters collected, find actual chapter positions
