@@ -74,9 +74,7 @@ export const TocSchema = z.object({
     )
 })
 
-export type RerankedResults = z.infer<typeof RerankedResultsSchema>
 export type ChatResponseMetadata = z.infer<typeof ChatResponseMetadataSchema>
-export type TocResult = z.infer<typeof TocSchema>
 
 // Key Concepts schemas
 export const ConceptQuoteSchema = z.object({
@@ -133,7 +131,6 @@ export const ConsolidatedConceptsSchema = z.object({
 
 export type ConceptQuote = z.infer<typeof ConceptQuoteSchema>
 export type Concept = z.infer<typeof ConceptSchema>
-export type ChapterConcepts = z.infer<typeof ChapterConceptsSchema>
 export type ConsolidatedConcept = z.infer<typeof ConsolidatedConceptSchema>
 export type ConsolidatedConcepts = z.infer<typeof ConsolidatedConceptsSchema>
 
@@ -164,4 +161,3 @@ export const QuizSchema = z.object({
 })
 
 export type QuizQuestion = z.infer<typeof QuizQuestionSchema>
-export type Quiz = z.infer<typeof QuizSchema>
