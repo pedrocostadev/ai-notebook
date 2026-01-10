@@ -264,10 +264,28 @@ export function getAllPdfs(): {
   filename: string
   status: string
   created_at: string
+  title: string | null
 }[] {
-  return getDb()
-    .prepare('SELECT id, filename, status, created_at FROM pdfs ORDER BY created_at DESC')
-    .all() as { id: number; filename: string; status: string; created_at: string }[]
+  const rows = getDb()
+    .prepare('SELECT id, filename, status, created_at, metadata FROM pdfs ORDER BY created_at DESC')
+    .all() as { id: number; filename: string; status: string; created_at: string; metadata: string | null }[]
+
+  return rows.map(row => {
+    let title: string | null = null
+    if (row.metadata) {
+      try {
+        const meta = JSON.parse(row.metadata)
+        title = meta.title || null
+      } catch { /* ignore parse errors */ }
+    }
+    return {
+      id: row.id,
+      filename: row.filename,
+      status: row.status,
+      created_at: row.created_at,
+      title
+    }
+  })
 }
 
 export function updatePdfStatus(

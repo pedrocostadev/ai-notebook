@@ -5,6 +5,7 @@ interface Pdf {
   filename: string
   status: string
   created_at: string
+  title: string | null
 }
 
 interface Chapter {

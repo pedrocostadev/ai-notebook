@@ -13,7 +13,7 @@
         "steps": [
             "User selects a PDF file, the name of the main chat should be name of the book, not the name of the pdf file"
         ],
-        "passes": false
+        "passes": true
     },{
         "category": "ui",
         "description": "Show the full list of chapters in the app sidebar when available",

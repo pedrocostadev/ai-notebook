@@ -98,3 +98,16 @@
   - conditional onClick: `onClick={() => isReady && onSelect(...)}`
 
 ---
+
+## 2026-01-10 - Book Title Instead of Filename
+
+- Sidebar now shows book title (from metadata) instead of PDF filename
+- Falls back to filename if title not available
+- Modified getAllPdfs to extract title from metadata JSON
+- Files changed: `src/main/services/database.ts`, `src/preload/index.ts`, `src/renderer/src/hooks/usePdfs.ts`, `src/renderer/src/components/pdf/PdfList.tsx`, `src/renderer/src/components/layout/Sidebar.tsx`
+- **Learnings:**
+  - Metadata is stored as JSON in pdfs.metadata column
+  - Extract title during list query for efficiency
+  - Use `title || filename` for graceful fallback
+
+---
