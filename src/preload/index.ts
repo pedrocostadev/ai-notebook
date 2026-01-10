@@ -151,7 +151,7 @@ const api = {
   // Test-only: Set PDF status directly (bypasses embedding)
   setPdfStatusTest: (pdfId: number, status: string): Promise<{ success: boolean } | { error: string }> =>
     ipcRenderer.invoke('pdf:set-status-test', pdfId, status),
-  listPdfs: (): Promise<{ id: number; filename: string; status: string; created_at: string }[]> =>
+  listPdfs: (): Promise<{ id: number; filename: string; status: string; created_at: string; title: string | null }[]> =>
     ipcRenderer.invoke('pdf:list'),
   getPdf: (id: number): Promise<Pdf | undefined> => ipcRenderer.invoke('pdf:get', id),
   deletePdf: (id: number): Promise<boolean> => ipcRenderer.invoke('pdf:delete', id),

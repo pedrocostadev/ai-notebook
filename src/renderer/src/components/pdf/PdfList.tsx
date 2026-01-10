@@ -19,6 +19,7 @@ interface Pdf {
   filename: string
   status: string
   created_at: string
+  title: string | null
 }
 
 interface Chapter {
@@ -167,7 +168,7 @@ export function PdfList({
                   <div className="w-5" />
                 )}
                 <FileText className="h-4 w-4 flex-shrink-0" />
-                <span className="flex-1 truncate text-sm">{pdf.filename}</span>
+                <span className="flex-1 truncate text-sm">{pdf.title || pdf.filename}</span>
                 {getPdfStatusIndicator(pdf)}
                 {isPdfProcessing(pdf) ? (
                   <AlertDialog>
