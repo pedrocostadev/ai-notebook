@@ -236,34 +236,40 @@ export function ChatContainer({ pdfId, chapterId, chapterTitle, chapters, status
   if (!pdfId) {
     if (isUploading) {
       return (
-        <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-8 bg-background">
-          <div className="flex flex-col items-center max-w-sm text-center">
-            <div className="mb-6 p-5 rounded-2xl bg-muted/60">
-              <Loader2 className="h-10 w-10 text-primary animate-spin" />
+        <div className="flex-1 flex flex-col bg-background">
+          <div className="titlebar-drag h-12 shrink-0" />
+          <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-8">
+            <div className="flex flex-col items-center max-w-sm text-center">
+              <div className="mb-6 p-5 rounded-2xl bg-muted/60">
+                <Loader2 className="h-10 w-10 text-primary animate-spin" />
+              </div>
+              <h2 className="text-lg font-semibold text-foreground mb-2">Uploading PDF...</h2>
+              <p className="text-sm text-muted-foreground">Please wait while we process your file</p>
             </div>
-            <h2 className="text-lg font-semibold text-foreground mb-2">Uploading PDF...</h2>
-            <p className="text-sm text-muted-foreground">Please wait while we process your file</p>
           </div>
         </div>
       )
     }
     return (
-      <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-8 bg-background">
-        <div className="flex flex-col items-center max-w-md text-center">
-          <div className="mb-6 p-5 rounded-2xl bg-muted/60">
-            <FileText className="h-10 w-10 text-muted-foreground/60" />
+      <div className="flex-1 flex flex-col bg-background">
+        <div className="titlebar-drag h-12 shrink-0" />
+        <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-8">
+          <div className="flex flex-col items-center max-w-md text-center">
+            <div className="mb-6 p-5 rounded-2xl bg-muted/60">
+              <FileText className="h-10 w-10 text-muted-foreground/60" />
+            </div>
+            <h2 className="text-lg font-semibold text-foreground mb-2">No document selected</h2>
+            <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
+              Upload a PDF to start chatting with your documents using AI
+            </p>
+            <button
+              onClick={onUpload}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 font-medium text-sm transition-colors shadow-sm"
+            >
+              <Upload className="h-4 w-4" />
+              Upload PDF
+            </button>
           </div>
-          <h2 className="text-lg font-semibold text-foreground mb-2">No document selected</h2>
-          <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
-            Upload a PDF to start chatting with your documents using AI
-          </p>
-          <button
-            onClick={onUpload}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 font-medium text-sm transition-colors shadow-sm"
-          >
-            <Upload className="h-4 w-4" />
-            Upload PDF
-          </button>
         </div>
       </div>
     )
@@ -287,11 +293,13 @@ export function ChatContainer({ pdfId, chapterId, chapterTitle, chapters, status
 
   const isDone = status === 'done'
 
+  const showHeader = (isChapterView && chapterTitle) || (!isChapterView && isDone)
+
   return (
     <div className="flex-1 flex flex-col bg-background">
       {/* Chapter header */}
       {isChapterView && chapterTitle && (
-        <div data-testid="chapter-header" className="px-4 py-3 border-b flex items-center justify-between">
+        <div data-testid="chapter-header" className="titlebar-drag px-4 pt-7 pb-3 border-b flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Hash className="h-4 w-4 text-muted-foreground" />
             <span data-testid="chapter-title" className="text-sm font-semibold">{chapterTitle}</span>
@@ -300,7 +308,7 @@ export function ChatContainer({ pdfId, chapterId, chapterTitle, chapters, status
             <button
               data-testid="open-chapter-btn"
               onClick={handleOpenChapter}
-              className="flex items-center gap-1.5 px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
+              className="titlebar-no-drag flex items-center gap-1.5 px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
               title="Open in PDF viewer"
             >
               <ExternalLink className="h-3.5 w-3.5" />
@@ -311,7 +319,7 @@ export function ChatContainer({ pdfId, chapterId, chapterTitle, chapters, status
       )}
       {/* PDF header (main chat view, not chapter) */}
       {!isChapterView && isDone && (
-        <div data-testid="pdf-header" className="px-4 py-3 border-b flex items-center justify-between">
+        <div data-testid="pdf-header" className="titlebar-drag px-4 pt-7 pb-3 border-b flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm text-[var(--color-success)]">
             <CheckCircle className="h-4 w-4" />
             <span className="font-medium">Ready to chat</span>
@@ -319,7 +327,7 @@ export function ChatContainer({ pdfId, chapterId, chapterTitle, chapters, status
           <button
             data-testid="open-pdf-btn"
             onClick={handleOpenPdf}
-            className="flex items-center gap-1.5 px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
+            className="titlebar-no-drag flex items-center gap-1.5 px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
             title="Open PDF in viewer"
           >
             <ExternalLink className="h-3.5 w-3.5" />
@@ -327,6 +335,8 @@ export function ChatContainer({ pdfId, chapterId, chapterTitle, chapters, status
           </button>
         </div>
       )}
+      {/* Fallback titlebar when no header visible */}
+      {!showHeader && <div className="titlebar-drag h-12 shrink-0" />}
       {isProcessing && (
         <div data-testid="processing-indicator" className="px-4 py-3 bg-muted/40 border-b flex items-center gap-3 text-sm">
           <Loader2 className="h-4 w-4 animate-spin text-primary" />
