@@ -284,3 +284,101 @@ test.describe('Empty State', () => {
     await expect(window.locator('text=Upload PDF').first()).toBeVisible()
   })
 })
+
+test.describe('Chat Header', () => {
+  let app: ElectronApplication
+
+  test.beforeEach(async () => {
+    cleanupDb()
+  })
+
+  test.afterEach(async () => {
+    if (app) {
+      await app.close()
+    }
+  })
+
+  test('shows Open PDF button when PDF is done processing', async () => {
+    app = await launchApp()
+    const window = await app.firstWindow()
+    await window.waitForLoadState('domcontentloaded')
+
+    await setupApiKey(window)
+
+    // Upload and process PDF
+    const { pdfId } = await uploadPdf(window, SAMPLE_PDF)
+    await waitForChapters(window, pdfId)
+    await markPdfDone(window, pdfId)
+
+    // Reload to see PDF in list
+    await window.reload()
+    await window.waitForLoadState('domcontentloaded')
+
+    // Select the PDF
+    await window.locator('[data-testid="pdf-row"]').first().click()
+
+    // Should show "Ready to chat" status
+    await expect(window.locator('text=Ready to chat')).toBeVisible()
+
+    // Should show "Open PDF" button
+    await expect(window.locator('text=Open PDF')).toBeVisible()
+  })
+
+  test('shows Open button in chapter view when done processing', async () => {
+    app = await launchApp()
+    const window = await app.firstWindow()
+    await window.waitForLoadState('domcontentloaded')
+
+    await setupApiKey(window)
+
+    // Upload and process PDF
+    const { pdfId } = await uploadPdf(window, SAMPLE_PDF)
+    await waitForChapters(window, pdfId)
+    await markPdfDone(window, pdfId)
+
+    // Reload to see PDF in list
+    await window.reload()
+    await window.waitForLoadState('domcontentloaded')
+
+    // Wait for PDF to be visible
+    await expect(window.locator('text=sample.pdf')).toBeVisible({ timeout: 10000 })
+
+    // Expand chapters if not visible
+    const chapterRow = window.locator('[data-testid="chapter-row"]').first()
+    if (!(await chapterRow.isVisible())) {
+      await window.locator('[data-testid="expand-btn"]').first().click()
+    }
+
+    // Select a chapter
+    await chapterRow.click()
+
+    // Should show chapter header with "Open" button
+    const openBtn = window.locator('.border-b.bg-muted\\/30 button:has-text("Open")')
+    await expect(openBtn).toBeVisible()
+  })
+
+  test('shows processing indicator while PDF is processing', async () => {
+    app = await launchApp()
+    const window = await app.firstWindow()
+    await window.waitForLoadState('domcontentloaded')
+
+    await setupApiKey(window)
+
+    // Upload PDF (don't mark as done - leave processing)
+    await uploadPdf(window, SAMPLE_PDF)
+
+    // Reload to see PDF in list
+    await window.reload()
+    await window.waitForLoadState('domcontentloaded')
+
+    // Select the PDF
+    await window.locator('[data-testid="pdf-row"]').first().click()
+
+    // Should show processing indicator
+    await expect(window.locator('text=/Processing/')).toBeVisible()
+
+    // Chat input should be disabled during processing
+    const chatInput = window.locator('[data-testid="chat-input"]')
+    await expect(chatInput).toBeDisabled()
+  })
+})
