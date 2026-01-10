@@ -18,7 +18,8 @@ export function closeDb(): void {
 }
 
 export async function initDatabase(): Promise<void> {
-  const userDataPath = app.getPath('userData')
+  // Allow override for parallel test workers
+  const userDataPath = process.env.AI_NOTEBOOK_TEST_DB_DIR || app.getPath('userData')
   const dbPath = join(userDataPath, 'ai-notebook.db')
   const pdfsPath = join(userDataPath, 'pdfs')
 
@@ -586,6 +587,13 @@ export function updateJobStatus(id: number, status: string, lastError?: string):
   getDb()
     .prepare('UPDATE jobs SET status = ?, last_error = ?, attempts = attempts + 1 WHERE id = ?')
     .run(status, lastError ?? null, id)
+}
+
+// Mark all jobs for a PDF as done (test-only helper)
+export function markAllJobsDoneForPdf(pdfId: number): void {
+  getDb()
+    .prepare("UPDATE jobs SET status = 'done' WHERE pdf_id = ? AND status IN ('pending', 'running')")
+    .run(pdfId)
 }
 
 // Settings CRUD

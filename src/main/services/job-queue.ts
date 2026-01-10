@@ -398,3 +398,10 @@ export function cancelProcessing(pdfId: number): boolean {
   deletePdf(pdfId)
   return true
 }
+
+// Request cancellation for current PDF without deleting (test-only)
+export function requestCancelForPdf(pdfId: number): void {
+  if (currentPdfId === pdfId) {
+    cancelRequested = true
+  }
+}

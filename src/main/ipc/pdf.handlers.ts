@@ -1,8 +1,8 @@
 import { ipcMain, dialog, shell } from 'electron'
 import { spawn } from 'child_process'
-import { getAllPdfs, getPdf, deletePdf as dbDeletePdf, getChaptersByPdfId, updatePdfStatus, updateChapterStatus, getChapter } from '../services/database'
+import { getAllPdfs, getPdf, deletePdf as dbDeletePdf, getChaptersByPdfId, updatePdfStatus, updateChapterStatus, getChapter, markAllJobsDoneForPdf } from '../services/database'
 import { processPdf, deletePdfFile } from '../services/pdf-processor'
-import { startJobQueue, cancelProcessing } from '../services/job-queue'
+import { startJobQueue, cancelProcessing, requestCancelForPdf } from '../services/job-queue'
 import { parseOutlineFromPdf } from '../services/toc-parser'
 
 export function registerPdfHandlers(): void {
@@ -99,8 +99,13 @@ export function registerPdfHandlers(): void {
     if (process.env.NODE_ENV !== 'test') {
       return { error: 'Not allowed outside test environment' }
     }
+    // Cancel any ongoing processing for this PDF (without deleting)
+    requestCancelForPdf(pdfId)
+    // Mark all pending/running jobs as done to prevent job queue from overwriting status
+    markAllJobsDoneForPdf(pdfId)
+    // Update PDF status
     updatePdfStatus(pdfId, status)
-    // Also update all chapters to same status
+    // Update all chapters to same status
     const chapters = getChaptersByPdfId(pdfId)
     for (const chapter of chapters) {
       updateChapterStatus(chapter.id, status as 'pending' | 'processing' | 'done' | 'error')
