@@ -9,6 +9,7 @@ const getTestDbDir = () => join(homedir(), `Library/Application Support/ai-noteb
 const getDbPath = () => join(getTestDbDir(), 'ai-notebook.db')
 
 export const SAMPLE_PDF = resolve(__dirname, '../pdfs/sample.pdf')
+export const SAMPLE_PDF_2 = resolve(__dirname, '../pdfs/serverless_handbook.pdf')
 
 // Clean up database files and test directory
 export function cleanupDb(): void {
