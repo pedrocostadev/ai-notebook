@@ -20,3 +20,16 @@
   - Reused Loader2 icon with animate-spin for consistency
 
 ---
+
+## 2026-01-10 - Open PDF/Chapter from App
+
+- Added IPC handlers: `pdf:open` and `pdf:open-chapter`
+- Both use `shell.openPath()` to open PDF in system default viewer
+- Added "Open" button in chat header (PDF & chapter views)
+- Button only shows when status is 'done'
+- Files changed: `src/main/ipc/pdf.handlers.ts`, `src/preload/index.ts`, `src/renderer/src/components/chat/ChatContainer.tsx`
+- **Learnings:**
+  - `shell.openPath()` returns error string if fails, empty string on success
+  - PDF viewers don't support opening at specific page via CLI, so chapter just opens PDF
+
+---

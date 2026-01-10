@@ -68,7 +68,7 @@
             "The button should be displayed in the top header of the chat",
             "The button should open only that chapter, not the entire PDF"
         ],
-        "passes": false
+        "passes": true
     },
     {
         "category": "functional",
@@ -78,6 +78,6 @@
             "The button should be displayed in the top header of the main chat",
             "The button should open the entire PDF"
         ],
-        "passes": false
+        "passes": true
     }
 ]

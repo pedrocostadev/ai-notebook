@@ -156,6 +156,10 @@ const api = {
   getPdf: (id: number): Promise<Pdf | undefined> => ipcRenderer.invoke('pdf:get', id),
   deletePdf: (id: number): Promise<boolean> => ipcRenderer.invoke('pdf:delete', id),
   cancelPdfProcessing: (id: number): Promise<boolean> => ipcRenderer.invoke('pdf:cancel', id),
+  openPdf: (pdfId: number): Promise<{ success: boolean } | { error: string }> =>
+    ipcRenderer.invoke('pdf:open', pdfId),
+  openChapter: (chapterId: number): Promise<{ success: boolean } | { error: string }> =>
+    ipcRenderer.invoke('pdf:open-chapter', chapterId),
 
   // Chapters
   listChapters: (pdfId: number): Promise<Chapter[]> => ipcRenderer.invoke('chapter:list', pdfId),
