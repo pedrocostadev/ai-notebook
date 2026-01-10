@@ -87,7 +87,7 @@ test.describe('Chapter Processing', () => {
     await expect(window.locator('text=sample')).toBeVisible({ timeout: 10000 })
   })
 
-  test('chapter status indicators are visible', async () => {
+  test('chapters are visible and clickable when done', async () => {
     app = await launchApp()
     const window = await app.firstWindow()
     await window.waitForLoadState('domcontentloaded')
@@ -121,14 +121,13 @@ test.describe('Chapter Processing', () => {
     const count = await chapterRows.count()
     expect(count).toBeGreaterThan(0)
 
-    // Each chapter row should have a visible status indicator
+    // Each chapter row should be clickable (not disabled) when done
     for (let i = 0; i < count; i++) {
       const row = chapterRows.nth(i)
-      const indicator = row.locator('[data-testid="chapter-status"]')
-      await expect(indicator).toBeVisible()
-      // The indicator should contain an SVG (the icon)
-      const svg = indicator.locator('svg')
-      await expect(svg.first()).toBeVisible()
+      // Done chapters should not have opacity-50 (disabled state)
+      const className = await row.getAttribute('class')
+      expect(className).not.toContain('opacity-50')
+      expect(className).toContain('cursor-pointer')
     }
   })
 

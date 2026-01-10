@@ -1,6 +1,6 @@
 import { ipcMain, dialog, shell } from 'electron'
 import { spawn } from 'child_process'
-import { getAllPdfs, getPdf, deletePdf as dbDeletePdf, getChaptersByPdfId, updatePdfStatus, updateChapterStatus, getChapter, getChunksByChapterId } from '../services/database'
+import { getAllPdfs, getPdf, deletePdf as dbDeletePdf, getChaptersByPdfId, updatePdfStatus, updateChapterStatus, getChapter } from '../services/database'
 import { processPdf, deletePdfFile } from '../services/pdf-processor'
 import { startJobQueue, cancelProcessing } from '../services/job-queue'
 
@@ -132,9 +132,8 @@ export function registerPdfHandlers(): void {
       return { error: 'PDF not found' }
     }
 
-    // Get first chunk of chapter to determine starting page
-    const chunks = getChunksByChapterId(chapterId)
-    const startPage = chunks.length > 0 ? Math.min(...chunks.map(c => c.page_start)) : 1
+    // Use chapter's start_page directly (calculated from TOC during processing)
+    const startPage = chapter.start_page ?? 1
 
     try {
       // On macOS, use skim or Preview with page parameter
