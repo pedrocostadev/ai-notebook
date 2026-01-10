@@ -19,7 +19,7 @@ import {
 } from './database'
 import { generateEmbeddings } from './embeddings'
 import { getApiKey } from './settings'
-import { deletePdfFile, processChapter, computePageBoundaries, findPageFromCharIndex } from './pdf-processor'
+import { deletePdfFile, processChapter, computePageBoundaries, findPageFromCharIndex, loadPageLabels, physicalToLabel } from './pdf-processor'
 import {
   generateChapterSummary,
   generatePdfMetadata,
@@ -89,8 +89,11 @@ async function processNextJob(): Promise<void> {
       const pages = docs.map((d) => d.pageContent)
       const fullText = pages.join('\n\n')
 
+      // Load page labels for converting physical pages to display labels
+      const labelMap = await loadPageLabels(pdf.filepath)
+
       // Process chapter (chunk text)
-      await processChapter(job.pdf_id, job.chapter_id, fullText, pages)
+      await processChapter(job.pdf_id, job.chapter_id, fullText, pages, labelMap)
 
       if (cancelRequested) {
         currentPdfId = null
@@ -153,6 +156,9 @@ async function processNextJob(): Promise<void> {
       const fullText = pages.join('\n\n')
       const boundaries = computePageBoundaries(pages)
 
+      // Load page labels for converting physical pages to display labels
+      const labelMap = await loadPageLabels(pdf.filepath)
+
       // Extract chapter text directly using chapter boundaries
       const chapterText = fullText.substring(chapter.start_idx, chapter.end_idx)
 
@@ -164,15 +170,29 @@ async function processNextJob(): Promise<void> {
       const segments = await splitter.splitText(chapterText)
 
       // Calculate page numbers for each segment using page boundaries
-      const chunksWithPages: ChunkWithPage[] = segments.map((content) => {
-        const segmentStartInFull = chapter.start_idx + chapterText.indexOf(content)
+      // Track position to handle repeated text (indexOf would always return first occurrence)
+      const chunksWithPages: ChunkWithPage[] = []
+      let searchStartInChapter = 0
+      for (const content of segments) {
+        const posInChapter = chapterText.indexOf(content, searchStartInChapter)
+        const actualPos = posInChapter >= 0 ? posInChapter : searchStartInChapter
+
+        const segmentStartInFull = chapter.start_idx + actualPos
         const segmentEndInFull = segmentStartInFull + content.length
-        return {
+
+        // Get physical pages then convert to labels for UI display
+        const physicalStart = findPageFromCharIndex(boundaries, segmentStartInFull)
+        const physicalEnd = findPageFromCharIndex(boundaries, segmentEndInFull)
+
+        chunksWithPages.push({
           content,
-          pageStart: findPageFromCharIndex(boundaries, segmentStartInFull),
-          pageEnd: findPageFromCharIndex(boundaries, segmentEndInFull)
-        }
-      })
+          pageStart: physicalToLabel(physicalStart, labelMap),
+          pageEnd: physicalToLabel(physicalEnd, labelMap)
+        })
+
+        // Update search position for next segment (step back by overlap)
+        searchStartInChapter = Math.max(0, actualPos + content.length - CHUNK_OVERLAP)
+      }
 
       const concepts = await generateChapterConcepts(chunksWithPages)
 

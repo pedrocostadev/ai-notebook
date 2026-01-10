@@ -9,6 +9,7 @@ interface PDFDocumentProxy {
   getOutline(): Promise<OutlineItem[] | null>
   getDestination(dest: string): Promise<unknown[] | null>
   getPageIndex(ref: unknown): Promise<number>
+  getPageLabels(): Promise<string[] | null>
   getMetadata(): Promise<{ info: Record<string, unknown> } | null>
 }
 
@@ -20,8 +21,10 @@ interface OutlineItem {
 
 export interface TocChapter {
   title: string
-  pageNumber: number
+  pageNumber: number // Physical page index (1-indexed) for text boundary calculation
+  pageLabel?: number // Page label (printed number) for Preview navigation
   isAuxiliary?: boolean
+  isPhysicalPage?: boolean // true = pageNumber is physical page index (from PDF outline)
 }
 
 export interface ParsedToc {
@@ -60,6 +63,14 @@ export async function parseOutlineFromPdf(
       return { hasToc: false, chapters: [], title }
     }
 
+    // Get page labels for converting physical page to display label
+    let pageLabels: string[] | null = null
+    try {
+      pageLabels = await doc.getPageLabels()
+    } catch {
+      // Some PDFs don't have page labels
+    }
+
     const chapters: TocChapter[] = []
     let index = 0
 
@@ -86,9 +97,22 @@ export async function parseOutlineFromPdf(
         }
       }
 
+      // Get page label (printed number) for Preview navigation
+      let pageLabel: number | undefined
+      if (pageLabels && pageNumber > 0 && pageNumber <= pageLabels.length) {
+        const label = pageLabels[pageNumber - 1] // pageLabels is 0-indexed
+        // Try to parse as number (some labels might be Roman numerals or other formats)
+        const parsed = parseInt(label, 10)
+        if (!isNaN(parsed)) {
+          pageLabel = parsed
+        }
+      }
+
       const chapter: TocChapter = {
         title: item.title.trim(),
-        pageNumber
+        pageNumber,
+        pageLabel, // May be undefined if no labels or non-numeric label
+        isPhysicalPage: true // Outline gives physical page indices
       }
 
       chapters.push(chapter)

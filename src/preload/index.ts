@@ -160,9 +160,28 @@ const api = {
     ipcRenderer.invoke('pdf:open', pdfId),
   openChapter: (chapterId: number): Promise<{ success: boolean; page?: number } | { error: string }> =>
     ipcRenderer.invoke('pdf:open-chapter', chapterId),
+  openPdfAtPage: (pdfId: number, page: number): Promise<{ success: boolean; page?: number } | { error: string }> =>
+    ipcRenderer.invoke('pdf:open-at-page', pdfId, page),
 
   // Chapters
   listChapters: (pdfId: number): Promise<Chapter[]> => ipcRenderer.invoke('chapter:list', pdfId),
+  // Test-only: Get chapter with full details including start_page
+  getChapterTest: (chapterId: number): Promise<{
+    id: number
+    pdf_id: number
+    title: string
+    chapter_index: number
+    start_idx: number
+    end_idx: number
+    start_page: number | null
+    status: string
+    error_message: string | null
+  } | { error: string }> => ipcRenderer.invoke('chapter:get-test', chapterId),
+  // Test-only: Get PDF outline directly from file
+  getPdfOutlineTest: (pdfId: number): Promise<{
+    hasToc: boolean
+    chapters: { title: string; pageNumber: number }[]
+  } | { error: string }> => ipcRenderer.invoke('pdf:get-outline-test', pdfId),
 
   // Chat
   sendMessage: (pdfId: number, chapterId: number | null, message: string): Promise<boolean> =>
