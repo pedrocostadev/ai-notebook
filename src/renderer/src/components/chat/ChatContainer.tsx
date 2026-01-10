@@ -237,24 +237,38 @@ export function ChatContainer({ pdfId, chapterId, chapterTitle, chapters, status
     if (isUploading) {
       return (
         <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-8">
-          <Loader2 className="h-16 w-16 mb-4 opacity-40 animate-spin" />
-          <h2 className="text-xl font-medium mb-2">Uploading PDF...</h2>
-          <p className="text-sm">Please wait while we process your file</p>
+          <div className="flex flex-col items-center max-w-sm text-center">
+            <div className="relative mb-8">
+              <div className="absolute inset-0 bg-primary/5 rounded-full scale-150 blur-xl" />
+              <div className="relative p-6 rounded-full bg-muted/50 border border-border/50">
+                <Loader2 className="h-12 w-12 opacity-40 animate-spin" />
+              </div>
+            </div>
+            <h2 className="text-xl font-semibold text-foreground mb-3">Uploading PDF...</h2>
+            <p className="text-sm leading-relaxed">Please wait while we process your file</p>
+          </div>
         </div>
       )
     }
     return (
       <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-8">
-        <FileText className="h-16 w-16 mb-4 opacity-20" />
-        <h2 className="text-xl font-medium mb-2">No PDF Selected</h2>
-        <p className="text-sm mb-4">Upload a PDF to start chatting</p>
-        <button
-          onClick={onUpload}
-          className="flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90"
-        >
-          <Upload className="h-4 w-4" />
-          Upload PDF
-        </button>
+        <div className="flex flex-col items-center max-w-sm text-center">
+          <div className="relative mb-8">
+            <div className="absolute inset-0 bg-primary/5 rounded-full scale-150 blur-xl" />
+            <div className="relative p-6 rounded-full bg-muted/50 border border-border/50">
+              <FileText className="h-12 w-12 opacity-40" />
+            </div>
+          </div>
+          <h2 className="text-xl font-semibold text-foreground mb-3">No PDF Selected</h2>
+          <p className="text-sm leading-relaxed mb-6">Upload a PDF to start chatting with your documents</p>
+          <button
+            onClick={onUpload}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 font-medium transition-colors"
+          >
+            <Upload className="h-4 w-4" />
+            Upload PDF
+          </button>
+        </div>
       </div>
     )
   }

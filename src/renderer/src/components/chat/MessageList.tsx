@@ -99,12 +99,21 @@ export function MessageList({ messages, streamingContent, isStreaming, commandLo
           </p>
         </div>
       ) : isEmpty ? (
-        <div className="h-full flex flex-col items-center justify-center text-muted-foreground py-16">
-          <MessageSquareText className="h-16 w-16 mb-4 opacity-20" />
-          <h3 className="text-lg font-medium mb-2">Start a conversation</h3>
-          <p className="text-sm text-center max-w-xs">
-            Ask a question about this document or use a slash command like /summary or /key-concepts
-          </p>
+        <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
+          <div className="flex flex-col items-center max-w-sm text-center">
+            <div className="relative mb-8">
+              <div className="absolute inset-0 bg-primary/5 rounded-full scale-150 blur-xl" />
+              <div className="relative p-6 rounded-full bg-muted/50 border border-border/50">
+                <MessageSquareText className="h-12 w-12 opacity-40" />
+              </div>
+            </div>
+            <h3 className="text-xl font-semibold text-foreground mb-3">Start a conversation</h3>
+            <p className="text-sm leading-relaxed mb-6">
+              Ask a question about this document, or explore with commands like{' '}
+              <code className="px-1.5 py-0.5 rounded bg-muted text-xs font-mono">/summary</code> or{' '}
+              <code className="px-1.5 py-0.5 rounded bg-muted text-xs font-mono">/key-concepts</code>
+            </p>
+          </div>
         </div>
       ) : (
       <div className="space-y-4 max-w-3xl mx-auto">
