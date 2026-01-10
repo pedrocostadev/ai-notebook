@@ -131,7 +131,9 @@ export function PdfList({
       <div className="space-y-0.5 p-2">
         {pdfs.map((pdf) => {
           const isExpanded = expandedPdfIds.has(pdf.id)
-          const pdfChapters = chapters[pdf.id] || []
+          const allChapters = chapters[pdf.id] || []
+          // Only show chapters that are done processing
+          const pdfChapters = allChapters.filter(c => c.status === 'done')
           const hasChapters = pdfChapters.length > 0
 
           return (
