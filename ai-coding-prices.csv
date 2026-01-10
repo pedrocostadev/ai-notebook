@@ -1,0 +1,21 @@
+Product,Plan,Price (Monthly),Price (Annual),Key Features
+OpenAI Codex,Free,$0,N/A,Basic GPT-5 access with limited Codex functionality
+OpenAI Codex,Plus,$20,N/A,30-150 local tasks/5hrs; CLI and IDE integrations
+OpenAI Codex,Pro,$200,N/A,300-1500 messages; unlimited o1 reasoning models
+OpenAI Codex,Team,$25-30/user,N/A,Unlimited GPT-5 messages; shared credit pools
+OpenAI Codex,Enterprise,Custom,Custom,Volume discounts; enhanced security; data training disabled
+Cursor,Hobby (Free),$0,N/A,Unlimited slow requests; basic models; simple completions
+Cursor,Pro,$20,N/A,$20 credit/month; ~225 Sonnet or ~650 GPT-4.1 requests
+Cursor,Pro Plus,~$60-100,N/A,~3x Pro credits; medium-sized projects
+Cursor,Ultra,~$300 worth,N/A,~20x Pro credits; large-scale projects and automation
+Cursor,Teams,$40/user,N/A,SSO; privacy mode; admin features
+Cursor,Enterprise,Custom,Custom,Custom pricing for large deployments
+Claude Code,Pro,$20,$17/mo billed annually,10-40 prompts/5hrs; light usage; learning/small projects
+Claude Code,Max 5x,$100,N/A,5x Pro usage; Sonnet 4.5 + Opus access; auto model switching
+Claude Code,Max 20x,$200,N/A,20x Pro usage; generous Opus 4.5 allocation; power users
+Claude Code,Team (API),~$100-200/dev,N/A,API-based; Team Standard $300/year seat available
+GitHub Copilot,Free,$0,N/A,2000 completions; 50 chat requests
+GitHub Copilot,Pro,$10,$100/yr,Unlimited completions; 300 premium requests; coding agent
+GitHub Copilot,Pro+,$39,$390/yr,1500 premium requests; all models incl. Claude Opus 4 and o3
+GitHub Copilot,Business,$19/user,N/A,IP indemnity; centralized management; audit logs
+GitHub Copilot,Enterprise,$39/user,N/A,1000 premium requests; knowledge bases; custom models

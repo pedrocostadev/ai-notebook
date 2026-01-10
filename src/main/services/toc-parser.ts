@@ -9,6 +9,7 @@ interface PDFDocumentProxy {
   getOutline(): Promise<OutlineItem[] | null>
   getDestination(dest: string): Promise<unknown[] | null>
   getPageIndex(ref: unknown): Promise<number>
+  getMetadata(): Promise<{ info: Record<string, unknown> } | null>
 }
 
 interface OutlineItem {
@@ -26,6 +27,7 @@ export interface TocChapter {
 export interface ParsedToc {
   hasToc: boolean
   chapters: TocChapter[]
+  title?: string
 }
 
 /**
@@ -41,10 +43,21 @@ export async function parseOutlineFromPdf(
     const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs')
     const doc: PDFDocumentProxy = await pdfjs.getDocument(pdfPath).promise
 
+    // Extract title from PDF metadata
+    let title: string | undefined
+    try {
+      const metadata = await doc.getMetadata()
+      if (metadata?.info?.Title && typeof metadata.info.Title === 'string') {
+        title = metadata.info.Title.trim()
+      }
+    } catch {
+      // Ignore metadata extraction errors
+    }
+
     const outline = await doc.getOutline()
 
     if (!outline || outline.length === 0) {
-      return { hasToc: false, chapters: [] }
+      return { hasToc: false, chapters: [], title }
     }
 
     const chapters: TocChapter[] = []
@@ -83,7 +96,7 @@ export async function parseOutlineFromPdf(
       index++
     }
 
-    return { hasToc: true, chapters }
+    return { hasToc: true, chapters, title }
   } catch (error) {
     console.error('Outline extraction error:', error)
     return { hasToc: false, chapters: [] }
