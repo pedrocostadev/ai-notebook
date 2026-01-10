@@ -1,5 +1,5 @@
 import { test, expect, ElectronApplication } from '@playwright/test'
-import { cleanupDb, launchApp, setupApiKey, uploadPdf, waitForChapters, markPdfDone, SAMPLE_PDF } from './fixtures'
+import { cleanupDb, launchApp, setupApiKey, uploadPdf, waitForChapters, markPdfDone, saveMessage, getChatHistory, SAMPLE_PDF, SAMPLE_PDF_2 } from './fixtures'
 
 test.describe('PDF List Interactions', () => {
   let app: ElectronApplication
@@ -384,5 +384,122 @@ test.describe('Chat Header', () => {
     // Chat input should be disabled during processing
     const chatInput = window.locator('[data-testid="chat-input"]')
     await expect(chatInput).toBeDisabled()
+  })
+})
+
+test.describe('Multi-PDF', () => {
+  let app: ElectronApplication
+
+  test.beforeEach(async () => {
+    cleanupDb()
+  })
+
+  test.afterEach(async () => {
+    if (app) {
+      await app.close()
+    }
+    cleanupDb()
+  })
+
+  test('multiple PDFs appear in sidebar and can be selected independently', async () => {
+    app = await launchApp()
+    const window = await app.firstWindow()
+    await window.waitForLoadState('domcontentloaded')
+
+    await setupApiKey(window)
+
+    // Upload first PDF
+    const { pdfId: pdfId1 } = await uploadPdf(window, SAMPLE_PDF)
+    await waitForChapters(window, pdfId1)
+    await markPdfDone(window, pdfId1)
+
+    // Upload second PDF
+    const { pdfId: pdfId2 } = await uploadPdf(window, SAMPLE_PDF_2)
+    await waitForChapters(window, pdfId2)
+    await markPdfDone(window, pdfId2)
+
+    // Reload to see both PDFs in list
+    await window.reload()
+    await window.waitForLoadState('domcontentloaded')
+
+    // Both PDFs should be visible in sidebar
+    const pdfRows = window.locator('[data-testid="pdf-row"]')
+    await expect(pdfRows).toHaveCount(2)
+
+    // Verify both PDF names are visible (app shows book title, not filename)
+    await expect(window.locator('text=sample')).toBeVisible()
+    await expect(window.locator('text=Serverless Handbook')).toBeVisible()
+  })
+
+  test('chat messages are isolated between PDFs', async () => {
+    app = await launchApp()
+    const window = await app.firstWindow()
+    await window.waitForLoadState('domcontentloaded')
+
+    await setupApiKey(window)
+
+    // Upload and process two PDFs
+    const { pdfId: pdfId1 } = await uploadPdf(window, SAMPLE_PDF)
+    await waitForChapters(window, pdfId1)
+    await markPdfDone(window, pdfId1)
+
+    const { pdfId: pdfId2 } = await uploadPdf(window, SAMPLE_PDF_2)
+    await waitForChapters(window, pdfId2)
+    await markPdfDone(window, pdfId2)
+
+    // Save a message to PDF 1
+    await saveMessage(window, pdfId1, null, 'user', 'Question for PDF 1')
+    await saveMessage(window, pdfId1, null, 'assistant', 'Answer for PDF 1')
+
+    // Save a different message to PDF 2
+    await saveMessage(window, pdfId2, null, 'user', 'Question for PDF 2')
+    await saveMessage(window, pdfId2, null, 'assistant', 'Answer for PDF 2')
+
+    // Verify PDF 1 has only its messages
+    const history1 = await getChatHistory(window, pdfId1, null)
+    expect(history1).toHaveLength(2)
+    expect(history1[0].content).toBe('Question for PDF 1')
+    expect(history1[1].content).toBe('Answer for PDF 1')
+
+    // Verify PDF 2 has only its messages
+    const history2 = await getChatHistory(window, pdfId2, null)
+    expect(history2).toHaveLength(2)
+    expect(history2[0].content).toBe('Question for PDF 2')
+    expect(history2[1].content).toBe('Answer for PDF 2')
+  })
+
+  test('switching PDFs shows correct chat header state', async () => {
+    app = await launchApp()
+    const window = await app.firstWindow()
+    await window.waitForLoadState('domcontentloaded')
+
+    await setupApiKey(window)
+
+    // Upload and process two PDFs
+    const { pdfId: pdfId1 } = await uploadPdf(window, SAMPLE_PDF)
+    await waitForChapters(window, pdfId1)
+    await markPdfDone(window, pdfId1)
+
+    const { pdfId: pdfId2 } = await uploadPdf(window, SAMPLE_PDF_2)
+    await waitForChapters(window, pdfId2)
+    await markPdfDone(window, pdfId2)
+
+    // Reload to see both PDFs
+    await window.reload()
+    await window.waitForLoadState('domcontentloaded')
+
+    // Select first PDF
+    await window.locator('[data-testid="pdf-row"]').first().click()
+    await expect(window.locator('[data-testid="pdf-header"]')).toBeVisible()
+    await expect(window.locator('text=Ready to chat')).toBeVisible()
+
+    // Select second PDF
+    await window.locator('[data-testid="pdf-row"]').last().click()
+    await expect(window.locator('[data-testid="pdf-header"]')).toBeVisible()
+    await expect(window.locator('text=Ready to chat')).toBeVisible()
+
+    // Chat input should be enabled for both
+    const chatInput = window.locator('[data-testid="chat-input"]')
+    await expect(chatInput).toBeEnabled()
   })
 })
