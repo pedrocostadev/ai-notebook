@@ -1,83 +1,34 @@
 [
     {
         "category": "functional",
-        "description": "Persist the current chat selected when closing the app and restore it on next launch",
+        "description": "The open button on the top header of each chapter chat is opening the entire PDF",
         "steps": [
-            "On app close, serialize the current selected chat (any selected PDF/chapter context as needed)",
-            "Write the serialized app state to persistent storage",
-            "On app launch, load the last saved app state if present",
-            "Restore the chat UI to the same state the user had when the app was closed",
-            "Handle missing/corrupt saved state gracefully (start with an empty chat)"
+            "The open button on the top header of each chapter chat should open ONLY that chapter, not the entire PDF"
         ],
         "passes": true
     },
     {
         "category": "ui",
-        "description": "Show a loading state immediately after selecting a PDF to upload",
+        "description": "The name of the main chat should be name of the book, not the name of the pdf file",
         "steps": [
-            "When the user selects a PDF file, immediately transition away from the empty state",
-            "Display a clear loading/uploading placeholder while the upload begins",
-            "Ensure the loading state is shown consistently for the first-time upload case",
-            "Remove the loading state once upload/progress indicator takes over or upload completes",
-            "Handle upload initiation errors with an actionable message"
+            "User selects a PDF file, the name of the main chat should be name of the book, not the name of the pdf file"
         ],
-        "passes": true
-    },
-    {
+        "passes": false
+    },{
         "category": "ui",
-        "description": "Use a single unified processing indicator for each PDF upload + processing, with progress tooltip and completion state",
+        "description": "Show the full list of chapters in the app sidebar when available",
         "steps": [
-            "Replace multiple upload/processing indicators for the same PDF with one main indicator shown in the primary chat view",
-            "Show the indicator while a PDF is uploading or chapters are processing",
-            "Display a message like \"Processing chapter 3 of 10\" on top header of the main chat",
-            "When all chapters are processed, switch the indicator to a green \"completed\" state",
-            "Ensure progress updates smoothly and remains accurate across multi-chapter PDFs",
-            "Only display the chapter entry on the app sidebar when the chapter finishes processing"
+            "Show the full list of chapters in the app sidebar when available",
+            "The chapters not processed should be displayed in a disabled state",
+            "Remove the checkmark from the chapter items."
         ],
-        "passes": true
-    },
-    {
-        "category": "ui",
-        "description": "Improve the empty chat illustration to better use the available space",
+        "passes": false
+    },{
+        "category": "tests",
+        "description": "The e2e tests should clear the app state after each test",
         "steps": [
-            "Redesign the empty chat illustration so it occupies an appropriate portion of the screen",
-            "Improve layout, sizing, and positioning so it feels balanced and intentional",
-            "Ensure the illustration remains responsive across window sizes",
-            "Keep supporting empty-state text readable and visually integrated",
-            "Verify it hides immediately once the first message is present"
+            "The e2e tests should clear the app state after each test"
         ],
-        "passes": true
-    },
-    {
-        "category": "onboarding",
-        "description": "Improve the splash/welcome screen to better use available space with a more engaging illustration",
-        "steps": [
-            "Update the splash screen layout to take advantage of the available screen space",
-            "Add/replace the illustration with something more interesting and engaging",
-            "Ensure the illustration scales well with different window sizes",
-            "Maintain clear hierarchy for inputs/actions (API key, model selection, etc.)",
-            "Confirm the splash screen feels polished and consistent with the rest of the app"
-        ],
-        "passes": true
-    },
-    {
-        "category": "functional",
-        "description": "Every PDF chapter can be opened from the app",
-        "steps": [
-            "When a chapter finishes processing and loads into the app sidebar, we should display a button to open that chapter",
-            "The button should be displayed in the top header of the chat",
-            "The button should open only that chapter, not the entire PDF"
-        ],
-        "passes": true
-    },
-    {
-        "category": "functional",
-        "description": "Every PDF can be opened from the app",
-        "steps": [
-            "When a pdf finishes processing we should display a button to open the entire pdf",
-            "The button should be displayed in the top header of the main chat",
-            "The button should open the entire PDF"
-        ],
-        "passes": true
+        "passes": false
     }
 ]

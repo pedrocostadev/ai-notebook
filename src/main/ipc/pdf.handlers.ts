@@ -1,5 +1,6 @@
 import { ipcMain, dialog, shell } from 'electron'
-import { getAllPdfs, getPdf, deletePdf as dbDeletePdf, getChaptersByPdfId, updatePdfStatus, updateChapterStatus, getChapter } from '../services/database'
+import { spawn } from 'child_process'
+import { getAllPdfs, getPdf, deletePdf as dbDeletePdf, getChaptersByPdfId, updatePdfStatus, updateChapterStatus, getChapter, getChunksByChapterId } from '../services/database'
 import { processPdf, deletePdfFile } from '../services/pdf-processor'
 import { startJobQueue, cancelProcessing } from '../services/job-queue'
 
@@ -121,8 +122,6 @@ export function registerPdfHandlers(): void {
   })
 
   // Open PDF at specific chapter (page) in system default viewer
-  // Note: Most PDF viewers don't support opening at a specific page via command line
-  // For now, just open the PDF (chapter info could be used in future with specific viewers)
   ipcMain.handle('pdf:open-chapter', async (_, chapterId: number) => {
     const chapter = getChapter(chapterId)
     if (!chapter) {
@@ -132,9 +131,36 @@ export function registerPdfHandlers(): void {
     if (!pdf) {
       return { error: 'PDF not found' }
     }
+
+    // Get first chunk of chapter to determine starting page
+    const chunks = getChunksByChapterId(chapterId)
+    const startPage = chunks.length > 0 ? Math.min(...chunks.map(c => c.page_start)) : 1
+
     try {
+      // On macOS, use skim or Preview with page parameter
+      if (process.platform === 'darwin') {
+        // Try to open with Preview at specific page using AppleScript
+        const script = `
+          tell application "Preview"
+            activate
+            open POSIX file "${pdf.filepath}"
+            delay 0.5
+            tell application "System Events"
+              keystroke "g" using {option down, command down}
+              delay 0.2
+              keystroke "${startPage}"
+              delay 0.1
+              keystroke return
+            end tell
+          end tell
+        `
+        spawn('osascript', ['-e', script], { detached: true, stdio: 'ignore' }).unref()
+        return { success: true, page: startPage }
+      }
+
+      // Fallback: just open the PDF
       await shell.openPath(pdf.filepath)
-      return { success: true }
+      return { success: true, page: startPage }
     } catch (err) {
       return { error: err instanceof Error ? err.message : 'Failed to open PDF' }
     }

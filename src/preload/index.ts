@@ -158,7 +158,7 @@ const api = {
   cancelPdfProcessing: (id: number): Promise<boolean> => ipcRenderer.invoke('pdf:cancel', id),
   openPdf: (pdfId: number): Promise<{ success: boolean } | { error: string }> =>
     ipcRenderer.invoke('pdf:open', pdfId),
-  openChapter: (chapterId: number): Promise<{ success: boolean } | { error: string }> =>
+  openChapter: (chapterId: number): Promise<{ success: boolean; page?: number } | { error: string }> =>
     ipcRenderer.invoke('pdf:open-chapter', chapterId),
 
   // Chapters
