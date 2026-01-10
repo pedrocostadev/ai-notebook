@@ -58,3 +58,17 @@
   - Consistent `max-w-sm` container keeps layout balanced on all screen sizes
 
 ---
+
+## 2026-01-10 - Improved Welcome Screen
+
+- Split layout: left side features, right side form (responsive)
+- Added feature highlights: Smart Search, Natural Conversation, Auto Summaries
+- Consistent visual style with other empty states (blur effects, icons)
+- Form side shows icon on mobile only (`lg:hidden`)
+- Changed button text from "Done" to "Get Started"
+- Files changed: `src/renderer/src/components/settings/WelcomeScreen.tsx`
+- **Learnings:**
+  - `hidden lg:flex` pattern for responsive split layouts
+  - Feature list with icons provides engaging "marketing" content
+
+---
