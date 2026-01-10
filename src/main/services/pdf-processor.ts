@@ -17,6 +17,7 @@ import {
   updateChapterStatus,
   updateChapterEndIdx,
   updateChapterStartIdx,
+  updateChapterStartPage,
   updateChapterAuxiliary,
   getPdf,
   getChunksByChapterId,
@@ -47,13 +48,13 @@ export interface ProcessResult {
   existingPdfId?: number
 }
 
-interface PageBoundary {
+export interface PageBoundary {
   pageNumber: number
   startIdx: number
   endIdx: number
 }
 
-function computePageBoundaries(pages: string[]): PageBoundary[] {
+export function computePageBoundaries(pages: string[]): PageBoundary[] {
   const boundaries: PageBoundary[] = []
   let currentIdx = 0
 
@@ -68,6 +69,37 @@ function computePageBoundaries(pages: string[]): PageBoundary[] {
   }
 
   return boundaries
+}
+
+/**
+ * Find the page number (1-indexed) that contains the given character index.
+ * Uses binary search for efficiency.
+ */
+export function findPageFromCharIndex(boundaries: PageBoundary[], charIndex: number): number {
+  if (boundaries.length === 0) return 1
+
+  let left = 0
+  let right = boundaries.length - 1
+
+  while (left <= right) {
+    const mid = Math.floor((left + right) / 2)
+    const boundary = boundaries[mid]
+
+    if (charIndex < boundary.startIdx) {
+      right = mid - 1
+    } else if (charIndex >= boundary.endIdx) {
+      left = mid + 1
+    } else {
+      // charIndex is within this page's bounds
+      return boundary.pageNumber
+    }
+  }
+
+  // If not found in any bounds (shouldn't happen), return closest page
+  if (left >= boundaries.length) {
+    return boundaries[boundaries.length - 1].pageNumber
+  }
+  return boundaries[left].pageNumber
 }
 
 /**
@@ -256,7 +288,7 @@ export async function processPdf(
       const pageOffset = detectPageOffset(pages)
 
       // Apply offset to find each chapter's position
-      const streamedChapters: { id: number; tocChapter: TocChapter; index: number; startIdx: number }[] = []
+      const streamedChapters: { id: number; tocChapter: TocChapter; index: number; startIdx: number; startPage: number }[] = []
 
       for (const chapter of collectedChapters) {
         // Calculate expected physical page with offset
@@ -273,17 +305,22 @@ export async function processPdf(
         const headingMatch = windowText.match(headingRegex)
 
         let startIdx: number
+        let startPage: number
         if (headingMatch && headingMatch.index !== undefined) {
           // Found heading in window - calculate position and skip prefix
           const prefixLength = headingMatch[0].length - chapter.tocChapter.title.length
           startIdx = searchWindowStart + headingMatch.index + prefixLength
+          // Find actual page from character position
+          startPage = findPageFromCharIndex(boundaries, startIdx)
         } else {
           // Fall back to page boundary
           startIdx = expectedStart
+          startPage = expectedPageIdx + 1 // 1-indexed page number
         }
 
         updateChapterStartIdx(chapter.id, startIdx)
-        streamedChapters.push({ id: chapter.id, tocChapter: chapter.tocChapter, index: chapter.index, startIdx })
+        updateChapterStartPage(chapter.id, startPage)
+        streamedChapters.push({ id: chapter.id, tocChapter: chapter.tocChapter, index: chapter.index, startIdx, startPage })
       }
 
       // Step 3: Fix end_idx values based on document order
@@ -344,7 +381,7 @@ export async function processChapter(
   pdfId: number,
   chapterId: number,
   fullText: string,
-  pageCount: number
+  pages: string[]
 ): Promise<void> {
   const chapter = getChapter(chapterId)
   if (!chapter) throw new Error('Chapter not found')
@@ -354,6 +391,10 @@ export async function processChapter(
   if (existingChunks.length > 0) return
 
   updateChapterStatus(chapterId, 'processing')
+
+  // Compute page boundaries for accurate page number lookup
+  const boundaries = computePageBoundaries(pages)
+  const pageCount = pages.length
 
   const chapterText = fullText.substring(chapter.start_idx, chapter.end_idx)
 
@@ -379,13 +420,11 @@ export async function processChapter(
     const content = chunks[i]
     const tokenCount = estimateTokens(content)
 
-    // Estimate page range based on position in full text
+    // Calculate page range using actual page boundaries
     const chunkStartInFull = chapter.start_idx + chapterText.indexOf(content)
-    const pageStart = Math.floor((chunkStartInFull / fullText.length) * pageCount) + 1
-    const pageEnd = Math.min(
-      Math.floor(((chunkStartInFull + content.length) / fullText.length) * pageCount) + 1,
-      pageCount
-    )
+    const chunkEndInFull = chunkStartInFull + content.length
+    const pageStart = findPageFromCharIndex(boundaries, chunkStartInFull)
+    const pageEnd = Math.min(findPageFromCharIndex(boundaries, chunkEndInFull), pageCount)
 
     insertChunk(pdfId, chapterId, i, content, chapter.title, pageStart, pageEnd, tokenCount)
 

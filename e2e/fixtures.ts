@@ -22,6 +22,17 @@ export async function clearLocalStorage(window: Page): Promise<void> {
   })
 }
 
+// Wait for a localStorage key to have a value (polls until set)
+export async function waitForLocalStorage(window: Page, key: string, timeout = 3000): Promise<string | null> {
+  const startTime = Date.now()
+  while (Date.now() - startTime < timeout) {
+    const value = await window.evaluate((k) => localStorage.getItem(k), key)
+    if (value !== null) return value
+    await window.waitForTimeout(50)
+  }
+  return null
+}
+
 // Launch app with common options
 export async function launchApp(): Promise<ElectronApplication> {
   return electron.launch({
@@ -33,14 +44,29 @@ export async function launchApp(): Promise<ElectronApplication> {
   })
 }
 
+// Wait for the preload API to be available
+export async function waitForApi(window: Page, timeout = 5000): Promise<void> {
+  const startTime = Date.now()
+  while (Date.now() - startTime < timeout) {
+    const hasApi = await window.evaluate(() => {
+      return typeof (window as unknown as { api: unknown }).api !== 'undefined'
+    })
+    if (hasApi) return
+    await window.waitForTimeout(100)
+  }
+  throw new Error(`API not available within ${timeout}ms`)
+}
+
 // Set test API key and reload to bypass settings dialog
 export async function setupApiKey(window: Page): Promise<void> {
+  await waitForApi(window)
   await window.evaluate(async () => {
     const api = (window as unknown as { api: { setKeyTest: (key: string) => Promise<boolean> } }).api
     await api.setKeyTest('test-api-key-12345')
   })
   await window.reload()
   await window.waitForLoadState('domcontentloaded')
+  await waitForApi(window)
 }
 
 // Upload a PDF via test-only IPC

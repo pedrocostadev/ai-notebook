@@ -9,6 +9,7 @@ import {
   markPdfDone,
   setChapterSummary,
   getChatHistory,
+  waitForLocalStorage,
   SAMPLE_PDF
 } from './fixtures'
 
@@ -461,22 +462,22 @@ test.describe('Slash Commands', () => {
     }
     expect(chapterRowsVisible).toBe(true)
 
-    // Get all visible chapter rows
-    const chapterRows = await window.locator('[data-testid="chapter-row"]').all()
+    // Get all visible chapter rows that are clickable (done status = cursor-pointer)
+    const chapterRowsLocator = window.locator('[data-testid="chapter-row"].cursor-pointer')
+    await expect(chapterRowsLocator.first()).toBeVisible({ timeout: 5000 })
+    const chapterRows = await chapterRowsLocator.all()
 
     // Test each visible chapter: click it, then verify the summary matches the selected ID
     for (let i = 0; i < Math.min(chapterRows.length, 3); i++) {
+      // Clear localStorage before clicking to ensure we detect the new value
+      await window.evaluate(() => localStorage.removeItem('selectedChapterId'))
+
       // Click the chapter to select it
       await chapterRows[i].click()
 
-      // Wait a moment for selection to take effect
-      await window.waitForTimeout(300)
-
-      // Get the selectedChapterId from localStorage (what the UI thinks is selected)
-      const selectedChapterId = await window.evaluate(() => {
-        const stored = localStorage.getItem('selectedChapterId')
-        return stored ? parseInt(stored, 10) : null
-      })
+      // Wait for localStorage to be updated (React state + useEffect)
+      const storedValue = await waitForLocalStorage(window, 'selectedChapterId', 3000)
+      const selectedChapterId = storedValue ? parseInt(storedValue, 10) : null
 
       expect(selectedChapterId).not.toBeNull()
 

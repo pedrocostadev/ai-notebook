@@ -19,7 +19,7 @@ import {
 } from './database'
 import { generateEmbeddings } from './embeddings'
 import { getApiKey } from './settings'
-import { deletePdfFile, processChapter } from './pdf-processor'
+import { deletePdfFile, processChapter, computePageBoundaries, findPageFromCharIndex } from './pdf-processor'
 import {
   generateChapterSummary,
   generatePdfMetadata,
@@ -27,6 +27,10 @@ import {
   consolidatePdfConcepts,
   type ChunkWithPage
 } from './content-generator'
+import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters'
+
+const CHUNK_SIZE = 1500
+const CHUNK_OVERLAP = 200
 
 const MAX_ATTEMPTS = 3
 const BASE_DELAY = 1000
@@ -82,10 +86,11 @@ async function processNextJob(): Promise<void> {
 
       const loader = new PDFLoader(pdf.filepath, { parsedItemSeparator: '\n' })
       const docs = await loader.load()
-      const fullText = docs.map((d) => d.pageContent).join('\n\n')
+      const pages = docs.map((d) => d.pageContent)
+      const fullText = pages.join('\n\n')
 
       // Process chapter (chunk text)
-      await processChapter(job.pdf_id, job.chapter_id, fullText, docs.length)
+      await processChapter(job.pdf_id, job.chapter_id, fullText, pages)
 
       if (cancelRequested) {
         currentPdfId = null
@@ -98,14 +103,18 @@ async function processNextJob(): Promise<void> {
       // Generate embeddings for this chapter's chunks
       await processChapterEmbeddings(job.pdf_id, job.chapter_id)
     } else if (job.type === 'summary' && job.chapter_id !== null) {
-      // Generate chapter summary using already-extracted chunks
-      const chunks = getChunksByChapterId(job.chapter_id)
-      if (chunks.length === 0) {
-        throw new Error('No chunks found for chapter - embed job may not have completed')
-      }
+      // Generate chapter summary using chapter data directly
+      const pdf = getPdf(job.pdf_id)
+      if (!pdf) throw new Error('PDF not found')
+      const chapter = getChapter(job.chapter_id)
+      if (!chapter) throw new Error('Chapter not found')
 
-      // Concatenate chunks to get chapter text
-      const chapterText = chunks.map((c) => c.content).join('\n\n')
+      const loader = new PDFLoader(pdf.filepath, { parsedItemSeparator: '\n' })
+      const docs = await loader.load()
+      const fullText = docs.map((d) => d.pageContent).join('\n\n')
+
+      // Extract chapter text directly using chapter boundaries
+      const chapterText = fullText.substring(chapter.start_idx, chapter.end_idx)
 
       const summary = await generateChapterSummary(chapterText)
       // Only update if summary was generated (null means chapter was too short)
@@ -124,7 +133,7 @@ async function processNextJob(): Promise<void> {
       const metadata = await generatePdfMetadata(fullText)
       updatePdfMetadata(job.pdf_id, metadata)
     } else if (job.type === 'concepts' && job.chapter_id !== null) {
-      // Generate key concepts for chapter
+      // Generate key concepts for chapter using chapter data directly
       updateChapterConceptsStatus(job.chapter_id, 'processing')
 
       notifyConceptsProgress({
@@ -133,17 +142,38 @@ async function processNextJob(): Promise<void> {
         stage: 'extracting'
       })
 
-      const chunks = getChunksByChapterId(job.chapter_id)
-      if (chunks.length === 0) {
-        throw new Error('No chunks found for chapter - embed job may not have completed')
-      }
+      const pdf = getPdf(job.pdf_id)
+      if (!pdf) throw new Error('PDF not found')
+      const chapter = getChapter(job.chapter_id)
+      if (!chapter) throw new Error('Chapter not found')
 
-      // Pass chunks with page info for page references in quotes
-      const chunksWithPages: ChunkWithPage[] = chunks.map((c) => ({
-        content: c.content,
-        pageStart: c.page_start,
-        pageEnd: c.page_end
-      }))
+      const loader = new PDFLoader(pdf.filepath, { parsedItemSeparator: '\n' })
+      const docs = await loader.load()
+      const pages = docs.map((d) => d.pageContent)
+      const fullText = pages.join('\n\n')
+      const boundaries = computePageBoundaries(pages)
+
+      // Extract chapter text directly using chapter boundaries
+      const chapterText = fullText.substring(chapter.start_idx, chapter.end_idx)
+
+      // Split chapter text into segments for page markers
+      const splitter = new RecursiveCharacterTextSplitter({
+        chunkSize: CHUNK_SIZE,
+        chunkOverlap: CHUNK_OVERLAP
+      })
+      const segments = await splitter.splitText(chapterText)
+
+      // Calculate page numbers for each segment using page boundaries
+      const chunksWithPages: ChunkWithPage[] = segments.map((content) => {
+        const segmentStartInFull = chapter.start_idx + chapterText.indexOf(content)
+        const segmentEndInFull = segmentStartInFull + content.length
+        return {
+          content,
+          pageStart: findPageFromCharIndex(boundaries, segmentStartInFull),
+          pageEnd: findPageFromCharIndex(boundaries, segmentEndInFull)
+        }
+      })
+
       const concepts = await generateChapterConcepts(chunksWithPages)
 
       if (cancelRequested) {
