@@ -109,8 +109,8 @@ test.describe('PDF List Interactions', () => {
     // Click on a chapter
     await window.locator('[data-testid="chapter-row"]').first().click()
 
-    // Chat should show chapter header with title (use specific selector for chat header area)
-    const chatHeader = window.locator('.border-b.bg-muted\\/30 span.font-medium')
+    // Chat should show chapter header with title
+    const chatHeader = window.locator('[data-testid="chapter-title"]')
     await expect(chatHeader).toHaveText(chapterTitle)
   })
 
@@ -357,7 +357,7 @@ test.describe('Chat Header', () => {
     await chapterRow.click()
 
     // Should show chapter header with "Open" button
-    const openBtn = window.locator('.border-b.bg-muted\\/30 button:has-text("Open")')
+    const openBtn = window.locator('[data-testid="open-chapter-btn"]')
     await expect(openBtn).toBeVisible()
   })
 

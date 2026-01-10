@@ -1,17 +1,29 @@
 import { _electron as electron, ElectronApplication, Page } from '@playwright/test'
-import { unlinkSync, existsSync } from 'fs'
+import { unlinkSync, existsSync, rmSync } from 'fs'
 import { homedir } from 'os'
 import { join, resolve } from 'path'
 
-// Paths
-const DB_PATH = join(homedir(), 'Library/Application Support/ai-notebook/ai-notebook.db')
+// Paths - use worker-specific directory for parallel test isolation
+const getWorkerIndex = () => process.env.TEST_PARALLEL_INDEX || '0'
+const getTestDbDir = () => join(homedir(), `Library/Application Support/ai-notebook-test-${getWorkerIndex()}`)
+const getDbPath = () => join(getTestDbDir(), 'ai-notebook.db')
+
 export const SAMPLE_PDF = resolve(__dirname, '../pdfs/sample.pdf')
 
-// Clean up database files (including WAL files)
+// Clean up database files and test directory
 export function cleanupDb(): void {
+  const dbPath = getDbPath()
   for (const suffix of ['', '-shm', '-wal']) {
-    const path = DB_PATH + suffix
+    const path = dbPath + suffix
     if (existsSync(path)) unlinkSync(path)
+  }
+}
+
+// Clean up entire test directory (call in globalTeardown or afterAll)
+export function cleanupTestDir(): void {
+  const testDir = getTestDbDir()
+  if (existsSync(testDir)) {
+    rmSync(testDir, { recursive: true, force: true })
   }
 }
 
@@ -39,7 +51,8 @@ export async function launchApp(): Promise<ElectronApplication> {
     args: ['.'],
     env: {
       ...process.env,
-      NODE_ENV: 'test'
+      NODE_ENV: 'test',
+      AI_NOTEBOOK_TEST_DB_DIR: getTestDbDir()
     }
   })
 }

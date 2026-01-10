@@ -434,6 +434,9 @@ export async function processChapter(
   const chapter = getChapter(chapterId)
   if (!chapter) throw new Error('Chapter not found')
 
+  // Skip processing if chapter is already done (test scenario or manual override)
+  if (chapter.status === 'done') return
+
   // Skip chunking if chunks already exist (retry scenario)
   const existingChunks = getChunksByChapterId(chapterId)
   if (existingChunks.length > 0) return

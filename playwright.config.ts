@@ -4,7 +4,7 @@ export default defineConfig({
   testDir: './e2e',
   timeout: 60000,
   retries: 1,
-  workers: 1, // Electron tests must run serially (single app instance)
+  workers: 4, // Parallel workers with isolated databases per worker
   reporter: [
     ['list'],
     ['html', { open: 'never' }]
@@ -15,6 +15,6 @@ export default defineConfig({
     video: 'retain-on-failure'
   },
   expect: {
-    timeout: 10000
+    timeout: 5000 // Reduced from 10000 - tests typically complete in ~1s
   }
 })

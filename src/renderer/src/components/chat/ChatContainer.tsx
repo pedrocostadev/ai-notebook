@@ -295,13 +295,14 @@ export function ChatContainer({ pdfId, chapterId, chapterTitle, chapters, status
     <div className="flex-1 flex flex-col">
       {/* Chapter header */}
       {isChapterView && chapterTitle && (
-        <div className="p-3 border-b flex items-center justify-between bg-muted/30">
+        <div data-testid="chapter-header" className="p-3 border-b flex items-center justify-between bg-muted/30">
           <div className="flex items-center gap-2">
             <BookOpen className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">{chapterTitle}</span>
+            <span data-testid="chapter-title" className="text-sm font-medium">{chapterTitle}</span>
           </div>
           {isDone && (
             <button
+              data-testid="open-chapter-btn"
               onClick={handleOpenChapter}
               className="flex items-center gap-1.5 px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
               title="Open in PDF viewer"
@@ -314,12 +315,13 @@ export function ChatContainer({ pdfId, chapterId, chapterTitle, chapters, status
       )}
       {/* PDF header (main chat view, not chapter) */}
       {!isChapterView && isDone && (
-        <div className="p-3 border-b flex items-center justify-between bg-muted/30">
+        <div data-testid="pdf-header" className="p-3 border-b flex items-center justify-between bg-muted/30">
           <div className="flex items-center gap-2 text-sm text-green-600">
             <CheckCircle className="h-4 w-4" />
             <span>Ready to chat</span>
           </div>
           <button
+            data-testid="open-pdf-btn"
             onClick={handleOpenPdf}
             className="flex items-center gap-1.5 px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
             title="Open PDF in viewer"
@@ -330,7 +332,7 @@ export function ChatContainer({ pdfId, chapterId, chapterTitle, chapters, status
         </div>
       )}
       {isProcessing && (
-        <div className="p-4 bg-muted/50 border-b flex items-center gap-2 text-sm text-muted-foreground">
+        <div data-testid="processing-indicator" className="p-4 bg-muted/50 border-b flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
           <span>
             {isChapterView
