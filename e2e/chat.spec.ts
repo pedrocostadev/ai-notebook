@@ -1,5 +1,5 @@
 import { test, expect, ElectronApplication } from '@playwright/test'
-import { cleanupDb, launchApp, setupApiKey, uploadPdf, waitForChapters, SAMPLE_PDF } from './fixtures'
+import { cleanupDb, launchApp, setupApiKey, uploadPdf, waitForChapters, markPdfDone, SAMPLE_PDF } from './fixtures'
 
 test.describe('AI Notebook', () => {
   test('app launches and shows welcome screen on first run', async () => {
@@ -87,10 +87,11 @@ test.describe('Chapter Processing', () => {
     await setupApiKey(window)
 
     // Upload PDF
-    await uploadPdf(window, SAMPLE_PDF)
+    const { pdfId } = await uploadPdf(window, SAMPLE_PDF)
 
-    // Wait for chapters
-    await waitForChapters(window, 1)
+    // Wait for chapters and mark PDF done
+    await waitForChapters(window, pdfId)
+    await markPdfDone(window, pdfId)
 
     // Reload to see PDF in list
     await window.reload()
