@@ -21,7 +21,7 @@
             "Remove the loading state once upload/progress indicator takes over or upload completes",
             "Handle upload initiation errors with an actionable message"
         ],
-        "passes": false
+        "passes": true
     },
     {
         "category": "ui",

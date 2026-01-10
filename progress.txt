@@ -9,3 +9,14 @@
   - TypeScript passes, tests blocked by environment issue (Linux/Mac Electron binary mismatch)
 
 ---
+
+## 2026-01-10 - Loading State After PDF Selection
+
+- Added `isUploading` state to usePdfs hook
+- Show loading spinner in ChatContainer when uploading (replaces empty state)
+- Files changed: `src/renderer/src/hooks/usePdfs.ts`, `src/renderer/src/App.tsx`, `src/renderer/src/components/chat/ChatContainer.tsx`
+- **Learnings:**
+  - Wrapped uploadPdf in try/finally to ensure isUploading resets on error
+  - Reused Loader2 icon with animate-spin for consistency
+
+---
