@@ -3,7 +3,7 @@ import { MessageList } from './MessageList'
 import { ChatInput } from './ChatInput'
 import { ChapterSelectModal } from './ChapterSelectModal'
 import { useChat } from '@/hooks/useChat'
-import { FileText, Upload, Loader2, BookOpen, ExternalLink, CheckCircle } from 'lucide-react'
+import { FileText, Upload, Loader2, Hash, ExternalLink, CheckCircle } from 'lucide-react'
 import type { SlashCommand } from './SlashCommandMenu'
 import type { Chapter } from '../../../../preload'
 
@@ -236,34 +236,30 @@ export function ChatContainer({ pdfId, chapterId, chapterTitle, chapters, status
   if (!pdfId) {
     if (isUploading) {
       return (
-        <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-8">
+        <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-8 bg-background">
           <div className="flex flex-col items-center max-w-sm text-center">
-            <div className="relative mb-8">
-              <div className="absolute inset-0 bg-primary/5 rounded-full scale-150 blur-xl" />
-              <div className="relative p-6 rounded-full bg-muted/50 border border-border/50">
-                <Loader2 className="h-12 w-12 opacity-40 animate-spin" />
-              </div>
+            <div className="mb-6 p-5 rounded-2xl bg-muted/60">
+              <Loader2 className="h-10 w-10 text-primary animate-spin" />
             </div>
-            <h2 className="text-xl font-semibold text-foreground mb-3">Uploading PDF...</h2>
-            <p className="text-sm leading-relaxed">Please wait while we process your file</p>
+            <h2 className="text-lg font-semibold text-foreground mb-2">Uploading PDF...</h2>
+            <p className="text-sm text-muted-foreground">Please wait while we process your file</p>
           </div>
         </div>
       )
     }
     return (
-      <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-8">
-        <div className="flex flex-col items-center max-w-sm text-center">
-          <div className="relative mb-8">
-            <div className="absolute inset-0 bg-primary/5 rounded-full scale-150 blur-xl" />
-            <div className="relative p-6 rounded-full bg-muted/50 border border-border/50">
-              <FileText className="h-12 w-12 opacity-40" />
-            </div>
+      <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-8 bg-background">
+        <div className="flex flex-col items-center max-w-md text-center">
+          <div className="mb-6 p-5 rounded-2xl bg-muted/60">
+            <FileText className="h-10 w-10 text-muted-foreground/60" />
           </div>
-          <h2 className="text-xl font-semibold text-foreground mb-3">No PDF Selected</h2>
-          <p className="text-sm leading-relaxed mb-6">Upload a PDF to start chatting with your documents</p>
+          <h2 className="text-lg font-semibold text-foreground mb-2">No document selected</h2>
+          <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
+            Upload a PDF to start chatting with your documents using AI
+          </p>
           <button
             onClick={onUpload}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 font-medium transition-colors"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 font-medium text-sm transition-colors shadow-sm"
           >
             <Upload className="h-4 w-4" />
             Upload PDF
@@ -292,19 +288,19 @@ export function ChatContainer({ pdfId, chapterId, chapterTitle, chapters, status
   const isDone = status === 'done'
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex-1 flex flex-col bg-background">
       {/* Chapter header */}
       {isChapterView && chapterTitle && (
-        <div data-testid="chapter-header" className="p-3 border-b flex items-center justify-between bg-muted/30">
+        <div data-testid="chapter-header" className="px-4 py-3 border-b flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <BookOpen className="h-4 w-4 text-muted-foreground" />
-            <span data-testid="chapter-title" className="text-sm font-medium">{chapterTitle}</span>
+            <Hash className="h-4 w-4 text-muted-foreground" />
+            <span data-testid="chapter-title" className="text-sm font-semibold">{chapterTitle}</span>
           </div>
           {isDone && (
             <button
               data-testid="open-chapter-btn"
               onClick={handleOpenChapter}
-              className="flex items-center gap-1.5 px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
+              className="flex items-center gap-1.5 px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
               title="Open in PDF viewer"
             >
               <ExternalLink className="h-3.5 w-3.5" />
@@ -315,15 +311,15 @@ export function ChatContainer({ pdfId, chapterId, chapterTitle, chapters, status
       )}
       {/* PDF header (main chat view, not chapter) */}
       {!isChapterView && isDone && (
-        <div data-testid="pdf-header" className="p-3 border-b flex items-center justify-between bg-muted/30">
-          <div className="flex items-center gap-2 text-sm text-green-600">
+        <div data-testid="pdf-header" className="px-4 py-3 border-b flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm text-[var(--color-success)]">
             <CheckCircle className="h-4 w-4" />
-            <span>Ready to chat</span>
+            <span className="font-medium">Ready to chat</span>
           </div>
           <button
             data-testid="open-pdf-btn"
             onClick={handleOpenPdf}
-            className="flex items-center gap-1.5 px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
+            className="flex items-center gap-1.5 px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
             title="Open PDF in viewer"
           >
             <ExternalLink className="h-3.5 w-3.5" />
@@ -332,9 +328,9 @@ export function ChatContainer({ pdfId, chapterId, chapterTitle, chapters, status
         </div>
       )}
       {isProcessing && (
-        <div data-testid="processing-indicator" className="p-4 bg-muted/50 border-b flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          <span>
+        <div data-testid="processing-indicator" className="px-4 py-3 bg-muted/40 border-b flex items-center gap-3 text-sm">
+          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+          <span className="text-muted-foreground">
             {isChapterView
               ? (progress ? formatProgressDetails(progress) : 'Processing...')
               : (totalChapters > 0
@@ -344,7 +340,7 @@ export function ChatContainer({ pdfId, chapterId, chapterTitle, chapters, status
         </div>
       )}
       {hasError && (
-        <div className="p-4 bg-destructive/10 border-b text-sm text-destructive">
+        <div className="px-4 py-3 bg-destructive/10 border-b text-sm text-destructive font-medium">
           Error processing. Please delete and try again.
         </div>
       )}

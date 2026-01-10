@@ -162,25 +162,34 @@ export function ChatInput({ onSend, onSlashCommand, disabled, placeholder = 'Ask
   }
 
   return (
-    <form onSubmit={handleSubmit} className="p-4 border-t relative">
+    <form onSubmit={handleSubmit} className="px-4 py-4 border-t bg-background relative">
       <SlashCommandMenu
         filter={message}
         selectedIndex={selectedIndex}
         onSelect={handleCommandSelect}
         visible={showSlashMenu}
       />
-      <div className="flex gap-2 max-w-3xl mx-auto items-center">
-        <Input
-          value={message}
-          onChange={handleInputChange}
-          onKeyDown={handleKeyDown}
-          placeholder={placeholder}
-          disabled={disabled}
-          data-testid="chat-input"
-        />
-        <Button type="submit" disabled={disabled || !message.trim()} data-testid="chat-submit">
-          <Send className="h-4 w-4" />
-        </Button>
+      <div className="flex gap-3 max-w-3xl mx-auto items-center">
+        <div className="flex-1 relative">
+          <Input
+            value={message}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            disabled={disabled}
+            data-testid="chat-input"
+            className="rounded-xl py-3 px-4 pr-12 text-[15px] bg-muted/50 border-muted-foreground/20 focus:border-primary/50 focus:ring-primary/20 placeholder:text-muted-foreground/50"
+          />
+          <Button
+            type="submit"
+            disabled={disabled || !message.trim()}
+            data-testid="chat-submit"
+            size="icon"
+            className="absolute right-1.5 top-1/2 -translate-y-1/2 h-8 w-8 rounded-lg bg-primary hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground"
+          >
+            <Send className="h-4 w-4" />
+          </Button>
+        </div>
         {import.meta.env.DEV && contextUsage !== null && (
           <Tooltip>
             <TooltipTrigger asChild>

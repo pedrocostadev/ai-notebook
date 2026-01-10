@@ -122,7 +122,7 @@ export default function App() {
         <div
           data-testid="toast"
           data-toast-type={toast.type}
-          className={`fixed bottom-4 right-4 px-4 py-2 rounded-md shadow-lg ${
+          className={`fixed bottom-6 right-6 px-4 py-3 rounded-xl shadow-lg text-sm font-medium ${
             toast.type === 'error' ? 'bg-destructive text-destructive-foreground' : 'bg-primary text-primary-foreground'
           }`}
         >
