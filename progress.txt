@@ -45,3 +45,16 @@
   - Calculate progress: doneChapters + 1 gives current processing chapter (1-indexed)
 
 ---
+
+## 2026-01-10 - Improved Empty Chat Illustration
+
+- Redesigned empty states with larger icons in circular containers
+- Added subtle blur effect background for visual depth
+- Consistent styling across: empty chat, no PDF selected, uploading states
+- Improved slash command hints with inline code styling
+- Files changed: `src/renderer/src/components/chat/MessageList.tsx`, `src/renderer/src/components/chat/ChatContainer.tsx`
+- **Learnings:**
+  - `scale-150 blur-xl` creates nice subtle glow effect behind elements
+  - Consistent `max-w-sm` container keeps layout balanced on all screen sizes
+
+---

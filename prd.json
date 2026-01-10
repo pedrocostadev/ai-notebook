@@ -46,7 +46,7 @@
             "Keep supporting empty-state text readable and visually integrated",
             "Verify it hides immediately once the first message is present"
         ],
-        "passes": false
+        "passes": true
     },
     {
         "category": "onboarding",
