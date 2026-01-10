@@ -85,3 +85,16 @@
   - spawn with detached:true and unref() runs script async without blocking
 
 ---
+
+## 2026-01-10 - Full Chapter List with Disabled State
+
+- Sidebar now shows ALL chapters (not just done)
+- Unprocessed chapters displayed with disabled styling (opacity-50, cursor-not-allowed)
+- Removed checkmark indicator from chapter items (done chapters show no indicator)
+- Processing chapters still show progress indicator
+- Files changed: `src/renderer/src/components/pdf/PdfList.tsx`
+- **Learnings:**
+  - Simple opacity-50 + cursor-not-allowed for disabled state
+  - conditional onClick: `onClick={() => isReady && onSelect(...)}`
+
+---

@@ -81,8 +81,9 @@ export function PdfList({
   const getChapterStatusIndicator = (chapter: Chapter) => {
     const p = chapterProgress[chapter.id]
 
+    // Done chapters don't show any indicator
     if (chapter.status === 'done') {
-      return <CheckCircle className="h-3.5 w-3.5 text-green-500" />
+      return null
     }
 
     if (chapter.status === 'error') {
@@ -131,9 +132,7 @@ export function PdfList({
       <div className="space-y-0.5 p-2">
         {pdfs.map((pdf) => {
           const isExpanded = expandedPdfIds.has(pdf.id)
-          const allChapters = chapters[pdf.id] || []
-          // Only show chapters that are done processing
-          const pdfChapters = allChapters.filter(c => c.status === 'done')
+          const pdfChapters = chapters[pdf.id] || []
           const hasChapters = pdfChapters.length > 0
 
           return (
@@ -238,25 +237,30 @@ export function PdfList({
               {/* Chapters */}
               {isExpanded && pdfChapters.length > 0 && (
                 <div className="pl-5 pr-2 space-y-0.5 overflow-hidden">
-                  {pdfChapters.map((chapter) => (
-                    <div
-                      key={chapter.id}
-                      data-testid="chapter-row"
-                      className={cn(
-                        'grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1.5 rounded-md px-2 py-1 cursor-pointer hover:bg-accent overflow-hidden',
-                        selectedChapterId === chapter.id && 'bg-accent'
-                      )}
-                      onClick={() => onSelect(pdf.id, chapter.id)}
-                    >
-                      <BookOpen className="h-3 w-3 text-muted-foreground" />
-                      <span className="truncate text-sm text-muted-foreground">
-                        {chapter.title}
-                      </span>
-                      <span data-testid="chapter-status">
-                        {getChapterStatusIndicator(chapter)}
-                      </span>
-                    </div>
-                  ))}
+                  {pdfChapters.map((chapter) => {
+                    const isChapterReady = chapter.status === 'done'
+                    return (
+                      <div
+                        key={chapter.id}
+                        data-testid="chapter-row"
+                        className={cn(
+                          'grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1.5 rounded-md px-2 py-1 overflow-hidden',
+                          isChapterReady && 'cursor-pointer hover:bg-accent',
+                          !isChapterReady && 'opacity-50 cursor-not-allowed',
+                          selectedChapterId === chapter.id && 'bg-accent'
+                        )}
+                        onClick={() => isChapterReady && onSelect(pdf.id, chapter.id)}
+                      >
+                        <BookOpen className="h-3 w-3 text-muted-foreground" />
+                        <span className="truncate text-sm text-muted-foreground">
+                          {chapter.title}
+                        </span>
+                        <span data-testid="chapter-status">
+                          {getChapterStatusIndicator(chapter)}
+                        </span>
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>

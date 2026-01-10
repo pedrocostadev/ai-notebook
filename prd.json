@@ -22,7 +22,7 @@
             "The chapters not processed should be displayed in a disabled state",
             "Remove the checkmark from the chapter items."
         ],
-        "passes": false
+        "passes": true
     },{
         "category": "tests",
         "description": "The e2e tests should clear the app state after each test",
