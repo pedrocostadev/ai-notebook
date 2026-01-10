@@ -105,6 +105,7 @@ export default function App() {
         chapters={pdfs.selectedPdfId ? pdfs.chapters[pdfs.selectedPdfId] : undefined}
         status={getDisplayStatus()}
         progress={getDisplayProgress()}
+        isUploading={pdfs.isUploading}
         onUpload={handleUpload}
       />
       <SettingsDialog

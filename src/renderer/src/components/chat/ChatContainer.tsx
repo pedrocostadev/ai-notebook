@@ -45,6 +45,7 @@ interface ChatContainerProps {
   chapters?: Chapter[]
   status?: string
   progress?: Progress
+  isUploading?: boolean
   onUpload: () => void
 }
 
@@ -55,7 +56,7 @@ const COMMAND_LOADING_MESSAGES: Record<string, string> = {
   '/key-concepts': 'Loading key concepts...'
 }
 
-export function ChatContainer({ pdfId, chapterId, chapterTitle, chapters, status, progress, onUpload }: ChatContainerProps) {
+export function ChatContainer({ pdfId, chapterId, chapterTitle, chapters, status, progress, isUploading, onUpload }: ChatContainerProps) {
   const { messages, isStreaming, streamingContent, sendMessage, reloadHistory } = useChat(pdfId, chapterId)
   const [showChapterSelect, setShowChapterSelect] = useState(false)
   const [pendingCommand, setPendingCommand] = useState<SlashCommand | null>(null)
@@ -223,6 +224,15 @@ export function ChatContainer({ pdfId, chapterId, chapterTitle, chapters, status
   }, [pendingCommand, executeCommand])
 
   if (!pdfId) {
+    if (isUploading) {
+      return (
+        <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-8">
+          <Loader2 className="h-16 w-16 mb-4 opacity-40 animate-spin" />
+          <h2 className="text-xl font-medium mb-2">Uploading PDF...</h2>
+          <p className="text-sm">Please wait while we process your file</p>
+        </div>
+      )
+    }
     return (
       <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-8">
         <FileText className="h-16 w-16 mb-4 opacity-20" />

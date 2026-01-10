@@ -50,6 +50,7 @@ export function usePdfs() {
   })
   const [chapterProgress, setChapterProgress] = useState<ChapterProgressState>({})
   const [loading, setLoading] = useState(true)
+  const [isUploading, setIsUploading] = useState(false)
 
   const refresh = useCallback(async () => {
     const list = await window.api.listPdfs()
@@ -155,26 +156,31 @@ export function usePdfs() {
   }, [refresh, loadChapters])
 
   const uploadPdf = async (): Promise<{ success: boolean; error?: string; pdfId?: number; duplicate?: boolean }> => {
-    const result = await window.api.uploadPdf()
-    if (!result) {
-      return { success: false }
-    }
-    if ('error' in result) {
-      return { success: false, error: result.error }
-    }
-    await refresh()
-    if (result.duplicate && result.existingPdfId) {
-      setSelectedPdfId(result.existingPdfId)
+    setIsUploading(true)
+    try {
+      const result = await window.api.uploadPdf()
+      if (!result) {
+        return { success: false }
+      }
+      if ('error' in result) {
+        return { success: false, error: result.error }
+      }
+      await refresh()
+      if (result.duplicate && result.existingPdfId) {
+        setSelectedPdfId(result.existingPdfId)
+        setSelectedChapterId(null)
+        await loadChapters(result.existingPdfId)
+        setExpandedPdfIds((prev) => new Set([...prev, result.existingPdfId!]))
+        return { success: true, duplicate: true, pdfId: result.existingPdfId }
+      }
+      setSelectedPdfId(result.pdfId)
       setSelectedChapterId(null)
-      await loadChapters(result.existingPdfId)
-      setExpandedPdfIds((prev) => new Set([...prev, result.existingPdfId!]))
-      return { success: true, duplicate: true, pdfId: result.existingPdfId }
+      await loadChapters(result.pdfId)
+      setExpandedPdfIds((prev) => new Set([...prev, result.pdfId]))
+      return { success: true, pdfId: result.pdfId }
+    } finally {
+      setIsUploading(false)
     }
-    setSelectedPdfId(result.pdfId)
-    setSelectedChapterId(null)
-    await loadChapters(result.pdfId)
-    setExpandedPdfIds((prev) => new Set([...prev, result.pdfId]))
-    return { success: true, pdfId: result.pdfId }
   }
 
   const deletePdf = async (id: number) => {
@@ -244,6 +250,7 @@ export function usePdfs() {
     selectedChapterId,
     chapterProgress,
     loading,
+    isUploading,
     uploadPdf,
     deletePdf,
     cancelPdfProcessing,
