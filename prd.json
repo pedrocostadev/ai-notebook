@@ -58,7 +58,7 @@
             "Maintain clear hierarchy for inputs/actions (API key, model selection, etc.)",
             "Confirm the splash screen feels polished and consistent with the rest of the app"
         ],
-        "passes": false
+        "passes": true
     },
     {
         "category": "functional",
