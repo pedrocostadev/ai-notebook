@@ -40,8 +40,14 @@ export function usePdfs() {
     const saved = localStorage.getItem('expandedPdfIds')
     return saved ? new Set(JSON.parse(saved)) : new Set()
   })
-  const [selectedPdfId, setSelectedPdfId] = useState<number | null>(null)
-  const [selectedChapterId, setSelectedChapterId] = useState<number | null>(null)
+  const [selectedPdfId, setSelectedPdfId] = useState<number | null>(() => {
+    const saved = localStorage.getItem('selectedPdfId')
+    return saved ? parseInt(saved, 10) : null
+  })
+  const [selectedChapterId, setSelectedChapterId] = useState<number | null>(() => {
+    const saved = localStorage.getItem('selectedChapterId')
+    return saved ? parseInt(saved, 10) : null
+  })
   const [chapterProgress, setChapterProgress] = useState<ChapterProgressState>({})
   const [loading, setLoading] = useState(true)
 
@@ -65,6 +71,44 @@ export function usePdfs() {
   useEffect(() => {
     localStorage.setItem('expandedPdfIds', JSON.stringify([...expandedPdfIds]))
   }, [expandedPdfIds])
+
+  // Persist selected PDF
+  useEffect(() => {
+    if (selectedPdfId !== null) {
+      localStorage.setItem('selectedPdfId', String(selectedPdfId))
+    } else {
+      localStorage.removeItem('selectedPdfId')
+    }
+  }, [selectedPdfId])
+
+  // Persist selected chapter
+  useEffect(() => {
+    if (selectedChapterId !== null) {
+      localStorage.setItem('selectedChapterId', String(selectedChapterId))
+    } else {
+      localStorage.removeItem('selectedChapterId')
+    }
+  }, [selectedChapterId])
+
+  // Validate selection after data loads - clear if PDF/chapter no longer exists
+  useEffect(() => {
+    if (loading) return
+
+    // Validate selected PDF exists
+    if (selectedPdfId !== null && !pdfs.some(p => p.id === selectedPdfId)) {
+      setSelectedPdfId(null)
+      setSelectedChapterId(null)
+      return
+    }
+
+    // Validate selected chapter exists
+    if (selectedChapterId !== null && selectedPdfId !== null) {
+      const pdfChapters = chapters[selectedPdfId] || []
+      if (!pdfChapters.some(c => c.id === selectedChapterId)) {
+        setSelectedChapterId(null)
+      }
+    }
+  }, [loading, pdfs, chapters, selectedPdfId, selectedChapterId])
 
   useEffect(() => {
     refresh()

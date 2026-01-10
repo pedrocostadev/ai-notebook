@@ -1,15 +1,15 @@
 [
     {
         "category": "functional",
-        "description": "Persist the current chat when closing the app and restore it on next launch",
+        "description": "Persist the current chat selected when closing the app and restore it on next launch",
         "steps": [
-            "On app close, serialize the current select chat state (any selected PDF/chapter context as needed)",
-            "Write the serialized chat state to persistent storage",
-            "On app launch, load the last saved chat state if present",
+            "On app close, serialize the current selected chat (any selected PDF/chapter context as needed)",
+            "Write the serialized app state to persistent storage",
+            "On app launch, load the last saved app state if present",
             "Restore the chat UI to the same state the user had when the app was closed",
             "Handle missing/corrupt saved state gracefully (start with an empty chat)"
         ],
-        "passes": false
+        "passes": true
     },
     {
         "category": "ui",
@@ -25,14 +25,14 @@
     },
     {
         "category": "ui",
-        "description": "Use a single unified processing indicator for PDF upload + processing, with progress tooltip and completion state",
+        "description": "Use a single unified processing indicator for each PDF upload + processing, with progress tooltip and completion state",
         "steps": [
-            "Replace multiple upload/processing indicators with one main indicator shown in the primary chat view",
+            "Replace multiple upload/processing indicators for the same PDF with one main indicator shown in the primary chat view",
             "Show the indicator while a PDF is uploading or chapters are processing",
             "Display a message like \"Processing chapter 3 of 10\" on top header of the main chat",
             "When all chapters are processed, switch the indicator to a green \"completed\" state",
             "Ensure progress updates smoothly and remains accurate across multi-chapter PDFs",
-            "Only display the chapter entry when the chapter finishes processing"
+            "Only display the chapter entry on the app sidebar when the chapter finishes processing"
         ],
         "passes": false
     },
