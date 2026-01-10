@@ -174,13 +174,18 @@ export function MessageList({ messages, streamingContent, isStreaming, commandLo
                           <div className="space-y-1">
                             <p className="text-xs font-medium">Sources:</p>
                             {message.metadata.citations.map((citation, i) => (
-                              <blockquote key={i} className="text-xs italic border-l-2 pl-2 text-muted-foreground">
-                                <span className="not-italic font-medium">
+                              <blockquote
+                                key={i}
+                                className="text-xs italic border-l-2 pl-2 text-muted-foreground hover:bg-muted/50 cursor-pointer rounded-r transition-colors"
+                                onClick={() => pdfId && window.api.openPdfAtPage(pdfId, citation.pageStart)}
+                                title={`Open page ${citation.pageStart} in PDF viewer`}
+                              >
+                                <span className="not-italic font-medium underline decoration-dotted">
                                   {citation.pageStart === citation.pageEnd
                                     ? `p. ${citation.pageStart}`
                                     : `pp. ${citation.pageStart}-${citation.pageEnd}`}
-                                  :
-                                </span>{' '}
+                                </span>
+                                :{' '}
                                 "{citation.quote}"
                               </blockquote>
                             ))}

@@ -10,6 +10,8 @@ import {
   setChapterSummary,
   getChatHistory,
   waitForLocalStorage,
+  getChapterDetails,
+  getPdfOutline,
   SAMPLE_PDF
 } from './fixtures'
 
@@ -498,5 +500,78 @@ test.describe('Slash Commands', () => {
         expect(result.summary).toBe(`UI_TEST_SUMMARY_FOR_ID_${selectedChapterId}`)
       }
     }
+  })
+
+  test('chapter start_page matches PDF outline page number (Open button verification)', async () => {
+    // This test verifies the critical fix for the Open button bug
+    // The bug was that page offset was incorrectly applied to outline-based PDFs
+    test.setTimeout(120000)
+
+    app = await launchApp()
+    const window = await app.firstWindow()
+    await window.waitForLoadState('domcontentloaded')
+
+    await setupApiKey(window)
+
+    // Upload the real AI Engineering book (has PDF outline)
+    const { pdfId } = await uploadPdf(window, AI_ENGINEERING_BOOK)
+
+    // Wait for chapters to be created
+    const chapters = await waitForChapters(window, pdfId, 60000)
+    expect(chapters.length).toBeGreaterThan(3)
+
+    // Get the PDF outline directly from the file
+    const outline = await getPdfOutline(window, pdfId)
+    expect(outline.hasToc).toBe(true)
+    expect(outline.chapters.length).toBeGreaterThan(0)
+
+    // DEBUG: Print all outline chapters and their page numbers
+    console.log('\n=== PDF OUTLINE (from parseOutlineFromPdf) ===')
+    for (const outlineChapter of outline.chapters) {
+      const labelInfo = (outlineChapter as { pageLabel?: number }).pageLabel
+      console.log(`  "${outlineChapter.title}" -> physical=${outlineChapter.pageNumber}, label=${labelInfo ?? 'N/A'}`)
+    }
+
+    // DEBUG: Print all stored chapters and their start_page values
+    console.log('\n=== STORED CHAPTERS (from database) ===')
+    for (const chapter of chapters) {
+      const details = await getChapterDetails(window, chapter.id)
+      console.log(`  "${chapter.title}" -> start_page=${details.start_page}, start_idx=${details.start_idx}`)
+    }
+    console.log('')
+
+    // Build a map of title -> expected page (label if available, otherwise physical)
+    const expectedPages = new Map<string, number>()
+    for (const outlineChapter of outline.chapters) {
+      const labelInfo = (outlineChapter as { pageLabel?: number }).pageLabel
+      // Preview uses page labels, so we expect start_page to be the label when available
+      expectedPages.set(outlineChapter.title, labelInfo ?? outlineChapter.pageNumber)
+    }
+
+    // Verify each chapter's start_page matches the expected page (label for Preview)
+    const mismatches: string[] = []
+    for (const chapter of chapters) {
+      const details = await getChapterDetails(window, chapter.id)
+      const expectedPage = expectedPages.get(chapter.title)
+
+      if (expectedPage !== undefined) {
+        if (details.start_page !== expectedPage) {
+          mismatches.push(
+            `Chapter "${chapter.title}": stored start_page=${details.start_page}, expected=${expectedPage} (for Preview navigation)`
+          )
+        }
+      }
+    }
+
+    // Report all mismatches for debugging
+    if (mismatches.length > 0) {
+      console.log('Chapter page mismatches found:')
+      for (const m of mismatches) {
+        console.log(`  ${m}`)
+      }
+    }
+
+    // The test passes if all chapters have correct start_page
+    expect(mismatches).toHaveLength(0)
   })
 })

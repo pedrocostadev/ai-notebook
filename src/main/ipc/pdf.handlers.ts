@@ -3,6 +3,7 @@ import { spawn } from 'child_process'
 import { getAllPdfs, getPdf, deletePdf as dbDeletePdf, getChaptersByPdfId, updatePdfStatus, updateChapterStatus, getChapter } from '../services/database'
 import { processPdf, deletePdfFile } from '../services/pdf-processor'
 import { startJobQueue, cancelProcessing } from '../services/job-queue'
+import { parseOutlineFromPdf } from '../services/toc-parser'
 
 export function registerPdfHandlers(): void {
   // Test-only: Direct file upload without dialog
@@ -162,6 +163,75 @@ export function registerPdfHandlers(): void {
       return { success: true, page: startPage }
     } catch (err) {
       return { error: err instanceof Error ? err.message : 'Failed to open PDF' }
+    }
+  })
+
+  // Test-only: Get chapter with full details including start_page
+  ipcMain.handle('chapter:get-test', (_, chapterId: number) => {
+    if (process.env.NODE_ENV !== 'test') {
+      return { error: 'Not allowed outside test environment' }
+    }
+    const chapter = getChapter(chapterId)
+    if (!chapter) {
+      return { error: 'Chapter not found' }
+    }
+    return chapter
+  })
+
+  // Open PDF at specific page (for citation clicks)
+  ipcMain.handle('pdf:open-at-page', async (_, pdfId: number, pageNumber: number) => {
+    const pdf = getPdf(pdfId)
+    if (!pdf) {
+      return { error: 'PDF not found' }
+    }
+
+    try {
+      // On macOS, use Preview with page parameter via AppleScript
+      if (process.platform === 'darwin') {
+        const script = `
+          tell application "Preview"
+            activate
+            open POSIX file "${pdf.filepath}"
+            delay 0.5
+            tell application "System Events"
+              keystroke "g" using {option down, command down}
+              delay 0.2
+              keystroke "${pageNumber}"
+              delay 0.1
+              keystroke return
+            end tell
+          end tell
+        `
+        spawn('osascript', ['-e', script], { detached: true, stdio: 'ignore' }).unref()
+        return { success: true, page: pageNumber }
+      }
+
+      // Fallback: just open the PDF
+      await shell.openPath(pdf.filepath)
+      return { success: true, page: pageNumber }
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : 'Failed to open PDF' }
+    }
+  })
+
+  // Test-only: Get PDF outline directly from file (for comparing with stored start_page)
+  ipcMain.handle('pdf:get-outline-test', async (_, pdfId: number) => {
+    if (process.env.NODE_ENV !== 'test') {
+      return { error: 'Not allowed outside test environment' }
+    }
+    const pdf = getPdf(pdfId)
+    if (!pdf) {
+      return { error: 'PDF not found' }
+    }
+
+    const chapters: { title: string; pageNumber: number; pageLabel?: number }[] = []
+    const result = await parseOutlineFromPdf(pdf.filepath, (chapter) => {
+      chapters.push({ title: chapter.title, pageNumber: chapter.pageNumber, pageLabel: chapter.pageLabel })
+    })
+
+    return {
+      hasToc: result.hasToc,
+      chapters
     }
   })
 }

@@ -193,3 +193,65 @@ export async function buildHistory(
     { pdfId, chapterId }
   )
 }
+
+// Get chapter with full details including start_page (test-only)
+export async function getChapterDetails(
+  window: Page,
+  chapterId: number
+): Promise<{
+  id: number
+  pdf_id: number
+  title: string
+  chapter_index: number
+  start_idx: number
+  end_idx: number
+  start_page: number | null
+  status: string
+  error_message: string | null
+}> {
+  const result = await window.evaluate(async (id) => {
+    const api = (window as unknown as {
+      api: { getChapterTest: (chapterId: number) => Promise<unknown> }
+    }).api
+    return await api.getChapterTest(id)
+  }, chapterId)
+
+  if (result && typeof result === 'object' && 'error' in result) {
+    throw new Error(`Failed to get chapter: ${(result as { error: string }).error}`)
+  }
+  return result as {
+    id: number
+    pdf_id: number
+    title: string
+    chapter_index: number
+    start_idx: number
+    end_idx: number
+    start_page: number | null
+    status: string
+    error_message: string | null
+  }
+}
+
+// Get PDF outline directly from file (test-only)
+export async function getPdfOutline(
+  window: Page,
+  pdfId: number
+): Promise<{
+  hasToc: boolean
+  chapters: { title: string; pageNumber: number }[]
+}> {
+  const result = await window.evaluate(async (id) => {
+    const api = (window as unknown as {
+      api: { getPdfOutlineTest: (pdfId: number) => Promise<unknown> }
+    }).api
+    return await api.getPdfOutlineTest(id)
+  }, pdfId)
+
+  if (result && typeof result === 'object' && 'error' in result) {
+    throw new Error(`Failed to get PDF outline: ${(result as { error: string }).error}`)
+  }
+  return result as {
+    hasToc: boolean
+    chapters: { title: string; pageNumber: number }[]
+  }
+}

@@ -27,6 +27,39 @@ import { notifyChapterProgress } from './job-queue'
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB
 
+/**
+ * Load page labels from PDF file.
+ * Returns a map from physical page (1-indexed) to label number.
+ * Labels that can't be parsed as numbers are skipped.
+ */
+export async function loadPageLabels(pdfPath: string): Promise<Map<number, number>> {
+  const labelMap = new Map<number, number>()
+  try {
+    const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs')
+    const doc = await pdfjs.getDocument(pdfPath).promise
+    const labels = await doc.getPageLabels()
+    if (labels) {
+      for (let i = 0; i < labels.length; i++) {
+        const parsed = parseInt(labels[i], 10)
+        if (!isNaN(parsed)) {
+          labelMap.set(i + 1, parsed) // i+1 = physical page (1-indexed)
+        }
+      }
+    }
+  } catch {
+    // Ignore errors, return empty map
+  }
+  return labelMap
+}
+
+/**
+ * Convert physical page to label page.
+ * Falls back to physical page if no label exists.
+ */
+export function physicalToLabel(physicalPage: number, labelMap: Map<number, number>): number {
+  return labelMap.get(physicalPage) ?? physicalPage
+}
+
 function notifyChapterAdded(pdfId: number, chapter: {
   id: number
   title: string
@@ -284,38 +317,52 @@ export async function processPdf(
 
     // After all chapters collected, find actual chapter positions
     if (collectedChapters.length > 0) {
-      // Detect page offset by sampling middle pages for page number patterns
-      const pageOffset = detectPageOffset(pages)
+      // Detect page offset only for AI-parsed TOCs (outline gives physical pages already)
+      const needsPageOffset = collectedChapters.some((c) => !c.tocChapter.isPhysicalPage)
+      const pageOffset = needsPageOffset ? detectPageOffset(pages) : 0
 
       // Apply offset to find each chapter's position
       const streamedChapters: { id: number; tocChapter: TocChapter; index: number; startIdx: number; startPage: number }[] = []
 
       for (const chapter of collectedChapters) {
-        // Calculate expected physical page with offset
-        const tocPageIdx = chapter.tocChapter.pageNumber - 1
-        const expectedPageIdx = Math.min(Math.max(0, tocPageIdx + pageOffset), boundaries.length - 1)
-        const expectedStart = boundaries[expectedPageIdx]?.startIdx ?? 0
-        const searchWindowStart = Math.max(0, expectedStart - 5000) // Look 5000 chars before
-        const searchWindowEnd = Math.min(fullText.length, expectedStart + 20000) // Look 20000 chars after
-
-        // Search for title within this window
-        const escapedTitle = chapter.tocChapter.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-        const windowText = fullText.substring(searchWindowStart, searchWindowEnd)
-        const headingRegex = new RegExp(`(?:^|\\n)\\s*${escapedTitle}`, 'i')
-        const headingMatch = windowText.match(headingRegex)
-
         let startIdx: number
         let startPage: number
-        if (headingMatch && headingMatch.index !== undefined) {
-          // Found heading in window - calculate position and skip prefix
-          const prefixLength = headingMatch[0].length - chapter.tocChapter.title.length
-          startIdx = searchWindowStart + headingMatch.index + prefixLength
-          // Find actual page from character position
-          startPage = findPageFromCharIndex(boundaries, startIdx)
+
+        if (chapter.tocChapter.isPhysicalPage) {
+          // Outline-based: pageNumber is physical page (1-indexed)
+          // Use physical page for text boundary calculation
+          const physicalPage = chapter.tocChapter.pageNumber
+          const pageIdx = Math.min(Math.max(0, physicalPage - 1), boundaries.length - 1)
+          startIdx = boundaries[pageIdx]?.startIdx ?? 0
+
+          // Use pageLabel for Preview navigation if available, otherwise fall back to physical
+          // Preview's "Go to Page" uses page labels, not physical page numbers
+          startPage = chapter.tocChapter.pageLabel ?? physicalPage
         } else {
-          // Fall back to page boundary
-          startIdx = expectedStart
-          startPage = expectedPageIdx + 1 // 1-indexed page number
+          // AI-based: pageNumber is logical, apply offset and search for title
+          const tocPageIdx = chapter.tocChapter.pageNumber - 1
+          const expectedPageIdx = Math.min(Math.max(0, tocPageIdx + pageOffset), boundaries.length - 1)
+          const expectedStart = boundaries[expectedPageIdx]?.startIdx ?? 0
+          const searchWindowStart = Math.max(0, expectedStart - 5000) // Look 5000 chars before
+          const searchWindowEnd = Math.min(fullText.length, expectedStart + 20000) // Look 20000 chars after
+
+          // Search for title within this window
+          const escapedTitle = chapter.tocChapter.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+          const windowText = fullText.substring(searchWindowStart, searchWindowEnd)
+          const headingRegex = new RegExp(`(?:^|\\n)\\s*${escapedTitle}`, 'i')
+          const headingMatch = windowText.match(headingRegex)
+
+          if (headingMatch && headingMatch.index !== undefined) {
+            // Found heading in window - calculate position and skip prefix
+            const prefixLength = headingMatch[0].length - chapter.tocChapter.title.length
+            startIdx = searchWindowStart + headingMatch.index + prefixLength
+            // Find actual page from character position
+            startPage = findPageFromCharIndex(boundaries, startIdx)
+          } else {
+            // Fall back to page boundary
+            startIdx = expectedStart
+            startPage = expectedPageIdx + 1 // 1-indexed page number
+          }
         }
 
         updateChapterStartIdx(chapter.id, startIdx)
@@ -381,7 +428,8 @@ export async function processChapter(
   pdfId: number,
   chapterId: number,
   fullText: string,
-  pages: string[]
+  pages: string[],
+  labelMap: Map<number, number>
 ): Promise<void> {
   const chapter = getChapter(chapterId)
   if (!chapter) throw new Error('Chapter not found')
@@ -416,15 +464,28 @@ export async function processChapter(
   })
 
   // Insert chunks for this chapter
+  // Track position to handle repeated text (indexOf would always return first occurrence)
+  let searchStartInChapter = 0
   for (let i = 0; i < chunks.length; i++) {
     const content = chunks[i]
     const tokenCount = estimateTokens(content)
 
-    // Calculate page range using actual page boundaries
-    const chunkStartInFull = chapter.start_idx + chapterText.indexOf(content)
+    // Find chunk position starting from where we last searched
+    const posInChapter = chapterText.indexOf(content, searchStartInChapter)
+    const actualPos = posInChapter >= 0 ? posInChapter : searchStartInChapter
+
+    // Calculate page range using actual page boundaries (physical pages)
+    const chunkStartInFull = chapter.start_idx + actualPos
     const chunkEndInFull = chunkStartInFull + content.length
-    const pageStart = findPageFromCharIndex(boundaries, chunkStartInFull)
-    const pageEnd = Math.min(findPageFromCharIndex(boundaries, chunkEndInFull), pageCount)
+    const physicalStart = findPageFromCharIndex(boundaries, chunkStartInFull)
+    const physicalEnd = Math.min(findPageFromCharIndex(boundaries, chunkEndInFull), pageCount)
+
+    // Convert to page labels for UI display (what user sees when opening PDF)
+    const pageStart = physicalToLabel(physicalStart, labelMap)
+    const pageEnd = physicalToLabel(physicalEnd, labelMap)
+
+    // Update search position for next chunk (step back by overlap to handle edge cases)
+    searchStartInChapter = Math.max(0, actualPos + content.length - CHUNK_OVERLAP)
 
     insertChunk(pdfId, chapterId, i, content, chapter.title, pageStart, pageEnd, tokenCount)
 
