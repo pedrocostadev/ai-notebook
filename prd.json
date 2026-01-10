@@ -34,7 +34,7 @@
             "Ensure progress updates smoothly and remains accurate across multi-chapter PDFs",
             "Only display the chapter entry on the app sidebar when the chapter finishes processing"
         ],
-        "passes": false
+        "passes": true
     },
     {
         "category": "ui",

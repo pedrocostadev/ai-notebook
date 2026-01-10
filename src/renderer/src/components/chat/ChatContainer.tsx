@@ -3,7 +3,7 @@ import { MessageList } from './MessageList'
 import { ChatInput } from './ChatInput'
 import { ChapterSelectModal } from './ChapterSelectModal'
 import { useChat } from '@/hooks/useChat'
-import { FileText, Upload, Loader2, BookOpen, ExternalLink } from 'lucide-react'
+import { FileText, Upload, Loader2, BookOpen, ExternalLink, CheckCircle } from 'lucide-react'
 import type { SlashCommand } from './SlashCommandMenu'
 import type { Chapter } from '../../../../preload'
 
@@ -263,6 +263,11 @@ export function ChatContainer({ pdfId, chapterId, chapterTitle, chapters, status
   const hasError = status === 'error'
   const isChapterView = chapterId !== null
 
+  // Calculate chapter processing progress for main PDF view
+  const totalChapters = chapters?.length ?? 0
+  const doneChapters = chapters?.filter(c => c.status === 'done').length ?? 0
+  const processingChapterIndex = doneChapters + 1 // 1-indexed for display
+
   function getPlaceholder(): string {
     if (isExecutingCommand) return commandLoadingMessage || 'Processing...'
     if (isProcessing) return 'Processing...'
@@ -295,7 +300,11 @@ export function ChatContainer({ pdfId, chapterId, chapterTitle, chapters, status
       )}
       {/* PDF header (main chat view, not chapter) */}
       {!isChapterView && isDone && (
-        <div className="p-3 border-b flex items-center justify-end bg-muted/30">
+        <div className="p-3 border-b flex items-center justify-between bg-muted/30">
+          <div className="flex items-center gap-2 text-sm text-green-600">
+            <CheckCircle className="h-4 w-4" />
+            <span>Ready to chat</span>
+          </div>
           <button
             onClick={handleOpenPdf}
             className="flex items-center gap-1.5 px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
@@ -310,7 +319,11 @@ export function ChatContainer({ pdfId, chapterId, chapterTitle, chapters, status
         <div className="p-4 bg-muted/50 border-b flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
           <span>
-            {progress ? formatProgressDetails(progress) : 'Processing...'}
+            {isChapterView
+              ? (progress ? formatProgressDetails(progress) : 'Processing...')
+              : (totalChapters > 0
+                  ? `Processing chapter ${processingChapterIndex} of ${totalChapters}`
+                  : 'Processing...')}
           </span>
         </div>
       )}

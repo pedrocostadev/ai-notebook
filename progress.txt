@@ -33,3 +33,15 @@
   - PDF viewers don't support opening at specific page via CLI, so chapter just opens PDF
 
 ---
+
+## 2026-01-10 - Unified Processing Indicator
+
+- Sidebar now only shows chapters with status 'done' (hides processing chapters)
+- Main chat header shows "Processing chapter X of Y" during PDF processing
+- Added green "Ready to chat" indicator with CheckCircle when done
+- Files changed: `src/renderer/src/components/pdf/PdfList.tsx`, `src/renderer/src/components/chat/ChatContainer.tsx`
+- **Learnings:**
+  - Simple filter `chapters.filter(c => c.status === 'done')` hides processing chapters
+  - Calculate progress: doneChapters + 1 gives current processing chapter (1-indexed)
+
+---
