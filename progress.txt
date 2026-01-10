@@ -1,0 +1,11 @@
+## 2026-01-10 - Persist Chat Selection
+
+- Implemented localStorage persistence for selectedPdfId and selectedChapterId
+- Added validation on load to clear invalid selections (deleted PDFs/chapters)
+- Files changed: `src/renderer/src/hooks/usePdfs.ts`
+- **Learnings:**
+  - Followed existing pattern for expandedPdfIds localStorage persistence
+  - Validation effect runs after loading=false to avoid premature clearing
+  - TypeScript passes, tests blocked by environment issue (Linux/Mac Electron binary mismatch)
+
+---
