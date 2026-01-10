@@ -171,7 +171,7 @@ export function PdfList({
                 <FileText className="h-4 w-4 flex-shrink-0" />
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <span className="flex-1 truncate text-sm">{pdf.title || pdf.filename}</span>
+                    <span className="flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-sm">{pdf.title || pdf.filename}</span>
                   </TooltipTrigger>
                   <TooltipContent side="right">
                     <p>{pdf.title || pdf.filename}</p>
@@ -260,10 +260,10 @@ export function PdfList({
                         )}
                         onClick={() => isChapterReady && onSelect(pdf.id, chapter.id)}
                       >
-                        <BookOpen className="h-3 w-3 text-muted-foreground" />
+                        <BookOpen className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <span className="truncate text-sm text-muted-foreground">
+                            <span className="block min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-sm text-muted-foreground">
                               {chapter.title}
                             </span>
                           </TooltipTrigger>
