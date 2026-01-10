@@ -111,3 +111,16 @@
   - Use `title || filename` for graceful fallback
 
 ---
+
+## 2026-01-10 - E2E Tests Clear State After Each Test
+
+- Added cleanupDb() to afterEach hooks in all test files
+- Added clearLocalStorage helper function (for future use)
+- Standardized first test.describe in chat.spec.ts to use beforeEach/afterEach pattern
+- Files changed: `e2e/fixtures.ts`, `e2e/chat.spec.ts`, `e2e/settings.spec.ts`, `e2e/slash-commands.spec.ts`, `e2e/ui-interactions.spec.ts`, `e2e/conversation-history.spec.ts`
+- **Learnings:**
+  - Cleanup should happen in afterEach, not just beforeEach
+  - Consistent beforeEach/afterEach pattern makes tests more predictable
+  - DB cleanup removes main db file + WAL files (-shm, -wal)
+
+---

@@ -29,6 +29,6 @@
         "steps": [
             "The e2e tests should clear the app state after each test"
         ],
-        "passes": false
+        "passes": true
     }
 ]

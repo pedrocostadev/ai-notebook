@@ -22,6 +22,7 @@ test.describe('Conversation History', () => {
     if (app) {
       await app.close()
     }
+    cleanupDb()
   })
 
   test('under budget: all messages returned verbatim', async () => {

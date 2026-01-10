@@ -2,9 +2,21 @@ import { test, expect, ElectronApplication } from '@playwright/test'
 import { cleanupDb, launchApp, setupApiKey, uploadPdf, waitForChapters, markPdfDone, SAMPLE_PDF } from './fixtures'
 
 test.describe('AI Notebook', () => {
-  test('app launches and shows welcome screen on first run', async () => {
+  let app: ElectronApplication
+
+  test.beforeEach(async () => {
     cleanupDb()
-    const app = await launchApp()
+  })
+
+  test.afterEach(async () => {
+    if (app) {
+      await app.close()
+    }
+    cleanupDb()
+  })
+
+  test('app launches and shows welcome screen on first run', async () => {
+    app = await launchApp()
     const window = await app.firstWindow()
 
     await window.waitForLoadState('domcontentloaded')
@@ -19,13 +31,10 @@ test.describe('AI Notebook', () => {
 
     // Should show prompt for API key
     await expect(window.locator('label:text("Google Gemini API Key")')).toBeVisible()
-
-    await app.close()
   })
 
   test('sidebar and main area render correctly', async () => {
-    cleanupDb()
-    const app = await launchApp()
+    app = await launchApp()
     const window = await app.firstWindow()
     await window.waitForLoadState('domcontentloaded')
 
@@ -41,8 +50,6 @@ test.describe('AI Notebook', () => {
     // Settings button should exist
     const settingsButton = window.locator('[data-testid="settings-btn"]')
     await expect(settingsButton).toBeVisible()
-
-    await app.close()
   })
 })
 
@@ -57,6 +64,7 @@ test.describe('Chapter Processing', () => {
     if (app) {
       await app.close()
     }
+    cleanupDb()
   })
 
   test('PDF upload creates chapters', async () => {

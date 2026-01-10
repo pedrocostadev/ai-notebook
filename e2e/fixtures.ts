@@ -15,6 +15,13 @@ export function cleanupDb(): void {
   }
 }
 
+// Clear localStorage in the window (for test isolation)
+export async function clearLocalStorage(window: Page): Promise<void> {
+  await window.evaluate(() => {
+    localStorage.clear()
+  })
+}
+
 // Launch app with common options
 export async function launchApp(): Promise<ElectronApplication> {
   return electron.launch({

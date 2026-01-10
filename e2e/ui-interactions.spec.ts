@@ -12,6 +12,7 @@ test.describe('PDF List Interactions', () => {
     if (app) {
       await app.close()
     }
+    cleanupDb()
   })
 
   test('PDF row shows delete button on hover', async () => {
@@ -162,6 +163,7 @@ test.describe('Chat Input', () => {
     if (app) {
       await app.close()
     }
+    cleanupDb()
   })
 
   test('chat input is disabled without PDF selected', async () => {
@@ -265,6 +267,7 @@ test.describe('Empty State', () => {
     if (app) {
       await app.close()
     }
+    cleanupDb()
   })
 
   test('shows empty state when no PDFs uploaded', async () => {
@@ -296,6 +299,7 @@ test.describe('Chat Header', () => {
     if (app) {
       await app.close()
     }
+    cleanupDb()
   })
 
   test('shows Open PDF button when PDF is done processing', async () => {
