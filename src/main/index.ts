@@ -12,6 +12,8 @@ function createWindow(): void {
     minHeight: 600,
     show: false,
     autoHideMenuBar: true,
+    titleBarStyle: 'hiddenInset',
+    trafficLightPosition: { x: 16, y: 18 },
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,

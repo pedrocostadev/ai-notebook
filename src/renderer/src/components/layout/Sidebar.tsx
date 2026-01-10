@@ -63,8 +63,8 @@ export function Sidebar({
 }: SidebarProps) {
   return (
     <div className="w-72 flex flex-col h-full bg-[var(--color-sidebar)] text-[var(--color-sidebar-foreground)] overflow-hidden">
-      {/* Workspace header - Slack style */}
-      <div className="px-4 py-3 flex items-center justify-between border-b border-[var(--color-sidebar-border)]">
+      {/* Workspace header - integrated with title bar */}
+      <div className="titlebar-drag px-4 pt-12 pb-3 flex items-center justify-between border-b border-[var(--color-sidebar-border)]">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center">
             <BookOpen className="h-4 w-4" />
@@ -76,7 +76,7 @@ export function Sidebar({
           size="icon"
           onClick={onOpenSettings}
           data-testid="settings-btn"
-          className="h-8 w-8 text-[var(--color-sidebar-foreground)] hover:bg-[var(--color-sidebar-accent)] hover:text-[var(--color-sidebar-foreground)]"
+          className="titlebar-no-drag h-8 w-8 text-[var(--color-sidebar-foreground)] hover:bg-[var(--color-sidebar-accent)] hover:text-[var(--color-sidebar-foreground)]"
         >
           <Settings className="h-4 w-4" />
         </Button>
