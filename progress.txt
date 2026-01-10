@@ -72,3 +72,16 @@
   - Feature list with icons provides engaging "marketing" content
 
 ---
+
+## 2026-01-10 - Chapter Open Button Opens at Chapter Page
+
+- Fixed: chapter "Open" button now opens PDF at chapter's starting page
+- Gets minimum page_start from chapter chunks to find chapter start
+- Uses AppleScript on macOS to open Preview and navigate to page via Go To Page
+- Files changed: `src/main/ipc/pdf.handlers.ts`, `src/preload/index.ts`
+- **Learnings:**
+  - macOS Preview doesn't support page param via CLI, but AppleScript works
+  - Cmd+Opt+G opens "Go to Page" dialog in Preview
+  - spawn with detached:true and unref() runs script async without blocking
+
+---
