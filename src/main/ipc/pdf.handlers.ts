@@ -1,5 +1,5 @@
-import { ipcMain, dialog } from 'electron'
-import { getAllPdfs, getPdf, deletePdf as dbDeletePdf, getChaptersByPdfId, updatePdfStatus, updateChapterStatus } from '../services/database'
+import { ipcMain, dialog, shell } from 'electron'
+import { getAllPdfs, getPdf, deletePdf as dbDeletePdf, getChaptersByPdfId, updatePdfStatus, updateChapterStatus, getChapter } from '../services/database'
 import { processPdf, deletePdfFile } from '../services/pdf-processor'
 import { startJobQueue, cancelProcessing } from '../services/job-queue'
 
@@ -104,5 +104,39 @@ export function registerPdfHandlers(): void {
       updateChapterStatus(chapter.id, status as 'pending' | 'processing' | 'done' | 'error')
     }
     return { success: true }
+  })
+
+  // Open PDF in system default viewer
+  ipcMain.handle('pdf:open', async (_, pdfId: number) => {
+    const pdf = getPdf(pdfId)
+    if (!pdf) {
+      return { error: 'PDF not found' }
+    }
+    try {
+      await shell.openPath(pdf.filepath)
+      return { success: true }
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : 'Failed to open PDF' }
+    }
+  })
+
+  // Open PDF at specific chapter (page) in system default viewer
+  // Note: Most PDF viewers don't support opening at a specific page via command line
+  // For now, just open the PDF (chapter info could be used in future with specific viewers)
+  ipcMain.handle('pdf:open-chapter', async (_, chapterId: number) => {
+    const chapter = getChapter(chapterId)
+    if (!chapter) {
+      return { error: 'Chapter not found' }
+    }
+    const pdf = getPdf(chapter.pdf_id)
+    if (!pdf) {
+      return { error: 'PDF not found' }
+    }
+    try {
+      await shell.openPath(pdf.filepath)
+      return { success: true }
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : 'Failed to open PDF' }
+    }
   })
 }

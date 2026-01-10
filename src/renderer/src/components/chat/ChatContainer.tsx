@@ -3,7 +3,7 @@ import { MessageList } from './MessageList'
 import { ChatInput } from './ChatInput'
 import { ChapterSelectModal } from './ChapterSelectModal'
 import { useChat } from '@/hooks/useChat'
-import { FileText, Upload, Loader2, BookOpen } from 'lucide-react'
+import { FileText, Upload, Loader2, BookOpen, ExternalLink } from 'lucide-react'
 import type { SlashCommand } from './SlashCommandMenu'
 import type { Chapter } from '../../../../preload'
 
@@ -62,6 +62,16 @@ export function ChatContainer({ pdfId, chapterId, chapterTitle, chapters, status
   const [pendingCommand, setPendingCommand] = useState<SlashCommand | null>(null)
   const [isExecutingCommand, setIsExecutingCommand] = useState(false)
   const [commandLoadingMessage, setCommandLoadingMessage] = useState<string | null>(null)
+
+  const handleOpenPdf = useCallback(async () => {
+    if (!pdfId) return
+    await window.api.openPdf(pdfId)
+  }, [pdfId])
+
+  const handleOpenChapter = useCallback(async () => {
+    if (!chapterId) return
+    await window.api.openChapter(chapterId)
+  }, [chapterId])
 
   // Helper to save command interaction and reload
   // Always save to current view context (chapterId), not target chapter
@@ -260,13 +270,40 @@ export function ChatContainer({ pdfId, chapterId, chapterTitle, chapters, status
     return 'Ask a question about this PDF...'
   }
 
+  const isDone = status === 'done'
+
   return (
     <div className="flex-1 flex flex-col">
       {/* Chapter header */}
       {isChapterView && chapterTitle && (
-        <div className="p-3 border-b flex items-center gap-2 bg-muted/30">
-          <BookOpen className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-medium">{chapterTitle}</span>
+        <div className="p-3 border-b flex items-center justify-between bg-muted/30">
+          <div className="flex items-center gap-2">
+            <BookOpen className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">{chapterTitle}</span>
+          </div>
+          {isDone && (
+            <button
+              onClick={handleOpenChapter}
+              className="flex items-center gap-1.5 px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
+              title="Open in PDF viewer"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              <span>Open</span>
+            </button>
+          )}
+        </div>
+      )}
+      {/* PDF header (main chat view, not chapter) */}
+      {!isChapterView && isDone && (
+        <div className="p-3 border-b flex items-center justify-end bg-muted/30">
+          <button
+            onClick={handleOpenPdf}
+            className="flex items-center gap-1.5 px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
+            title="Open PDF in viewer"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+            <span>Open PDF</span>
+          </button>
         </div>
       )}
       {isProcessing && (
