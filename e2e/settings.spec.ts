@@ -12,6 +12,7 @@ test.describe('Settings Dialog', () => {
     if (app) {
       await app.close()
     }
+    cleanupDb()
   })
 
   test('settings dialog opens from sidebar button', async () => {
@@ -121,6 +122,7 @@ test.describe('Welcome Screen', () => {
     if (app) {
       await app.close()
     }
+    cleanupDb()
   })
 
   test('welcome screen shows on first launch', async () => {
