@@ -30,7 +30,7 @@ test.describe('PDF List Interactions', () => {
     await window.waitForLoadState('domcontentloaded')
 
     // Wait for PDF to be visible
-    await expect(window.locator('text=sample.pdf')).toBeVisible({ timeout: 10000 })
+    await expect(window.locator('text=sample')).toBeVisible({ timeout: 10000 })
 
     // Delete button should be hidden initially (opacity-0)
     const pdfRow = window.locator('[data-testid="pdf-row"]').first()
@@ -61,7 +61,7 @@ test.describe('PDF List Interactions', () => {
     await window.reload()
     await window.waitForLoadState('domcontentloaded')
 
-    await expect(window.locator('text=sample.pdf')).toBeVisible({ timeout: 10000 })
+    await expect(window.locator('text=sample')).toBeVisible({ timeout: 10000 })
 
     // First ensure chapters are collapsed (localStorage may have persisted expanded state)
     const expandBtn = window.locator('[data-testid="expand-btn"]').first()
@@ -101,7 +101,7 @@ test.describe('PDF List Interactions', () => {
     await window.reload()
     await window.waitForLoadState('domcontentloaded')
 
-    await expect(window.locator('text=sample.pdf')).toBeVisible({ timeout: 10000 })
+    await expect(window.locator('text=sample')).toBeVisible({ timeout: 10000 })
 
     // Expand chapters
     await window.locator('[data-testid="expand-btn"]').first().click()
@@ -132,7 +132,7 @@ test.describe('PDF List Interactions', () => {
     await window.reload()
     await window.waitForLoadState('domcontentloaded')
 
-    await expect(window.locator('text=sample.pdf')).toBeVisible({ timeout: 10000 })
+    await expect(window.locator('text=sample')).toBeVisible({ timeout: 10000 })
 
     // Ensure chapters are visible (expand if needed, localStorage may have persisted state)
     const chapterRow = window.locator('[data-testid="chapter-row"]').first()
@@ -345,7 +345,7 @@ test.describe('Chat Header', () => {
     await window.waitForLoadState('domcontentloaded')
 
     // Wait for PDF to be visible
-    await expect(window.locator('text=sample.pdf')).toBeVisible({ timeout: 10000 })
+    await expect(window.locator('text=sample')).toBeVisible({ timeout: 10000 })
 
     // Expand chapters if not visible
     const chapterRow = window.locator('[data-testid="chapter-row"]').first()

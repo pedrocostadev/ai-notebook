@@ -13,6 +13,7 @@ import {
   AlertDialogTrigger
 } from '@/components/ui/alert-dialog'
 import { cn } from '@/lib/utils'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 interface Pdf {
   id: number
@@ -142,7 +143,7 @@ export function PdfList({
               <div
                 data-testid="pdf-row"
                 className={cn(
-                  'flex items-center gap-1 rounded-md px-2 py-1.5 cursor-pointer hover:bg-accent group',
+                  'flex items-center gap-1 rounded-md px-2 py-1.5 cursor-pointer hover:bg-accent group min-w-0',
                   selectedPdfId === pdf.id && selectedChapterId === null && 'bg-accent'
                 )}
                 onClick={() => onSelect(pdf.id, null)}
@@ -168,7 +169,14 @@ export function PdfList({
                   <div className="w-5" />
                 )}
                 <FileText className="h-4 w-4 flex-shrink-0" />
-                <span className="flex-1 truncate text-sm">{pdf.title || pdf.filename}</span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="flex-1 truncate text-sm">{pdf.title || pdf.filename}</span>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">
+                    <p>{pdf.title || pdf.filename}</p>
+                  </TooltipContent>
+                </Tooltip>
                 {getPdfStatusIndicator(pdf)}
                 {isPdfProcessing(pdf) ? (
                   <AlertDialog>
@@ -237,7 +245,7 @@ export function PdfList({
 
               {/* Chapters */}
               {isExpanded && pdfChapters.length > 0 && (
-                <div className="pl-5 pr-2 space-y-0.5 overflow-hidden">
+                <div className="pl-5 pr-2 space-y-0.5 overflow-hidden min-w-0">
                   {pdfChapters.map((chapter) => {
                     const isChapterReady = chapter.status === 'done'
                     return (
@@ -245,7 +253,7 @@ export function PdfList({
                         key={chapter.id}
                         data-testid="chapter-row"
                         className={cn(
-                          'grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1.5 rounded-md px-2 py-1 overflow-hidden',
+                          'grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1.5 rounded-md px-2 py-1 overflow-hidden min-w-0',
                           isChapterReady && 'cursor-pointer hover:bg-accent',
                           !isChapterReady && 'opacity-50 cursor-not-allowed',
                           selectedChapterId === chapter.id && 'bg-accent'
@@ -253,9 +261,16 @@ export function PdfList({
                         onClick={() => isChapterReady && onSelect(pdf.id, chapter.id)}
                       >
                         <BookOpen className="h-3 w-3 text-muted-foreground" />
-                        <span className="truncate text-sm text-muted-foreground">
-                          {chapter.title}
-                        </span>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="truncate text-sm text-muted-foreground">
+                              {chapter.title}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="right">
+                            <p>{chapter.title}</p>
+                          </TooltipContent>
+                        </Tooltip>
                         <span data-testid="chapter-status">
                           {getChapterStatusIndicator(chapter)}
                         </span>

@@ -19,7 +19,8 @@ import {
   updateChapterStartIdx,
   updateChapterAuxiliary,
   getPdf,
-  getChunksByChapterId
+  getChunksByChapterId,
+  updatePdfMetadata
 } from './database'
 import { notifyChapterProgress } from './job-queue'
 
@@ -226,6 +227,11 @@ export async function processPdf(
     // Try PDF outline first (most reliable - uses embedded bookmarks)
     let tocResult = await parseOutlineFromPdf(destPath, onChapterFound)
     usedOutlineParsing = tocResult.hasToc && tocResult.chapters.length > 0
+
+    // Save title immediately if available from PDF metadata
+    if (tocResult.title) {
+      updatePdfMetadata(pdfId, { title: tocResult.title })
+    }
 
     // Fall back to AI parsing if no outline found
     if (!usedOutlineParsing) {

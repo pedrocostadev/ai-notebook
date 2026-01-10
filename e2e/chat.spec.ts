@@ -84,7 +84,7 @@ test.describe('Chapter Processing', () => {
     // Verify PDF appears in sidebar after reload
     await window.reload()
     await window.waitForLoadState('domcontentloaded')
-    await expect(window.locator('text=sample.pdf')).toBeVisible({ timeout: 10000 })
+    await expect(window.locator('text=sample')).toBeVisible({ timeout: 10000 })
   })
 
   test('chapter status indicators are visible', async () => {
@@ -106,7 +106,7 @@ test.describe('Chapter Processing', () => {
     await window.waitForLoadState('domcontentloaded')
 
     // PDF should be visible
-    await expect(window.locator('text=sample.pdf')).toBeVisible({ timeout: 10000 })
+    await expect(window.locator('text=sample')).toBeVisible({ timeout: 10000 })
 
     // Ensure chapters are visible (expand if needed, localStorage may have persisted state)
     const chapterRows = window.locator('[data-testid="chapter-row"]')
@@ -145,7 +145,7 @@ test.describe('Chapter Processing', () => {
     // Reload to see PDF in list
     await window.reload()
     await window.waitForLoadState('domcontentloaded')
-    await expect(window.locator('text=sample.pdf')).toBeVisible({ timeout: 10000 })
+    await expect(window.locator('text=sample')).toBeVisible({ timeout: 10000 })
 
     // Close and reopen app (simulates restart with stale processing state)
     await app.close()
@@ -155,7 +155,7 @@ test.describe('Chapter Processing', () => {
     await window2.waitForLoadState('domcontentloaded')
 
     // PDF should still be visible
-    await expect(window2.locator('text=sample.pdf')).toBeVisible({ timeout: 10000 })
+    await expect(window2.locator('text=sample')).toBeVisible({ timeout: 10000 })
 
     // Try to delete the PDF
     const pdfRow = window2.locator('[data-testid="pdf-row"]').first()
@@ -170,6 +170,6 @@ test.describe('Chapter Processing', () => {
     await confirmButton.click()
 
     // PDF should be removed
-    await expect(window2.locator('text=sample.pdf')).not.toBeVisible({ timeout: 5000 })
+    await expect(window2.locator('text=sample')).not.toBeVisible({ timeout: 5000 })
   })
 })
