@@ -173,7 +173,9 @@ export async function initDatabase(): Promise<void> {
       last_message_id INTEGER NOT NULL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       UNIQUE(pdf_id, chapter_id)
-    )`
+    )`,
+    'ALTER TABLE chapters ADD COLUMN summary_status TEXT DEFAULT NULL',
+    'ALTER TABLE chapters ADD COLUMN summary_error TEXT DEFAULT NULL'
   ]
   for (const migration of migrations) {
     try {
@@ -345,10 +347,12 @@ export function getChaptersByPdfId(pdfId: number, excludeAuxiliary: boolean = fa
   is_auxiliary: boolean
   status: string
   error_message: string | null
+  summary_status: string | null
+  concepts_status: string | null
 }[] {
   const query = excludeAuxiliary
-    ? 'SELECT id, pdf_id, title, chapter_index, start_page, is_auxiliary, status, error_message FROM chapters WHERE pdf_id = ? AND is_auxiliary = 0 ORDER BY chapter_index'
-    : 'SELECT id, pdf_id, title, chapter_index, start_page, is_auxiliary, status, error_message FROM chapters WHERE pdf_id = ? ORDER BY chapter_index'
+    ? 'SELECT id, pdf_id, title, chapter_index, start_page, is_auxiliary, status, error_message, summary_status, concepts_status FROM chapters WHERE pdf_id = ? AND is_auxiliary = 0 ORDER BY chapter_index'
+    : 'SELECT id, pdf_id, title, chapter_index, start_page, is_auxiliary, status, error_message, summary_status, concepts_status FROM chapters WHERE pdf_id = ? ORDER BY chapter_index'
   return getDb()
     .prepare(query)
     .all(pdfId) as {
@@ -360,6 +364,8 @@ export function getChaptersByPdfId(pdfId: number, excludeAuxiliary: boolean = fa
     is_auxiliary: boolean
     status: string
     error_message: string | null
+    summary_status: string | null
+    concepts_status: string | null
   }[]
 }
 
@@ -413,8 +419,25 @@ export function updateChapterStartPage(id: number, startPage: number): void {
 
 export function updateChapterSummary(id: number, summary: string): void {
   getDb()
-    .prepare('UPDATE chapters SET summary = ? WHERE id = ?')
-    .run(summary, id)
+    .prepare('UPDATE chapters SET summary = ?, summary_status = ? WHERE id = ?')
+    .run(summary, 'done', id)
+}
+
+export function updateChapterSummaryStatus(
+  chapterId: number,
+  status: 'pending' | 'processing' | 'done' | 'error',
+  errorMessage?: string
+): void {
+  getDb()
+    .prepare('UPDATE chapters SET summary_status = ?, summary_error = ? WHERE id = ?')
+    .run(status, errorMessage ?? null, chapterId)
+}
+
+export function getChapterSummaryStatus(chapterId: number): { status: string | null; error: string | null } {
+  const row = getDb()
+    .prepare('SELECT summary_status, summary_error FROM chapters WHERE id = ?')
+    .get(chapterId) as { summary_status: string | null; summary_error: string | null } | undefined
+  return { status: row?.summary_status ?? null, error: row?.summary_error ?? null }
 }
 
 export function updateChapterAuxiliary(id: number, isAuxiliary: boolean): void {

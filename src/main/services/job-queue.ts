@@ -11,6 +11,7 @@ import {
   getPdf,
   getChapter,
   updateChapterSummary,
+  updateChapterSummaryStatus,
   updatePdfMetadata,
   insertConcepts,
   updateChapterConceptsStatus
@@ -96,6 +97,8 @@ async function processNextJob(): Promise<void> {
       await processChapterEmbeddings(job.pdf_id, job.chapter_id)
     } else if (job.type === 'summary' && job.chapter_id !== null) {
       // Generate chapter summary using chapter data directly (cached)
+      updateChapterSummaryStatus(job.chapter_id, 'processing')
+
       const pdf = getPdf(job.pdf_id)
       if (!pdf) throw new Error('PDF not found')
       const chapter = getChapter(job.chapter_id)
@@ -110,6 +113,9 @@ async function processNextJob(): Promise<void> {
       // Only update if summary was generated (null means chapter was too short)
       if (summary !== null) {
         updateChapterSummary(job.chapter_id, summary)
+      } else {
+        // Mark as done even if no summary (chapter too short)
+        updateChapterSummaryStatus(job.chapter_id, 'done')
       }
     } else if (job.type === 'metadata') {
       // Generate PDF metadata (cached)
@@ -221,6 +227,10 @@ async function processNextJob(): Promise<void> {
       // Update concepts status separately (non-blocking for chapter status)
       if (job.type === 'concepts' && job.chapter_id !== null) {
         updateChapterConceptsStatus(job.chapter_id, 'error', errorMsg)
+      }
+      // Update summary status separately (non-blocking for chapter status)
+      if (job.type === 'summary' && job.chapter_id !== null) {
+        updateChapterSummaryStatus(job.chapter_id, 'error', errorMsg)
       }
     } else {
       updateJobStatus(job.id, 'pending', errorMsg)

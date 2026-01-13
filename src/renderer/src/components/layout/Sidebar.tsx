@@ -17,6 +17,8 @@ interface Chapter {
   chapter_index: number
   status: string
   error_message: string | null
+  summary_status: string | null
+  concepts_status: string | null
 }
 
 type ProcessingStage = 'extracting' | 'chunking' | 'embedding'
@@ -39,6 +41,7 @@ interface SidebarProps {
   selectedPdfId: number | null
   selectedChapterId: number | null
   chapterProgress: ChapterProgressState
+  recentlyCompletedChapters: Set<number>
   onSelectPdf: (pdfId: number, chapterId: number | null) => void
   onDeletePdf: (id: number) => void
   onCancelPdf: (id: number) => void
@@ -54,6 +57,7 @@ export function Sidebar({
   selectedPdfId,
   selectedChapterId,
   chapterProgress,
+  recentlyCompletedChapters,
   onSelectPdf,
   onDeletePdf,
   onCancelPdf,
@@ -104,6 +108,7 @@ export function Sidebar({
         selectedPdfId={selectedPdfId}
         selectedChapterId={selectedChapterId}
         chapterProgress={chapterProgress}
+        recentlyCompletedChapters={recentlyCompletedChapters}
         onSelect={onSelectPdf}
         onDelete={onDeletePdf}
         onCancel={onCancelPdf}
