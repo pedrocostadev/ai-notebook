@@ -11,7 +11,6 @@ interface ChatMessage {
   content: string
   metadata: {
     citations?: { chunkId: number; pageStart: number; pageEnd: number; quote: string }[]
-    confidence?: 'high' | 'medium' | 'low'
     followUpQuestions?: string[]
     quiz?: QuizQuestion[]
     concepts?: Concept[]
@@ -29,12 +28,6 @@ interface MessageListProps {
   chapterTitle?: string
   pdfId?: number | null
   chapterId?: number | null
-}
-
-const CONFIDENCE_COLORS: Record<string, string> = {
-  high: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300',
-  medium: 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300',
-  low: 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300'
 }
 
 export function MessageList({ messages, streamingContent, isStreaming, commandLoading, onFollowUpClick, isChapterLoading, chapterTitle, pdfId, chapterId }: MessageListProps) {
@@ -66,14 +59,6 @@ export function MessageList({ messages, streamingContent, isStreaming, commandLo
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
   }, [messages, streamingContent, commandLoading])
-
-  function renderConfidenceBadge(confidence: string) {
-    return (
-      <span className={cn('text-xs px-2 py-0.5 rounded-full', CONFIDENCE_COLORS[confidence])}>
-        {confidence} confidence
-      </span>
-    )
-  }
 
   const isEmpty = messages.length === 0 && !isStreaming && !commandLoading
   const showLoadingState = isEmpty && isChapterLoading
@@ -166,9 +151,10 @@ export function MessageList({ messages, streamingContent, isStreaming, commandLo
                 ) : (
                   <>
                     <p className="whitespace-pre-wrap text-[15px] leading-relaxed">{message.content}</p>
-                    {message.metadata && message.role === 'assistant' && (
+                    {message.metadata && message.role === 'assistant' &&
+                      ((message.metadata.citations && message.metadata.citations.length > 0) ||
+                       (message.metadata.followUpQuestions && message.metadata.followUpQuestions.length > 0)) && (
                       <div className="mt-3 pt-3 border-t border-foreground/10 space-y-3">
-                        {message.metadata.confidence && renderConfidenceBadge(message.metadata.confidence)}
                         {message.metadata.citations && message.metadata.citations.length > 0 && (
                           <div className="space-y-1.5">
                             <p className="text-xs font-medium text-foreground/70">Sources:</p>

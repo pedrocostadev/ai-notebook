@@ -14,7 +14,6 @@ export type ChatMessage = {
   content: string
   metadata: {
     citations?: { chunkId: number; quote: string }[]
-    confidence?: 'high' | 'medium' | 'low'
     followUpQuestions?: string[]
     quiz?: QuizQuestion[]
   } | null
