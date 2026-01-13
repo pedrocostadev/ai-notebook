@@ -38,14 +38,6 @@ export const ChatResponseMetadataSchema = z.object({
         'Include 1-3 citations for factual claims. ' +
         'Omit if the answer is a general statement not tied to specific text.'
     ),
-  confidence: z
-    .enum(['high', 'medium', 'low'])
-    .describe(
-      'Your confidence in the answer based on context quality. ' +
-        'high: context directly answers the question. ' +
-        'medium: context partially answers or requires inference. ' +
-        'low: context is tangentially related or insufficient.'
-    ),
   followUpQuestions: z
     .array(z.string())
     .optional()

@@ -176,8 +176,8 @@ export async function chat(
     const refusalMsg =
       "I can only help with questions about this book. Please ask something related to the content."
     window.webContents.send('chat:stream', refusalMsg)
-    window.webContents.send('chat:done', { confidence: 'high' })
-    insertMessage(pdfId, chapterId, 'assistant', refusalMsg, { confidence: 'high' })
+    window.webContents.send('chat:done', {})
+    insertMessage(pdfId, chapterId, 'assistant', refusalMsg)
     return
   }
 
@@ -217,9 +217,9 @@ export async function chat(
     const response = chapterId
       ? "I couldn't find relevant information in this chapter to answer your question."
       : "I couldn't find relevant information in the PDF to answer your question."
-    insertMessage(pdfId, chapterId, 'assistant', response, { confidence: 'low' })
+    insertMessage(pdfId, chapterId, 'assistant', response)
     window.webContents.send('chat:stream', response)
-    window.webContents.send('chat:done', { confidence: 'low' })
+    window.webContents.send('chat:done', {})
     return
   }
 
@@ -314,7 +314,7 @@ You may help with meta-requests like "explain simpler" or "give examples" as lon
   fullResponse = await text
 
   // Step 9: Generate metadata
-  let metadata: ChatResponseMetadata = { confidence: 'medium' }
+  let metadata: ChatResponseMetadata = {}
   try {
     const { object } = await generateObject({
       model: google(chatModel),
