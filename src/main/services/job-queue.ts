@@ -1,5 +1,4 @@
 import { BrowserWindow } from 'electron'
-import { PDFLoader } from '@langchain/community/document_loaders/fs/pdf'
 import {
   getNextPendingJob,
   updateJobStatus,
@@ -19,7 +18,8 @@ import {
 } from './database'
 import { generateEmbeddings } from './embeddings'
 import { getApiKey } from './settings'
-import { deletePdfFile, processChapter, computePageBoundaries, findPageFromCharIndex, loadPageLabels, physicalToLabel } from './pdf-processor'
+import { deletePdfFile, processChapter, findPageFromCharIndex, physicalToLabel } from './pdf-processor'
+import { getCachedPdfData, invalidatePdfCache } from './pdf-cache'
 import {
   generateChapterSummary,
   generatePdfMetadata,
@@ -80,17 +80,11 @@ async function processNextJob(): Promise<void> {
     updateJobStatus(job.id, 'running')
 
     if (job.type === 'embed' && job.chapter_id !== null) {
-      // Load PDF text for chapter processing
+      // Load PDF text for chapter processing (cached)
       const pdf = getPdf(job.pdf_id)
       if (!pdf) throw new Error('PDF not found')
 
-      const loader = new PDFLoader(pdf.filepath, { parsedItemSeparator: '\n' })
-      const docs = await loader.load()
-      const pages = docs.map((d) => d.pageContent)
-      const fullText = pages.join('\n\n')
-
-      // Load page labels for converting physical pages to display labels
-      const labelMap = await loadPageLabels(pdf.filepath)
+      const { pages, fullText, labelMap } = await getCachedPdfData(pdf.filepath)
 
       // Process chapter (chunk text)
       await processChapter(job.pdf_id, job.chapter_id, fullText, pages, labelMap)
@@ -106,15 +100,13 @@ async function processNextJob(): Promise<void> {
       // Generate embeddings for this chapter's chunks
       await processChapterEmbeddings(job.pdf_id, job.chapter_id)
     } else if (job.type === 'summary' && job.chapter_id !== null) {
-      // Generate chapter summary using chapter data directly
+      // Generate chapter summary using chapter data directly (cached)
       const pdf = getPdf(job.pdf_id)
       if (!pdf) throw new Error('PDF not found')
       const chapter = getChapter(job.chapter_id)
       if (!chapter) throw new Error('Chapter not found')
 
-      const loader = new PDFLoader(pdf.filepath, { parsedItemSeparator: '\n' })
-      const docs = await loader.load()
-      const fullText = docs.map((d) => d.pageContent).join('\n\n')
+      const { fullText } = await getCachedPdfData(pdf.filepath)
 
       // Extract chapter text directly using chapter boundaries
       const chapterText = fullText.substring(chapter.start_idx, chapter.end_idx)
@@ -125,18 +117,16 @@ async function processNextJob(): Promise<void> {
         updateChapterSummary(job.chapter_id, summary)
       }
     } else if (job.type === 'metadata') {
-      // Generate PDF metadata
+      // Generate PDF metadata (cached)
       const pdf = getPdf(job.pdf_id)
       if (!pdf) throw new Error('PDF not found')
 
-      const loader = new PDFLoader(pdf.filepath, { parsedItemSeparator: '\n' })
-      const docs = await loader.load()
-      const fullText = docs.map((d) => d.pageContent).join('\n\n')
+      const { fullText } = await getCachedPdfData(pdf.filepath)
 
       const metadata = await generatePdfMetadata(fullText)
       updatePdfMetadata(job.pdf_id, metadata)
     } else if (job.type === 'concepts' && job.chapter_id !== null) {
-      // Generate key concepts for chapter using chapter data directly
+      // Generate key concepts for chapter using chapter data directly (cached)
       updateChapterConceptsStatus(job.chapter_id, 'processing')
 
       notifyConceptsProgress({
@@ -150,14 +140,7 @@ async function processNextJob(): Promise<void> {
       const chapter = getChapter(job.chapter_id)
       if (!chapter) throw new Error('Chapter not found')
 
-      const loader = new PDFLoader(pdf.filepath, { parsedItemSeparator: '\n' })
-      const docs = await loader.load()
-      const pages = docs.map((d) => d.pageContent)
-      const fullText = pages.join('\n\n')
-      const boundaries = computePageBoundaries(pages)
-
-      // Load page labels for converting physical pages to display labels
-      const labelMap = await loadPageLabels(pdf.filepath)
+      const { fullText, boundaries, labelMap } = await getCachedPdfData(pdf.filepath)
 
       // Extract chapter text directly using chapter boundaries
       const chapterText = fullText.substring(chapter.start_idx, chapter.end_idx)
@@ -170,12 +153,26 @@ async function processNextJob(): Promise<void> {
       const segments = await splitter.splitText(chapterText)
 
       // Calculate page numbers for each segment using page boundaries
-      // Track position to handle repeated text (indexOf would always return first occurrence)
+      // Use expected positions based on chunk sizes (O(n) instead of O(n²) indexOf)
       const chunksWithPages: ChunkWithPage[] = []
-      let searchStartInChapter = 0
+      let expectedPos = 0
       for (const content of segments) {
-        const posInChapter = chapterText.indexOf(content, searchStartInChapter)
-        const actualPos = posInChapter >= 0 ? posInChapter : searchStartInChapter
+        // Compute position: first chunk at 0, subsequent at (prev_end - overlap)
+        let actualPos = expectedPos
+        if (expectedPos + content.length <= chapterText.length) {
+          // Fast path: check if content matches at expected position
+          const expectedSubstr = chapterText.substring(expectedPos, expectedPos + content.length)
+          if (expectedSubstr !== content) {
+            // Slow path: search within ±500 char window
+            const windowStart = Math.max(0, expectedPos - 500)
+            const windowEnd = Math.min(chapterText.length, expectedPos + content.length + 500)
+            const window = chapterText.substring(windowStart, windowEnd)
+            const posInWindow = window.indexOf(content)
+            if (posInWindow >= 0) {
+              actualPos = windowStart + posInWindow
+            }
+          }
+        }
 
         const segmentStartInFull = chapter.start_idx + actualPos
         const segmentEndInFull = segmentStartInFull + content.length
@@ -190,8 +187,8 @@ async function processNextJob(): Promise<void> {
           pageEnd: physicalToLabel(physicalEnd, labelMap)
         })
 
-        // Update search position for next segment (step back by overlap)
-        searchStartInChapter = Math.max(0, actualPos + content.length - CHUNK_OVERLAP)
+        // Next chunk expected at (current_end - overlap)
+        expectedPos = actualPos + content.length - CHUNK_OVERLAP
       }
 
       const concepts = await generateChapterConcepts(chunksWithPages)
@@ -359,7 +356,53 @@ export interface ChapterProgressData {
   embeddingsProcessed?: number
 }
 
+// Debounce state for progress notifications
+const PROGRESS_DEBOUNCE_MS = 100
+let lastProgressNotify: { [key: string]: number } = {}
+let pendingProgress: { [key: string]: ChapterProgressData } = {}
+let progressTimeouts: { [key: string]: NodeJS.Timeout } = {}
+
 export function notifyChapterProgress(data: ChapterProgressData): void {
+  const key = `${data.pdfId}-${data.chapterId}`
+  const now = Date.now()
+  const lastNotify = lastProgressNotify[key] || 0
+
+  // Always send immediately if progress is 0 or 100 (start/end)
+  if (data.progress === 0 || data.progress === 100) {
+    sendProgressToWindows(data)
+    lastProgressNotify[key] = now
+    // Clear any pending update
+    if (progressTimeouts[key]) {
+      clearTimeout(progressTimeouts[key])
+      delete progressTimeouts[key]
+    }
+    delete pendingProgress[key]
+    return
+  }
+
+  // Debounce intermediate progress updates
+  if (now - lastNotify >= PROGRESS_DEBOUNCE_MS) {
+    sendProgressToWindows(data)
+    lastProgressNotify[key] = now
+    delete pendingProgress[key]
+  } else {
+    // Store pending and schedule flush
+    pendingProgress[key] = data
+    if (!progressTimeouts[key]) {
+      progressTimeouts[key] = setTimeout(() => {
+        const pending = pendingProgress[key]
+        if (pending) {
+          sendProgressToWindows(pending)
+          lastProgressNotify[key] = Date.now()
+          delete pendingProgress[key]
+        }
+        delete progressTimeouts[key]
+      }, PROGRESS_DEBOUNCE_MS)
+    }
+  }
+}
+
+function sendProgressToWindows(data: ChapterProgressData): void {
   const windows = BrowserWindow.getAllWindows()
   for (const window of windows) {
     window.webContents.send('chapter:progress', data)
@@ -391,6 +434,12 @@ export function cancelProcessing(pdfId: number): boolean {
   // If this PDF is currently being processed, set cancel flag
   if (currentPdfId === pdfId) {
     cancelRequested = true
+  }
+
+  // Invalidate PDF cache before deletion
+  const pdf = getPdf(pdfId)
+  if (pdf) {
+    invalidatePdfCache(pdf.filepath)
   }
 
   // Always delete the PDF and associated data (handles stale processing state after app restart)

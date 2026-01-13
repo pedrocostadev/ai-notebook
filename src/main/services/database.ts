@@ -122,6 +122,12 @@ export async function initDatabase(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_concepts_pdf ON concepts(pdf_id);
     CREATE INDEX IF NOT EXISTS idx_concepts_chapter ON concepts(chapter_id);
 
+    -- Performance indexes for common queries
+    CREATE INDEX IF NOT EXISTS idx_chunks_chapter ON chunks(chapter_id);
+    CREATE INDEX IF NOT EXISTS idx_chapters_pdf ON chapters(pdf_id);
+    CREATE INDEX IF NOT EXISTS idx_messages_pdf_chapter ON messages(pdf_id, chapter_id);
+    CREATE INDEX IF NOT EXISTS idx_jobs_status_created ON jobs(status, created_at);
+
     CREATE TABLE IF NOT EXISTS conversation_summaries (
       id INTEGER PRIMARY KEY,
       pdf_id INTEGER REFERENCES pdfs(id) ON DELETE CASCADE,
@@ -154,6 +160,11 @@ export async function initDatabase(): Promise<void> {
     )`,
     'CREATE INDEX IF NOT EXISTS idx_concepts_pdf ON concepts(pdf_id)',
     'CREATE INDEX IF NOT EXISTS idx_concepts_chapter ON concepts(chapter_id)',
+    // Performance indexes for common queries
+    'CREATE INDEX IF NOT EXISTS idx_chunks_chapter ON chunks(chapter_id)',
+    'CREATE INDEX IF NOT EXISTS idx_chapters_pdf ON chapters(pdf_id)',
+    'CREATE INDEX IF NOT EXISTS idx_messages_pdf_chapter ON messages(pdf_id, chapter_id)',
+    'CREATE INDEX IF NOT EXISTS idx_jobs_status_created ON jobs(status, created_at)',
     `CREATE TABLE IF NOT EXISTS conversation_summaries (
       id INTEGER PRIMARY KEY,
       pdf_id INTEGER REFERENCES pdfs(id) ON DELETE CASCADE,
@@ -740,11 +751,33 @@ export function insertConcepts(
   concepts: { name: string; definition: string; importance: number; quotes: ConceptQuote[] }[],
   isConsolidated: boolean = false
 ): number[] {
+  if (concepts.length === 0) return []
+
+  const db = getDb()
   const ids: number[] = []
-  for (const c of concepts) {
-    const id = insertConcept(pdfId, chapterId, c.name, c.definition, c.importance, c.quotes, isConsolidated)
-    ids.push(id)
-  }
+
+  // Use transaction for batch insert - much faster than individual inserts
+  const stmt = db.prepare(`
+    INSERT INTO concepts (pdf_id, chapter_id, name, definition, importance, quotes, is_consolidated, source_concept_ids)
+    VALUES (?, ?, ?, ?, ?, ?, ?, NULL)
+  `)
+
+  const insertAll = db.transaction(() => {
+    for (const c of concepts) {
+      const result = stmt.run(
+        pdfId,
+        chapterId,
+        c.name,
+        c.definition,
+        c.importance,
+        JSON.stringify(c.quotes),
+        isConsolidated ? 1 : 0
+      )
+      ids.push(result.lastInsertRowid as number)
+    }
+  })
+
+  insertAll()
   return ids
 }
 
