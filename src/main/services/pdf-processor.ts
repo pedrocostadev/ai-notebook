@@ -382,13 +382,14 @@ export async function processPdf(
       }
     }
 
-    // Queue jobs for all chapters
+    // Queue jobs for all chapters - embed first to enable chat faster
     for (const chapter of collectedChapters) {
-      // Queue embed job (priority 1)
       insertJob(pdfId, chapter.id, 'embed')
-      // Queue summary job (priority 2 - runs after embed)
+    }
+    for (const chapter of collectedChapters) {
       insertJob(pdfId, chapter.id, 'summary')
-      // Queue concepts job (priority 3 - runs after summary)
+    }
+    for (const chapter of collectedChapters) {
       insertJob(pdfId, chapter.id, 'concepts')
     }
 

@@ -78,13 +78,17 @@ sequenceDiagram
     %% Phase 3: Queue Jobs
     rect rgb(80, 40, 40)
     Note over User,API: Phase 3: Queue Processing Jobs
-    loop For each chapter
-        Proc->>DB: insertJob(embed, priority=1)
-        Proc->>DB: insertJob(summary, priority=2)
-        Proc->>DB: insertJob(concepts, priority=3)
+    loop All chapters - embed first
+        Proc->>DB: insertJob(embed)
     end
-    Proc->>DB: insertJob(metadata, priority=4)
-    Proc->>DB: insertJob(consolidate, priority=5)
+    loop All chapters - summary second
+        Proc->>DB: insertJob(summary)
+    end
+    loop All chapters - concepts last
+        Proc->>DB: insertJob(concepts)
+    end
+    Proc->>DB: insertJob(metadata)
+    Proc->>DB: insertJob(consolidate)
     Proc->>Queue: startJobQueue()
     Proc-->>User: {pdfId, duplicate: false}
     end
@@ -210,10 +214,10 @@ sequenceDiagram
 ```
 Upload ──┬── TOC Parse ──┬── Queue Jobs
          │               │
-         └── Validate    └── Chapter 1: embed → summary → concepts
-                             Chapter 2: embed → summary → concepts
-                             Chapter 3: embed → summary → concepts
-                             ...
+         └── Validate    └── All embeds first (enables chat faster)
+                             Ch1 embed → Ch2 embed → Ch3 embed → ...
+                             Then summaries: Ch1 → Ch2 → Ch3 → ...
+                             Then concepts: Ch1 → Ch2 → Ch3 → ...
                              Metadata extraction
                              Concept consolidation
                              ✅ Done
@@ -221,8 +225,9 @@ Upload ──┬── TOC Parse ──┬── Queue Jobs
 
 ## Key Optimizations Shown
 
-1. **PDF Cache** - Single load, reused across all jobs
-2. **Parallel TOC fetch** - metadata/outline/labels in parallel
-3. **Chunk reuse** - Concepts job reuses embed job chunks
-4. **Batch embeddings** - 100 chunks per API call
-5. **Transaction batching** - Concept insertion in single transaction
+1. **Job ordering** - All embed jobs first, enabling chat for all chapters before generating summaries/concepts
+2. **PDF Cache** - Single load, reused across all jobs
+3. **Parallel TOC fetch** - metadata/outline/labels in parallel
+4. **Chunk reuse** - Concepts job reuses embed job chunks
+5. **Batch embeddings** - 100 chunks per API call
+6. **Transaction batching** - Concept insertion in single transaction
