@@ -173,8 +173,8 @@ test.describe('Chat Input', () => {
 
     await setupApiKey(window)
 
-    // Without PDF selected, the main area should show "No PDF Selected" message
-    await expect(window.locator('text=No PDF Selected')).toBeVisible()
+    // Without PDF selected, the main area should show "No document selected" message
+    await expect(window.locator('text=No document selected')).toBeVisible()
   })
 
   test('chat input is enabled after selecting processed PDF', async () => {
@@ -277,11 +277,11 @@ test.describe('Empty State', () => {
 
     await setupApiKey(window)
 
-    // Should show "No PDFs uploaded yet" in sidebar
-    await expect(window.locator('text=No PDFs uploaded yet')).toBeVisible()
+    // Should show "No documents yet" in sidebar
+    await expect(window.locator('text=No documents yet')).toBeVisible()
 
-    // Main area should show "No PDF Selected"
-    await expect(window.locator('text=No PDF Selected')).toBeVisible()
+    // Main area should show "No document selected"
+    await expect(window.locator('text=No document selected')).toBeVisible()
 
     // Upload button should be present in main area
     await expect(window.locator('text=Upload PDF').first()).toBeVisible()

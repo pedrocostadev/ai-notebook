@@ -1,7 +1,6 @@
-import { Settings } from 'lucide-react'
+import { Settings, BookOpen, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PdfList } from '@/components/pdf/PdfList'
-import { PdfUpload } from '@/components/pdf/PdfUpload'
 
 interface Pdf {
   id: number
@@ -63,16 +62,41 @@ export function Sidebar({
   onOpenSettings
 }: SidebarProps) {
   return (
-    <div className="w-80 border-r flex flex-col h-full bg-muted/30 overflow-hidden">
-      <div className="p-4 border-b flex items-center justify-between">
-        <h1 className="font-semibold">AI Notebook</h1>
-        <Button variant="ghost" size="icon" onClick={onOpenSettings} data-testid="settings-btn">
+    <div className="w-72 flex flex-col h-full bg-[var(--color-sidebar)] text-[var(--color-sidebar-foreground)] overflow-hidden">
+      {/* Workspace header - integrated with title bar */}
+      <div className="titlebar-drag px-4 pt-12 pb-3 flex items-center justify-between border-b border-[var(--color-sidebar-border)]">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center">
+            <BookOpen className="h-4 w-4" />
+          </div>
+          <span className="font-semibold text-[15px]">AI Notebook</span>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onOpenSettings}
+          data-testid="settings-btn"
+          className="titlebar-no-drag h-8 w-8 text-[var(--color-sidebar-foreground)] hover:bg-[var(--color-sidebar-accent)] hover:text-[var(--color-sidebar-foreground)]"
+        >
           <Settings className="h-4 w-4" />
         </Button>
       </div>
-      <div className="p-2">
-        <PdfUpload onUpload={onUploadPdf} />
+
+      {/* Section header with add button */}
+      <div className="px-4 pt-4 pb-2 flex items-center justify-between">
+        <span className="text-xs font-medium text-[var(--color-sidebar-foreground)]/70 uppercase tracking-wide">Documents</span>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onUploadPdf}
+          data-testid="upload-pdf-btn"
+          className="h-6 w-6 text-[var(--color-sidebar-foreground)]/70 hover:text-[var(--color-sidebar-foreground)] hover:bg-[var(--color-sidebar-accent)]"
+          title="Upload PDF"
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
       </div>
+
       <PdfList
         pdfs={pdfs}
         chapters={chapters}
