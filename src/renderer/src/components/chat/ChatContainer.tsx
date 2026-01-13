@@ -4,6 +4,7 @@ import { ChatInput } from './ChatInput'
 import { ChapterSelectModal } from './ChapterSelectModal'
 import { useChat } from '@/hooks/useChat'
 import { FileText, Upload, Loader2, Hash, ExternalLink, CheckCircle } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { SlashCommand } from './SlashCommandMenu'
 import type { Chapter } from '../../../../preload'
 
@@ -305,15 +306,21 @@ export function ChatContainer({ pdfId, chapterId, chapterTitle, chapters, status
             <span data-testid="chapter-title" className="text-sm font-semibold">{chapterTitle}</span>
           </div>
           {isDone && (
-            <button
-              data-testid="open-chapter-btn"
-              onClick={handleOpenChapter}
-              className="titlebar-no-drag flex items-center gap-1.5 px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
-              title="Open in PDF viewer"
-            >
-              <ExternalLink className="h-3.5 w-3.5" />
-              <span>Open</span>
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  data-testid="open-chapter-btn"
+                  onClick={handleOpenChapter}
+                  className="titlebar-no-drag flex items-center gap-1.5 px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  <span>Open</span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Open current chapter in PDF</p>
+              </TooltipContent>
+            </Tooltip>
           )}
         </div>
       )}
