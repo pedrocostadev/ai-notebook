@@ -1,4 +1,5 @@
-import { readFileSync, copyFileSync, existsSync, mkdirSync, statSync, unlinkSync } from 'fs'
+import { existsSync, unlinkSync } from 'fs'
+import { readFile, copyFile, mkdir, stat } from 'fs/promises'
 import { createHash } from 'crypto'
 import { join, basename } from 'path'
 import { app, BrowserWindow } from 'electron'
@@ -210,12 +211,12 @@ export async function processPdf(
   sourcePath: string,
   password?: string
 ): Promise<ProcessResult> {
-  const stats = statSync(sourcePath)
+  const stats = await stat(sourcePath)
   if (stats.size > MAX_FILE_SIZE) {
     throw new Error('File exceeds 50MB limit')
   }
 
-  const fileBuffer = readFileSync(sourcePath)
+  const fileBuffer = await readFile(sourcePath)
   const fileHash = createHash('sha256').update(fileBuffer).digest('hex')
 
   // Check for duplicate
@@ -227,10 +228,10 @@ export async function processPdf(
   const filename = basename(sourcePath)
   const pdfsDir = join(app.getPath('userData'), 'pdfs')
   if (!existsSync(pdfsDir)) {
-    mkdirSync(pdfsDir, { recursive: true })
+    await mkdir(pdfsDir, { recursive: true })
   }
   const destPath = join(pdfsDir, `${fileHash}_${filename}`)
-  copyFileSync(sourcePath, destPath)
+  await copyFile(sourcePath, destPath)
 
   const pdfId = insertPdf(filename, destPath, fileHash, stats.size)
 
@@ -467,15 +468,29 @@ export async function processChapter(
   })
 
   // Insert chunks for this chapter
-  // Track position to handle repeated text (indexOf would always return first occurrence)
-  let searchStartInChapter = 0
+  // Use expected positions based on chunk sizes (O(n) instead of O(n²) indexOf)
+  let expectedPos = 0
   for (let i = 0; i < chunks.length; i++) {
     const content = chunks[i]
     const tokenCount = estimateTokens(content)
 
-    // Find chunk position starting from where we last searched
-    const posInChapter = chapterText.indexOf(content, searchStartInChapter)
-    const actualPos = posInChapter >= 0 ? posInChapter : searchStartInChapter
+    // Compute position: first chunk at 0, subsequent at (prev_end - overlap)
+    // Verify with small window check for edge cases
+    let actualPos = expectedPos
+    if (expectedPos + content.length <= chapterText.length) {
+      // Fast path: check if content matches at expected position
+      const expectedSubstr = chapterText.substring(expectedPos, expectedPos + content.length)
+      if (expectedSubstr !== content) {
+        // Slow path: search within ±500 char window (handles minor variations)
+        const windowStart = Math.max(0, expectedPos - 500)
+        const windowEnd = Math.min(chapterText.length, expectedPos + content.length + 500)
+        const window = chapterText.substring(windowStart, windowEnd)
+        const posInWindow = window.indexOf(content)
+        if (posInWindow >= 0) {
+          actualPos = windowStart + posInWindow
+        }
+      }
+    }
 
     // Calculate page range using actual page boundaries (physical pages)
     const chunkStartInFull = chapter.start_idx + actualPos
@@ -487,8 +502,8 @@ export async function processChapter(
     const pageStart = physicalToLabel(physicalStart, labelMap)
     const pageEnd = physicalToLabel(physicalEnd, labelMap)
 
-    // Update search position for next chunk (step back by overlap to handle edge cases)
-    searchStartInChapter = Math.max(0, actualPos + content.length - CHUNK_OVERLAP)
+    // Next chunk expected at (current_end - overlap)
+    expectedPos = actualPos + content.length - CHUNK_OVERLAP
 
     insertChunk(pdfId, chapterId, i, content, chapter.title, pageStart, pageEnd, tokenCount)
 
