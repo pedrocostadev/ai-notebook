@@ -137,12 +137,14 @@ export async function chat(
   // Build conversation history
   const history = await buildConversationHistory(pdfId, chapterId, google, chatModel)
 
-  // Step 1: Embed query
-  const queryEmbedding = await generateEmbedding(query)
+  // Step 1: Embed query + FTS search in parallel (FTS doesn't need embedding)
+  const [queryEmbedding, ftsResults] = await Promise.all([
+    generateEmbedding(query),
+    Promise.resolve(ftsSearch(query, 20, chapterId ?? undefined))
+  ])
 
-  // Step 2: Search (scoped to chapter if provided)
+  // Step 2: Vector search (needs embedding from step 1)
   const vectorResults = vectorSearch(queryEmbedding, 20, chapterId ?? undefined)
-  const ftsResults = ftsSearch(query, 20, chapterId ?? undefined)
 
   // Step 3: RRF fusion
   const vectorRanks = new Map<number, number>()
@@ -184,9 +186,18 @@ export async function chat(
     })
     .filter((c): c is RankedChunk => c !== null)
 
-  // Step 4: Semantic re-ranking
+  // Step 4: Semantic re-ranking (skip if top result has high confidence)
   let rerankedChunks = rankedChunks
-  if (rankedChunks.length > 2) {
+  const topScore = rankedChunks[0]?.score || 0
+  const secondScore = rankedChunks[1]?.score || 0
+  const scoreGap = topScore > 0 ? (topScore - secondScore) / topScore : 0
+
+  // Skip expensive LLM re-ranking if:
+  // - Top score is very high (>0.03 with RRF means both vector+FTS ranked it highly)
+  // - OR top result has >40% score gap over second result (clear winner)
+  const skipReranking = topScore > 0.03 || scoreGap > 0.4
+
+  if (rankedChunks.length > 2 && !skipReranking) {
     try {
       const { object: reranked } = await generateObject({
         model: google(chatModel),

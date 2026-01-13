@@ -46,30 +46,25 @@ export async function parseOutlineFromPdf(
     const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs')
     const doc: PDFDocumentProxy = await pdfjs.getDocument(pdfPath).promise
 
-    // Extract title from PDF metadata
-    let title: string | undefined
-    try {
-      const metadata = await doc.getMetadata()
-      if (metadata?.info?.Title && typeof metadata.info.Title === 'string') {
-        title = metadata.info.Title.trim()
-      }
-    } catch {
-      // Ignore metadata extraction errors
-    }
+    // Fetch metadata, outline, and page labels in parallel (independent operations)
+    const [metadataResult, outline, pageLabelsResult] = await Promise.all([
+      doc.getMetadata().catch(() => null),
+      doc.getOutline(),
+      doc.getPageLabels().catch(() => null)
+    ])
 
-    const outline = await doc.getOutline()
+    // Extract title from metadata
+    let title: string | undefined
+    if (metadataResult?.info?.Title && typeof metadataResult.info.Title === 'string') {
+      title = metadataResult.info.Title.trim()
+    }
 
     if (!outline || outline.length === 0) {
       return { hasToc: false, chapters: [], title }
     }
 
-    // Get page labels for converting physical page to display label
-    let pageLabels: string[] | null = null
-    try {
-      pageLabels = await doc.getPageLabels()
-    } catch {
-      // Some PDFs don't have page labels
-    }
+    // Page labels for converting physical page to display label
+    const pageLabels = pageLabelsResult
 
     const chapters: TocChapter[] = []
     let index = 0
