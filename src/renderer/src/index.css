@@ -119,3 +119,14 @@ body {
 .titlebar-no-drag {
   -webkit-app-region: no-drag;
 }
+
+/* Fade-out animation for completed chapter badge */
+@keyframes fade-out {
+  0% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.animate-fade-out {
+  animation: fade-out 3s ease-out forwards;
+}

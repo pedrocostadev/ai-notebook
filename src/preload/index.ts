@@ -37,6 +37,8 @@ export type Chapter = {
   is_auxiliary: boolean
   status: 'pending' | 'processing' | 'done' | 'error'
   error_message: string | null
+  summary_status: 'pending' | 'processing' | 'done' | 'error' | null
+  concepts_status: 'pending' | 'processing' | 'done' | 'error' | null
 }
 
 export type ProcessingStage = 'extracting' | 'chunking' | 'embedding'

@@ -15,6 +15,8 @@ interface Chapter {
   chapter_index: number
   status: string
   error_message: string | null
+  summary_status: string | null
+  concepts_status: string | null
 }
 
 type ProcessingStage = 'extracting' | 'chunking' | 'embedding'
@@ -52,6 +54,7 @@ export function usePdfs() {
   const [chapterProgress, setChapterProgress] = useState<ChapterProgressState>({})
   const [loading, setLoading] = useState(true)
   const [isUploading, setIsUploading] = useState(false)
+  const [recentlyCompletedChapters, setRecentlyCompletedChapters] = useState<Set<number>>(new Set())
 
   const refresh = useCallback(async () => {
     const list = await window.api.listPdfs()
@@ -145,14 +148,37 @@ export function usePdfs() {
         }
         return {
           ...prev,
-          [pdfId]: [...existing, { ...chapter, pdf_id: pdfId, error_message: null }]
+          [pdfId]: [...existing, { ...chapter, pdf_id: pdfId, error_message: null, summary_status: null, concepts_status: null }]
         }
       })
+    })
+
+    const unsubscribeConcepts = window.api.onConceptsProgress(async ({ pdfId, chapterId, stage }) => {
+      if (stage === 'done' && chapterId !== null) {
+        // Refresh chapters to get updated statuses
+        const updatedChapters = await window.api.listChapters(pdfId)
+        setChapters((prev) => ({ ...prev, [pdfId]: updatedChapters }))
+
+        // Check if chapter is now fully processed
+        const chapter = updatedChapters.find((c) => c.id === chapterId)
+        if (chapter && chapter.status === 'done' && chapter.summary_status === 'done' && chapter.concepts_status === 'done') {
+          setRecentlyCompletedChapters((prev) => new Set([...prev, chapterId]))
+          // Clear after 3 seconds
+          setTimeout(() => {
+            setRecentlyCompletedChapters((prev) => {
+              const next = new Set(prev)
+              next.delete(chapterId)
+              return next
+            })
+          }, 3000)
+        }
+      }
     })
 
     return () => {
       unsubscribeProgress()
       unsubscribeAdded()
+      unsubscribeConcepts()
     }
   }, [refresh, loadChapters])
 
@@ -250,6 +276,7 @@ export function usePdfs() {
     selectedChapter,
     selectedChapterId,
     chapterProgress,
+    recentlyCompletedChapters,
     loading,
     isUploading,
     uploadPdf,

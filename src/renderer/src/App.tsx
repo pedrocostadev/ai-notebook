@@ -91,6 +91,7 @@ export default function App() {
         selectedPdfId={pdfs.selectedPdfId}
         selectedChapterId={pdfs.selectedChapterId}
         chapterProgress={pdfs.chapterProgress}
+        recentlyCompletedChapters={pdfs.recentlyCompletedChapters}
         onSelectPdf={pdfs.selectPdf}
         onDeletePdf={pdfs.deletePdf}
         onCancelPdf={pdfs.cancelPdfProcessing}

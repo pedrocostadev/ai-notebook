@@ -617,3 +617,60 @@ test.describe('Text Truncation', () => {
     await expect(tooltip).toBeVisible({ timeout: 2000 })
   })
 })
+
+test.describe('Chapter Processing Status', () => {
+  let app: ElectronApplication
+
+  test.beforeEach(async () => {
+    cleanupDb()
+  })
+
+  test.afterEach(async () => {
+    if (app) {
+      await app.close()
+    }
+    cleanupDb()
+  })
+
+  test('shows partial processing badge when chat ready but summary/concepts pending', async () => {
+    app = await launchApp()
+    const window = await app.firstWindow()
+    await window.waitForLoadState('domcontentloaded')
+
+    await setupApiKey(window)
+
+    // Upload PDF
+    const { pdfId } = await uploadPdf(window, SAMPLE_PDF)
+    await waitForChapters(window, pdfId)
+
+    // Mark PDF done - this sets chapter.status='done' but summary_status/concepts_status remain null
+    // This simulates the state where embedding is complete but summary/concepts still pending
+    await markPdfDone(window, pdfId)
+
+    await window.reload()
+    await window.waitForLoadState('domcontentloaded')
+
+    // Expand to show chapters
+    const expandBtn = window.locator('[data-testid="expand-btn"]').first()
+    await expandBtn.click()
+
+    // Get first chapter row
+    const chapterRow = window.locator('[data-testid="chapter-row"]').first()
+    await expect(chapterRow).toBeVisible()
+
+    // Should show the amber CircleDashed icon (partial processing indicator)
+    // The icon is inside the chapter-status span
+    const statusIndicator = chapterRow.locator('[data-testid="chapter-status"]')
+    const partialIcon = statusIndicator.locator('svg.lucide-circle-dashed')
+    await expect(partialIcon).toBeVisible()
+
+    // Verify icon has the text-amber-400 class applied
+    await expect(partialIcon).toHaveClass(/text-amber-400/)
+
+    // Hover to show tooltip
+    await partialIcon.hover()
+    const tooltip = window.locator('[role="tooltip"]')
+    await expect(tooltip).toBeVisible({ timeout: 2000 })
+    await expect(tooltip).toContainText('partially processed')
+  })
+})
