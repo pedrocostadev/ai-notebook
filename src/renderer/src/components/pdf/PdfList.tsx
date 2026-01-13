@@ -111,10 +111,14 @@ export function PdfList({
     // Error state
     if (chapter.status === "error") {
       return (
-        <AlertCircle
-          className="h-3 w-3 text-red-400"
-          title={chapter.error_message || "Processing failed"}
-        />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <AlertCircle className="h-3 w-3 text-red-400" />
+          </TooltipTrigger>
+          <TooltipContent side="right">
+            <p>{chapter.error_message || "Processing failed"}</p>
+          </TooltipContent>
+        </Tooltip>
       );
     }
 
