@@ -39,24 +39,24 @@ export function SlashCommandMenu({ filter, selectedIndex, onSelect, visible }: S
   }
 
   return (
-    <div className="absolute bottom-full left-0 right-0 mb-2 max-w-3xl mx-auto px-4">
-      <div className="bg-popover border rounded-lg shadow-lg overflow-hidden">
-        <ScrollArea className="max-h-48">
-          <div className="p-1">
+    <div className="absolute bottom-full left-0 right-0 mb-2 max-w-3xl mx-auto">
+      <div className="bg-popover border border-border/50 rounded-xl shadow-lg overflow-hidden">
+        <ScrollArea className="max-h-52">
+          <div className="p-1.5">
             {filteredCommands.map((command, index) => (
               <button
                 key={command.name}
                 ref={(el) => { itemRefs.current[index] = el }}
                 data-testid={`slash-command-${command.name.slice(1)}`}
-                className={`w-full text-left px-3 py-2 rounded-md flex items-center gap-3 transition-colors ${
+                className={`w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-3 transition-colors ${
                   index === selectedIndex
-                    ? 'bg-accent text-accent-foreground'
-                    : 'hover:bg-accent/50'
+                    ? 'bg-accent'
+                    : 'hover:bg-muted/50'
                 }`}
                 onClick={() => onSelect(command)}
                 type="button"
               >
-                <span className="font-mono text-sm font-medium">{command.name}</span>
+                <code className="px-2 py-0.5 rounded-md bg-muted text-xs font-mono font-medium text-primary">{command.name}</code>
                 <span className="text-sm text-muted-foreground">{command.description}</span>
               </button>
             ))}
