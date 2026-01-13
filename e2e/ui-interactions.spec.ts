@@ -503,3 +503,117 @@ test.describe('Multi-PDF', () => {
     await expect(chatInput).toBeEnabled()
   })
 })
+
+test.describe('Text Truncation', () => {
+  let app: ElectronApplication
+
+  test.beforeEach(async () => {
+    cleanupDb()
+  })
+
+  test.afterEach(async () => {
+    if (app) {
+      await app.close()
+    }
+    cleanupDb()
+  })
+
+  test('chapter titles truncate with ellipsis and show tooltip on hover', async () => {
+    app = await launchApp()
+    const window = await app.firstWindow()
+    await window.waitForLoadState('domcontentloaded')
+
+    await setupApiKey(window)
+
+    // Upload PDF and wait for chapters
+    const { pdfId } = await uploadPdf(window, SAMPLE_PDF)
+    const chapters = await waitForChapters(window, pdfId)
+    await markPdfDone(window, pdfId)
+
+    await window.reload()
+    await window.waitForLoadState('domcontentloaded')
+
+    // Expand chapters
+    const expandBtn = window.locator('[data-testid="expand-btn"]').first()
+    await expandBtn.click()
+
+    // Get the first chapter row
+    const chapterRow = window.locator('[data-testid="chapter-row"]').first()
+    await expect(chapterRow).toBeVisible()
+
+    // Find the span with the chapter title (has truncate class)
+    const titleSpan = chapterRow.locator('span.truncate')
+
+    // Verify CSS truncation is applied
+    const styles = await titleSpan.evaluate((el) => {
+      const computed = window.getComputedStyle(el)
+      return {
+        textOverflow: computed.textOverflow,
+        overflow: computed.overflow,
+        whiteSpace: computed.whiteSpace
+      }
+    })
+    expect(styles.textOverflow).toBe('ellipsis')
+    expect(styles.overflow).toBe('hidden')
+    expect(styles.whiteSpace).toBe('nowrap')
+
+    // Verify native title attribute contains full chapter title
+    const titleAttr = await titleSpan.getAttribute('title')
+    expect(titleAttr).toBe(chapters[0].title)
+
+    // Hover over chapter row to trigger tooltip
+    await titleSpan.hover()
+
+    // Radix tooltip should appear with full text
+    const tooltip = window.locator('[role="tooltip"]')
+    await expect(tooltip).toBeVisible({ timeout: 2000 })
+    await expect(tooltip).toContainText(chapters[0].title)
+  })
+
+  test('PDF titles truncate with ellipsis and show tooltip on hover', async () => {
+    app = await launchApp()
+    const window = await app.firstWindow()
+    await window.waitForLoadState('domcontentloaded')
+
+    await setupApiKey(window)
+
+    // Upload PDF
+    const { pdfId } = await uploadPdf(window, SAMPLE_PDF)
+    await waitForChapters(window, pdfId)
+    await markPdfDone(window, pdfId)
+
+    await window.reload()
+    await window.waitForLoadState('domcontentloaded')
+
+    // Get the PDF row
+    const pdfRow = window.locator('[data-testid="pdf-row"]').first()
+    await expect(pdfRow).toBeVisible()
+
+    // Find the span with PDF title (has truncate class)
+    const titleSpan = pdfRow.locator('span.truncate')
+
+    // Verify CSS truncation is applied
+    const styles = await titleSpan.evaluate((el) => {
+      const computed = window.getComputedStyle(el)
+      return {
+        textOverflow: computed.textOverflow,
+        overflow: computed.overflow,
+        whiteSpace: computed.whiteSpace
+      }
+    })
+    expect(styles.textOverflow).toBe('ellipsis')
+    expect(styles.overflow).toBe('hidden')
+    expect(styles.whiteSpace).toBe('nowrap')
+
+    // Verify native title attribute is set
+    const titleAttr = await titleSpan.getAttribute('title')
+    expect(titleAttr).toBeTruthy()
+
+    // Hover to trigger tooltip
+    await titleSpan.hover()
+
+    // Radix tooltip should appear
+    const tooltip = window.locator('[role="tooltip"]')
+    await expect(tooltip).toBeVisible({ timeout: 2000 })
+  })
+})

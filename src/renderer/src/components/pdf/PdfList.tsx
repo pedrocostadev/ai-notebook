@@ -126,8 +126,8 @@ export function PdfList({
   }
 
   return (
-    <ScrollArea className="flex-1 [&>div>div]:!overflow-x-hidden">
-      <div className="px-2 pb-2">
+    <ScrollArea className="flex-1">
+      <div className="px-2 pb-2 w-full">
         {pdfs.map((pdf) => {
           const isExpanded = expandedPdfIds.has(pdf.id)
           const pdfChapters = chapters[pdf.id] || []
@@ -135,12 +135,12 @@ export function PdfList({
           const isSelected = selectedPdfId === pdf.id && selectedChapterId === null
 
           return (
-            <div key={pdf.id}>
+            <div key={pdf.id} className="overflow-hidden">
               {/* PDF Row */}
               <div
                 data-testid="pdf-row"
                 className={cn(
-                  'flex items-center gap-2 rounded-md px-2 py-1.5 cursor-pointer group min-w-0 transition-colors',
+                  'flex items-center gap-2 rounded-md px-2 py-1.5 cursor-pointer group min-w-0 overflow-hidden transition-colors',
                   'hover:bg-[var(--color-sidebar-accent)]',
                   isSelected && 'bg-[var(--color-sidebar-accent)]'
                 )}
@@ -167,10 +167,13 @@ export function PdfList({
                 <FileText className="h-4 w-4 flex-shrink-0 text-[var(--color-sidebar-foreground)]/70" />
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <span className={cn(
-                      "flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[13px]",
-                      isSelected ? "text-[var(--color-sidebar-foreground)]" : "text-[var(--color-sidebar-foreground)]/90"
-                    )}>
+                    <span
+                      className={cn(
+                        "w-0 flex-1 truncate text-[13px]",
+                        isSelected ? "text-[var(--color-sidebar-foreground)]" : "text-[var(--color-sidebar-foreground)]/90"
+                      )}
+                      title={pdf.title || pdf.filename}
+                    >
                       {pdf.title || pdf.filename}
                     </span>
                   </TooltipTrigger>
@@ -257,7 +260,7 @@ export function PdfList({
                         key={chapter.id}
                         data-testid="chapter-row"
                         className={cn(
-                          'flex items-center gap-2 rounded-md px-2 py-1 min-w-0 transition-colors',
+                          'flex items-center gap-2 rounded-md px-2 py-1 min-w-0 overflow-hidden transition-colors',
                           isChapterReady && 'cursor-pointer hover:bg-[var(--color-sidebar-accent)]',
                           !isChapterReady && 'opacity-40 cursor-not-allowed',
                           isChapterSelected && 'bg-[var(--color-sidebar-accent)]'
@@ -267,10 +270,13 @@ export function PdfList({
                         <Hash className="h-3 w-3 flex-shrink-0 text-[var(--color-sidebar-foreground)]/50" />
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <span className={cn(
-                              "flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[13px]",
-                              isChapterSelected ? "text-[var(--color-sidebar-foreground)]" : "text-[var(--color-sidebar-foreground)]/70"
-                            )}>
+                            <span
+                              className={cn(
+                                "w-0 flex-1 truncate text-[13px]",
+                                isChapterSelected ? "text-[var(--color-sidebar-foreground)]" : "text-[var(--color-sidebar-foreground)]/70"
+                              )}
+                              title={chapter.title}
+                            >
                               {chapter.title}
                             </span>
                           </TooltipTrigger>
