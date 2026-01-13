@@ -188,3 +188,14 @@ export const QuizSchema = z.object({
 })
 
 export type QuizQuestion = z.infer<typeof QuizQuestionSchema>
+
+// Query classification schema for guardrails
+export const QueryClassificationSchema = z.object({
+  isOnTopic: z
+    .boolean()
+    .describe(
+      'True if query is related to the book/document content. ' +
+        'False if query is off-topic (general knowledge, coding, personal advice, etc.)'
+    ),
+  reason: z.string().optional().describe('Brief reason for classification')
+})

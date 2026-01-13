@@ -246,6 +246,54 @@ export async function getChapterDetails(
   }
 }
 
+// Send a chat message and wait for response (collects streamed chunks)
+export async function sendChatMessage(
+  window: Page,
+  pdfId: number,
+  chapterId: number | null,
+  message: string,
+  timeout = 30000
+): Promise<{ response: string; error?: string }> {
+  return window.evaluate(
+    async ({ pdfId, chapterId, message, timeout }) => {
+      return new Promise<{ response: string; error?: string }>((resolve) => {
+        const api = (window as unknown as {
+          api: {
+            sendMessage: (pdfId: number, chapterId: number | null, message: string) => Promise<boolean>
+            onChatStream: (callback: (chunk: string) => void) => () => void
+            onChatDone: (callback: () => void) => () => void
+          }
+        }).api
+
+        let response = ''
+        const removeStream = api.onChatStream((chunk: string) => {
+          response += chunk
+        })
+
+        const removeDone = api.onChatDone(() => {
+          removeStream()
+          removeDone()
+          resolve({ response })
+        })
+
+        // Timeout fallback
+        setTimeout(() => {
+          removeStream()
+          removeDone()
+          resolve({ response, error: 'Timeout waiting for chat response' })
+        }, timeout)
+
+        api.sendMessage(pdfId, chapterId, message).catch((err: Error) => {
+          removeStream()
+          removeDone()
+          resolve({ response: '', error: err.message })
+        })
+      })
+    },
+    { pdfId, chapterId, message, timeout }
+  )
+}
+
 // Get PDF outline directly from file (test-only)
 export async function getPdfOutline(
   window: Page,
