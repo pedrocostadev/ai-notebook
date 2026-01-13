@@ -3,7 +3,6 @@ import {
   getNextPendingJob,
   updateJobStatus,
   getChunksByChapterId,
-  getChunksByPdfId,
   insertEmbedding,
   updatePdfStatus,
   updateChapterStatus,
@@ -18,7 +17,7 @@ import {
 } from './database'
 import { generateEmbeddings } from './embeddings'
 import { getApiKey } from './settings'
-import { deletePdfFile, processChapter, findPageFromCharIndex, physicalToLabel } from './pdf-processor'
+import { deletePdfFile, processChapter } from './pdf-processor'
 import { getCachedPdfData, invalidatePdfCache } from './pdf-cache'
 import {
   generateChapterSummary,
@@ -27,10 +26,6 @@ import {
   consolidatePdfConcepts,
   type ChunkWithPage
 } from './content-generator'
-import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters'
-
-const CHUNK_SIZE = 1500
-const CHUNK_OVERLAP = 200
 
 const MAX_ATTEMPTS = 3
 const BASE_DELAY = 1000
@@ -126,7 +121,7 @@ async function processNextJob(): Promise<void> {
       const metadata = await generatePdfMetadata(fullText)
       updatePdfMetadata(job.pdf_id, metadata)
     } else if (job.type === 'concepts' && job.chapter_id !== null) {
-      // Generate key concepts for chapter using chapter data directly (cached)
+      // Generate key concepts for chapter - reuse existing chunks from embed job
       updateChapterConceptsStatus(job.chapter_id, 'processing')
 
       notifyConceptsProgress({
@@ -135,61 +130,21 @@ async function processNextJob(): Promise<void> {
         stage: 'extracting'
       })
 
-      const pdf = getPdf(job.pdf_id)
-      if (!pdf) throw new Error('PDF not found')
-      const chapter = getChapter(job.chapter_id)
-      if (!chapter) throw new Error('Chapter not found')
+      // Reuse chunks already created during embed job (avoid re-splitting)
+      const existingChunks = getChunksByChapterId(job.chapter_id)
 
-      const { fullText, boundaries, labelMap } = await getCachedPdfData(pdf.filepath)
-
-      // Extract chapter text directly using chapter boundaries
-      const chapterText = fullText.substring(chapter.start_idx, chapter.end_idx)
-
-      // Split chapter text into segments for page markers
-      const splitter = new RecursiveCharacterTextSplitter({
-        chunkSize: CHUNK_SIZE,
-        chunkOverlap: CHUNK_OVERLAP
-      })
-      const segments = await splitter.splitText(chapterText)
-
-      // Calculate page numbers for each segment using page boundaries
-      // Use expected positions based on chunk sizes (O(n) instead of O(n²) indexOf)
-      const chunksWithPages: ChunkWithPage[] = []
-      let expectedPos = 0
-      for (const content of segments) {
-        // Compute position: first chunk at 0, subsequent at (prev_end - overlap)
-        let actualPos = expectedPos
-        if (expectedPos + content.length <= chapterText.length) {
-          // Fast path: check if content matches at expected position
-          const expectedSubstr = chapterText.substring(expectedPos, expectedPos + content.length)
-          if (expectedSubstr !== content) {
-            // Slow path: search within ±500 char window
-            const windowStart = Math.max(0, expectedPos - 500)
-            const windowEnd = Math.min(chapterText.length, expectedPos + content.length + 500)
-            const window = chapterText.substring(windowStart, windowEnd)
-            const posInWindow = window.indexOf(content)
-            if (posInWindow >= 0) {
-              actualPos = windowStart + posInWindow
-            }
-          }
-        }
-
-        const segmentStartInFull = chapter.start_idx + actualPos
-        const segmentEndInFull = segmentStartInFull + content.length
-
-        // Get physical pages then convert to labels for UI display
-        const physicalStart = findPageFromCharIndex(boundaries, segmentStartInFull)
-        const physicalEnd = findPageFromCharIndex(boundaries, segmentEndInFull)
-
-        chunksWithPages.push({
-          content,
-          pageStart: physicalToLabel(physicalStart, labelMap),
-          pageEnd: physicalToLabel(physicalEnd, labelMap)
-        })
-
-        // Next chunk expected at (current_end - overlap)
-        expectedPos = actualPos + content.length - CHUNK_OVERLAP
+      if (existingChunks.length === 0) {
+        // Fallback: chapter has no chunks yet (shouldn't happen in normal flow)
+        updateChapterConceptsStatus(job.chapter_id, 'error', 'No chunks available')
+        throw new Error('No chunks found for chapter')
       }
+
+      // Map existing chunks to ChunkWithPage format (page info already stored)
+      const chunksWithPages: ChunkWithPage[] = existingChunks.map((chunk) => ({
+        content: chunk.content,
+        pageStart: chunk.page_start,
+        pageEnd: chunk.page_end
+      }))
 
       const concepts = await generateChapterConcepts(chunksWithPages)
 
