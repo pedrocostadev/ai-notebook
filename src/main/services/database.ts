@@ -607,6 +607,13 @@ export function markAllJobsDoneForPdf(pdfId: number): void {
     .run(pdfId)
 }
 
+export function isJobPending(chapterId: number, type: JobType): boolean {
+  const row = getDb()
+    .prepare("SELECT 1 FROM jobs WHERE chapter_id = ? AND type = ? AND status IN ('pending', 'running')")
+    .get(chapterId, type)
+  return row !== undefined
+}
+
 // Settings CRUD
 export function getSetting(key: string): string | undefined {
   const row = getDb().prepare('SELECT value FROM settings WHERE key = ?').get(key) as

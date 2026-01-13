@@ -15,6 +15,7 @@ import {
   insertMessage,
   getMessagesByPdfId,
   getConversationSummary,
+  isJobPending,
   type Concept
 } from '../services/database'
 import { estimateTokens } from '../lib/token-counter'
@@ -78,12 +79,17 @@ export function registerChatHandlers(): void {
       return { summary }
     }
 
-    // If chapter processing is done but no summary, it means chapter had no substantive content
+    // Check if summary job is still pending (embed done but summary not yet)
+    if (isJobPending(chapterId, 'summary')) {
+      return { pending: true }
+    }
+
+    // If chapter processing is done and no pending summary job, chapter had no substantive content
     if (chapter.status === 'done') {
       return { empty: true }
     }
 
-    // Still processing
+    // Still processing (embed not done yet)
     return { pending: true }
   })
 
