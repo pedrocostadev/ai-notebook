@@ -1,4 +1,4 @@
-import { Settings, BookOpen, Plus } from 'lucide-react'
+import { Settings, BookOpen, Plus, Heart } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PdfList } from '@/components/pdf/PdfList'
 
@@ -114,6 +114,19 @@ export function Sidebar({
         onCancel={onCancelPdf}
         onToggleExpand={onToggleExpand}
       />
+
+      {/* Support link */}
+      <div className="mt-auto px-4 py-3 border-t border-[var(--color-sidebar-border)]">
+        <Button
+          variant="ghost"
+          data-testid="support-btn"
+          className="w-full justify-start gap-2 text-[var(--color-sidebar-foreground)]/70 hover:text-[var(--color-sidebar-foreground)] hover:bg-[var(--color-sidebar-accent)]"
+          onClick={() => window.open('https://ko-fi.com/pedro_dcc', '_blank')}
+        >
+          <Heart className="h-4 w-4" />
+          <span className="text-sm">Support</span>
+        </Button>
+      </div>
     </div>
   )
 }
