@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="grad4" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f59e0b"/>
+      <stop offset="100%" style="stop-color:#ef4444"/>
+    </linearGradient>
+    <linearGradient id="bulbGlow" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#fef3c7"/>
+      <stop offset="100%" style="stop-color:#fde68a"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="512" height="512" rx="96" fill="url(#grad4)"/>
+  <!-- Page/Document -->
+  <rect x="100" y="120" width="312" height="320" rx="24" fill="#fff"/>
+  <!-- Page lines -->
+  <rect x="140" y="280" width="180" height="14" rx="7" fill="#fed7aa" opacity="0.8"/>
+  <rect x="140" y="310" width="220" height="14" rx="7" fill="#fed7aa" opacity="0.8"/>
+  <rect x="140" y="340" width="160" height="14" rx="7" fill="#fed7aa" opacity="0.8"/>
+  <rect x="140" y="370" width="200" height="14" rx="7" fill="#fed7aa" opacity="0.8"/>
+  <!-- Lightbulb -->
+  <ellipse cx="256" cy="180" rx="70" ry="75" fill="url(#bulbGlow)"/>
+  <rect x="230" y="245" width="52" height="30" rx="4" fill="#fde68a"/>
+  <rect x="236" y="275" width="40" height="8" rx="4" fill="#d97706"/>
+  <rect x="240" y="283" width="32" height="8" rx="4" fill="#d97706"/>
+  <rect x="244" y="291" width="24" height="8" rx="4" fill="#d97706"/>
+  <!-- Lightbulb filament/AI symbol -->
+  <path d="M240 180 Q256 150 272 180 Q256 210 240 180" fill="none" stroke="#f59e0b" stroke-width="6"/>
+  <!-- Glow rays -->
+  <line x1="256" y1="90" x2="256" y2="70" stroke="#fff" stroke-width="8" stroke-linecap="round" opacity="0.8"/>
+  <line x1="180" y1="120" x2="165" y2="105" stroke="#fff" stroke-width="8" stroke-linecap="round" opacity="0.8"/>
+  <line x1="332" y1="120" x2="347" y2="105" stroke="#fff" stroke-width="8" stroke-linecap="round" opacity="0.8"/>
+</svg>

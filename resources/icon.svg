@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1e293b"/>
+      <stop offset="100%" style="stop-color:#0f172a"/>
+    </linearGradient>
+  </defs>
+  <!-- Background - slate dark -->
+  <rect width="512" height="512" rx="96" fill="url(#grad2)"/>
+  <!-- Document -->
+  <rect x="120" y="80" width="200" height="260" rx="16" fill="#fff"/>
+  <!-- Document fold -->
+  <path d="M270 80 L320 130 L270 130 Z" fill="#ccfbf1"/>
+  <!-- Document lines - teal tinted -->
+  <rect x="150" y="150" width="120" height="12" rx="6" fill="#99f6e4"/>
+  <rect x="150" y="180" width="140" height="12" rx="6" fill="#99f6e4"/>
+  <rect x="150" y="210" width="100" height="12" rx="6" fill="#99f6e4"/>
+  <rect x="150" y="240" width="130" height="12" rx="6" fill="#99f6e4"/>
+  <rect x="150" y="270" width="80" height="12" rx="6" fill="#99f6e4"/>
+  <!-- Chat bubble -->
+  <path d="M240 300 Q240 260 300 260 L380 260 Q420 260 420 300 L420 370 Q420 410 380 410 L320 410 L280 450 L280 410 L300 410 Q240 410 240 370 Z" fill="#fff"/>
+  <!-- AI sparkle dots in chat - teal gradient -->
+  <circle cx="290" cy="335" r="12" fill="#14b8a6"/>
+  <circle cx="330" cy="335" r="12" fill="#0d9488"/>
+  <circle cx="370" cy="335" r="12" fill="#0f766e"/>
+  <!-- Sparkle effect -->
+  <path d="M400 220 L406 235 L420 240 L406 245 L400 260 L394 245 L380 240 L394 235 Z" fill="#5eead4" opacity="0.9"/>
+</svg>

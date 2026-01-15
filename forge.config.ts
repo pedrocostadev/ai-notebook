@@ -7,7 +7,9 @@ import { MakerRpm } from '@electron-forge/maker-rpm'
 const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
-    extraResource: [],
+    name: 'AI Notebook',
+    extraResource: ['./resources/icons'],
+    icon: './resources/icons/mac/icon',
   },
   rebuildConfig: {},
   makers: [
