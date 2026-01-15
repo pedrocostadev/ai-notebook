@@ -8,6 +8,7 @@ const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
     name: 'AI Notebook',
+    executableName: 'ai-notebook',
     extraResource: ['./resources/icons'],
     icon: './resources/icons/mac/icon',
     ignore: [
