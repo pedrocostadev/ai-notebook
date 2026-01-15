@@ -1,10 +1,26 @@
-import { app, BrowserWindow, shell } from 'electron'
+import { app, BrowserWindow, shell, nativeImage } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { registerHandlers } from './ipc/handlers'
 import { initDatabase } from './services/database'
 
+// Get icon path based on environment
+function getIconPath(): string {
+  if (is.dev) {
+    return join(__dirname, '../../resources/icons/png/512x512.png')
+  }
+  return join(__dirname, '../resources/icons/png/512x512.png')
+}
+
 function createWindow(): void {
+  const iconPath = getIconPath()
+  const icon = nativeImage.createFromPath(iconPath)
+
+  // Set dock icon on macOS
+  if (process.platform === 'darwin' && !icon.isEmpty()) {
+    app.dock.setIcon(icon)
+  }
+
   const mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -14,6 +30,7 @@ function createWindow(): void {
     autoHideMenuBar: true,
     titleBarStyle: 'hiddenInset',
     trafficLightPosition: { x: 16, y: 18 },
+    icon: iconPath,
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
