@@ -11,6 +11,18 @@ export const CHAT_MODELS = [
 
 export type ChatModelId = (typeof CHAT_MODELS)[number]['id']
 
+export type Theme = 'system' | 'light' | 'dark'
+
+export function getTheme(): Theme {
+  const theme = getSetting('theme')
+  if (theme === 'light' || theme === 'dark') return theme
+  return 'system'
+}
+
+export function setTheme(theme: Theme): void {
+  setSetting('theme', theme)
+}
+
 export function encryptApiKey(key: string): string {
   if (!safeStorage.isEncryptionAvailable()) {
     return Buffer.from(key).toString('base64')

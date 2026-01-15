@@ -63,7 +63,9 @@ export default function App() {
       <WelcomeScreen
         models={settings.models}
         defaultModel={settings.currentModel}
+        theme={settings.theme}
         onComplete={handleWelcomeComplete}
+        onSetTheme={settings.setTheme}
       />
     )
   }
@@ -123,8 +125,10 @@ export default function App() {
         currentModel={settings.currentModel}
         models={settings.models}
         maskedKey={settings.maskedKey}
+        theme={settings.theme}
         onSaveApiKey={settings.saveApiKey}
         onSetModel={settings.setModel}
+        onSetTheme={settings.setTheme}
       />
       {toast && (
         <div

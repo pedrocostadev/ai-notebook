@@ -109,6 +109,47 @@ test.describe('Settings Dialog', () => {
     // Should show masked key indicator
     await expect(window.locator('text=Current key:')).toBeVisible()
   })
+
+  test('theme selector changes theme', async () => {
+    app = await launchApp()
+    const window = await app.firstWindow()
+    await window.waitForLoadState('domcontentloaded')
+
+    await setupApiKey(window)
+
+    // Open settings
+    await window.locator('[data-testid="settings-btn"]').click()
+
+    // Theme selector should be visible
+    const themeSelect = window.locator('[data-testid="theme-select"]')
+    await expect(themeSelect).toBeVisible()
+
+    // Select dark theme
+    await themeSelect.click()
+    await window.locator('[role="option"]:has-text("Dark")').click()
+
+    // Document should have dark class
+    const htmlClass = await window.evaluate(() => document.documentElement.className)
+    expect(htmlClass).toContain('dark')
+
+    // Select light theme
+    await themeSelect.click()
+    await window.locator('[role="option"]:has-text("Light")').click()
+
+    // Document should have light class
+    const htmlClass2 = await window.evaluate(() => document.documentElement.className)
+    expect(htmlClass2).toContain('light')
+    expect(htmlClass2).not.toContain('dark')
+
+    // Select system theme
+    await themeSelect.click()
+    await window.locator('[role="option"]:has-text("System")').click()
+
+    // Document should have neither class
+    const htmlClass3 = await window.evaluate(() => document.documentElement.className)
+    expect(htmlClass3).not.toContain('dark')
+    expect(htmlClass3).not.toContain('light')
+  })
 })
 
 test.describe('Welcome Screen', () => {

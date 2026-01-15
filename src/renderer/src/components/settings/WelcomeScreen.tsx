@@ -11,13 +11,17 @@ import {
 } from '@/components/ui/select'
 import { Loader2, BookOpen, MessageSquare, Sparkles, Search } from 'lucide-react'
 
+type Theme = 'system' | 'light' | 'dark'
+
 interface WelcomeScreenProps {
   models: { id: string; name: string }[]
   defaultModel: string
+  theme: Theme
   onComplete: (apiKey: string, model: string) => Promise<boolean>
+  onSetTheme: (theme: Theme) => void
 }
 
-export function WelcomeScreen({ models, defaultModel, onComplete }: WelcomeScreenProps) {
+export function WelcomeScreen({ models, defaultModel, theme, onComplete, onSetTheme }: WelcomeScreenProps) {
   const [apiKey, setApiKey] = useState('')
   const [selectedModel, setSelectedModel] = useState(defaultModel)
   const [saving, setSaving] = useState(false)
@@ -138,8 +142,22 @@ export function WelcomeScreen({ models, defaultModel, onComplete }: WelcomeScree
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="theme" className="text-sm font-medium">Theme</Label>
+              <Select value={theme} onValueChange={(v) => onSetTheme(v as Theme)}>
+                <SelectTrigger data-testid="welcome-theme-select" className="h-11">
+                  <SelectValue placeholder="Select theme" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="system">System</SelectItem>
+                  <SelectItem value="light">Light</SelectItem>
+                  <SelectItem value="dark">Dark</SelectItem>
+                </SelectContent>
+              </Select>
               <p className="text-xs text-muted-foreground">
-                You can change this later in settings.
+                You can change these later in settings.
               </p>
             </div>
 

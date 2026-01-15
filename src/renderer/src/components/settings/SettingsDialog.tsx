@@ -19,6 +19,8 @@ import {
 } from '@/components/ui/select'
 import { Loader2 } from 'lucide-react'
 
+type Theme = 'system' | 'light' | 'dark'
+
 interface SettingsDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -26,8 +28,10 @@ interface SettingsDialogProps {
   currentModel: string
   models: { id: string; name: string }[]
   maskedKey: string | null
+  theme: Theme
   onSaveApiKey: (key: string) => Promise<boolean>
   onSetModel: (model: string) => void
+  onSetTheme: (theme: Theme) => void
 }
 
 export function SettingsDialog({
@@ -37,8 +41,10 @@ export function SettingsDialog({
   currentModel,
   models,
   maskedKey,
+  theme,
   onSaveApiKey,
-  onSetModel
+  onSetModel,
+  onSetTheme
 }: SettingsDialogProps) {
   const [apiKey, setApiKey] = useState('')
   const [saving, setSaving] = useState(false)
@@ -115,6 +121,20 @@ export function SettingsDialog({
               </Select>
             </div>
           )}
+
+          <div className="space-y-2">
+            <Label htmlFor="theme">Theme</Label>
+            <Select value={theme} onValueChange={(v) => onSetTheme(v as Theme)}>
+              <SelectTrigger data-testid="theme-select">
+                <SelectValue placeholder="Select theme" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="system">System</SelectItem>
+                <SelectItem value="light">Light</SelectItem>
+                <SelectItem value="dark">Dark</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         {canClose && (
