@@ -316,7 +316,47 @@
       width: 260px;
       background: var(--bg-secondary);
       border-right: 1px solid var(--border);
-      padding: 16px;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sidebar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sidebar-header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .sidebar-header-icon {
+      width: 20px;
+      height: 20px;
+      color: var(--text-primary);
+    }
+
+    .sidebar-header-title {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .sidebar-header-settings {
+      width: 18px;
+      height: 18px;
+      color: var(--text-muted);
+    }
+
+    .sidebar-section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 16px 8px;
     }
 
     .sidebar-title {
@@ -325,83 +365,132 @@
       text-transform: uppercase;
       letter-spacing: 0.05em;
       color: var(--text-muted);
-      margin-bottom: 12px;
     }
 
-    .sidebar-item {
+    .sidebar-add-btn {
+      font-size: 16px;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+
+    .sidebar-tree {
+      padding: 0 8px;
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .sidebar-book {
       display: flex;
       align-items: center;
-      gap: 12px;
-      padding: 12px;
-      border-radius: 8px;
-      margin-bottom: 4px;
+      gap: 8px;
+      padding: 8px;
+      font-size: 13px;
+      color: var(--text-primary);
       cursor: default;
     }
 
-    .sidebar-item.active {
-      background: var(--accent-glow);
-    }
-
-    .sidebar-item-icon {
-      width: 32px;
-      height: 32px;
-      background: var(--bg-card);
-      border-radius: 6px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .sidebar-item-icon svg {
-      width: 16px;
-      height: 16px;
-      color: var(--accent);
-    }
-
-    .sidebar-item-text {
-      flex: 1;
-      min-width: 0;
-    }
-
-    .sidebar-item-title {
-      font-size: 13px;
-      font-weight: 500;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .sidebar-item-meta {
-      font-size: 11px;
+    .sidebar-book-expand {
+      font-size: 10px;
       color: var(--text-muted);
     }
 
-    .sidebar-chapter {
-      padding: 8px 12px 8px 48px;
-      font-size: 12px;
+    .sidebar-book-icon {
+      width: 16px;
+      height: 16px;
       color: var(--text-secondary);
-      border-radius: 6px;
-      margin-bottom: 2px;
+    }
+
+    .sidebar-book-title {
+      flex: 1;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
-    .sidebar-chapter.active {
-      background: var(--accent-glow);
+    .sidebar-book-check {
+      width: 14px;
+      height: 14px;
       color: var(--accent);
+    }
+
+    .sidebar-chapter {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px 6px 32px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      border-radius: 6px;
+      margin-bottom: 1px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .sidebar-chapter-hash {
+      color: var(--text-muted);
+      font-size: 11px;
+    }
+
+    .sidebar-chapter.active {
+      background: var(--accent);
+      color: var(--bg-primary);
+    }
+
+    .sidebar-chapter.active .sidebar-chapter-hash {
+      color: var(--bg-primary);
+      opacity: 0.7;
     }
 
     .window-main {
       flex: 1;
-      padding: 24px;
       display: flex;
       flex-direction: column;
+      background: var(--bg-primary);
+    }
+
+    .main-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .main-header-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      color: var(--text-primary);
+    }
+
+    .main-header-hash {
+      color: var(--text-muted);
+    }
+
+    .main-header-open {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .main-header-open svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    .chat-area {
+      flex: 1;
+      padding: 24px;
+      overflow-y: auto;
     }
 
     .chat-message {
-      max-width: 80%;
-      margin-bottom: 16px;
+      max-width: 85%;
+      margin-bottom: 20px;
     }
 
     .chat-message.user {
@@ -410,39 +499,100 @@
 
     .chat-bubble {
       padding: 12px 16px;
-      border-radius: 12px;
+      border-radius: 16px;
       font-size: 14px;
-      line-height: 1.5;
+      line-height: 1.6;
     }
 
     .chat-message.user .chat-bubble {
       background: var(--accent);
-      color: var(--bg-primary);
-      border-bottom-right-radius: 4px;
+      color: white;
+      border-radius: 20px;
     }
 
     .chat-message.assistant .chat-bubble {
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      border-bottom-left-radius: 4px;
-    }
-
-    .chat-source {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      margin-top: 8px;
-      padding: 6px 10px;
       background: var(--bg-card);
-      border-radius: 6px;
-      font-size: 11px;
-      color: var(--text-secondary);
+      border: 1px solid var(--border);
+      padding: 16px 20px;
     }
 
-    .chat-source svg {
-      width: 12px;
-      height: 12px;
+    .chat-message.assistant .chat-bubble p {
+      margin: 0;
+    }
+
+    .chat-sources {
+      margin-top: 20px;
+    }
+
+    .chat-sources-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .chat-source-quote {
+      border-left: 3px solid var(--accent);
+      padding-left: 12px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    .chat-source-quote span {
       color: var(--accent);
+    }
+
+    .chat-followup {
+      margin-top: 16px;
+      padding-top: 12px;
+    }
+
+    .chat-followup-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    .chat-followup-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .chat-followup-chip {
+      padding: 8px 14px;
+      background: transparent;
+      border: 1px solid var(--accent);
+      border-radius: 20px;
+      font-size: 12px;
+      color: var(--accent);
+      cursor: pointer;
+    }
+
+    .chat-input-area {
+      padding: 16px 20px;
+      border-top: 1px solid var(--border);
+    }
+
+    .chat-input {
+      display: flex;
+      align-items: center;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 12px 16px;
+    }
+
+    .chat-input-text {
+      flex: 1;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .chat-input-send {
+      width: 18px;
+      height: 18px;
+      color: var(--text-muted);
     }
 
     /* Features */
@@ -753,6 +903,18 @@
       .window-content {
         min-height: 300px;
       }
+
+      .chat-followup-chips {
+        flex-direction: column;
+      }
+
+      .main-header {
+        padding: 12px 16px;
+      }
+
+      .chat-area {
+        padding: 16px;
+      }
     }
 
     /* Scroll animations */
@@ -817,41 +979,93 @@
           </div>
           <div class="window-content">
             <div class="window-sidebar">
-              <div class="sidebar-title">Your Books</div>
-              <div class="sidebar-item">
-                <div class="sidebar-item-icon">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <!-- Sidebar Header -->
+              <div class="sidebar-header">
+                <div class="sidebar-header-left">
+                  <svg class="sidebar-header-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+                  </svg>
+                  <span class="sidebar-header-title">AI Notebook</span>
+                </div>
+                <svg class="sidebar-header-settings" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </div>
+              <!-- Books Section -->
+              <div class="sidebar-section-header">
+                <span class="sidebar-title">BOOKS</span>
+                <span class="sidebar-add-btn">+</span>
+              </div>
+              <div class="sidebar-tree">
+                <div class="sidebar-book">
+                  <span class="sidebar-book-expand">▼</span>
+                  <svg class="sidebar-book-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                   </svg>
+                  <span class="sidebar-book-title">AI Engineering: Building ...</span>
+                  <svg class="sidebar-book-check" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
                 </div>
-                <div class="sidebar-item-text">
-                  <div class="sidebar-item-title">AI Engineering</div>
-                  <div class="sidebar-item-meta">10 chapters · Ready</div>
-                </div>
+                <div class="sidebar-chapter"><span class="sidebar-chapter-hash">#</span> Chapter 1. Introduction to Buildi...</div>
+                <div class="sidebar-chapter"><span class="sidebar-chapter-hash">#</span> Chapter 2. Understanding Foun...</div>
+                <div class="sidebar-chapter"><span class="sidebar-chapter-hash">#</span> Chapter 3. Evaluation Methodol...</div>
+                <div class="sidebar-chapter"><span class="sidebar-chapter-hash">#</span> Chapter 4. Evaluate AI Systems</div>
+                <div class="sidebar-chapter"><span class="sidebar-chapter-hash">#</span> Chapter 5. Prompt Engineering</div>
+                <div class="sidebar-chapter active"><span class="sidebar-chapter-hash">#</span> Chapter 6. RAG and Agents</div>
+                <div class="sidebar-chapter"><span class="sidebar-chapter-hash">#</span> Chapter 7. Finetuning</div>
+                <div class="sidebar-chapter"><span class="sidebar-chapter-hash">#</span> Chapter 8. Dataset Engineering</div>
+                <div class="sidebar-chapter"><span class="sidebar-chapter-hash">#</span> Chapter 9. Inference Optimizati...</div>
+                <div class="sidebar-chapter"><span class="sidebar-chapter-hash">#</span> Chapter 10. AI Engineering Arch...</div>
               </div>
-              <!-- Chapters -->
-              <div class="sidebar-chapter">Ch 1. Introduction</div>
-              <div class="sidebar-chapter">Ch 2. Foundation Models</div>
-              <div class="sidebar-chapter">Ch 3. Evaluation</div>
-              <div class="sidebar-chapter">Ch 4. Prompt Engineering</div>
-              <div class="sidebar-chapter active">Ch 5. RAG and Agents</div>
-              <div class="sidebar-chapter">Ch 6. Finetuning</div>
-              <div class="sidebar-chapter">Ch 7. Dataset Engineering</div>
-              <div class="sidebar-chapter">Ch 8. Inference</div>
-              <div class="sidebar-chapter">Ch 9. Architecture</div>
-              <div class="sidebar-chapter">Ch 10. User Feedback</div>
             </div>
             <div class="window-main">
-              <div class="chat-message user">
-                <div class="chat-bubble">What is RAG and when should I use it?</div>
-              </div>
-              <div class="chat-message assistant">
-                <div class="chat-bubble">RAG (Retrieval-Augmented Generation) combines retrieval systems with LLMs. Use it when you need answers grounded in specific documents, want to reduce hallucinations, or need up-to-date information beyond the model's training data.</div>
-                <div class="chat-source">
+              <!-- Main Header -->
+              <div class="main-header">
+                <div class="main-header-title">
+                  <span class="main-header-hash">#</span>
+                  <span>Chapter 6. RAG and Agents</span>
+                </div>
+                <div class="main-header-open">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
                   </svg>
-                  Chapter 6: RAG and Agents, p. 253
+                  Open
+                </div>
+              </div>
+              <!-- Chat Area -->
+              <div class="chat-area">
+                <div class="chat-message user">
+                  <div class="chat-bubble">what are agents?</div>
+                </div>
+                <div class="chat-message assistant">
+                  <div class="chat-bubble">
+                    <p>An agent is anything that can perceive its environment and act upon that environment. It is characterized by the environment it operates in and the set of actions it can perform.</p>
+                    <div class="chat-sources">
+                      <div class="chat-sources-label">Sources:</div>
+                      <div class="chat-source-quote">
+                        <span>pp. 272-273:</span> "An agent is anything that can perceive its environment and act upon that environment. It is characterized by the environment it operates in and the set of actions it can perform."
+                      </div>
+                    </div>
+                    <div class="chat-followup">
+                      <div class="chat-followup-label">Follow-up questions:</div>
+                      <div class="chat-followup-chips">
+                        <span class="chat-followup-chip">What are some examples of environments an agent can operate in?</span>
+                        <span class="chat-followup-chip">How is an agent's environment defined?</span>
+                        <span class="chat-followup-chip">What are AI-powered agents?</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <!-- Chat Input -->
+              <div class="chat-input-area">
+                <div class="chat-input">
+                  <span class="chat-input-text">Ask a question about "Chapter 6. RAG and Agents"...</span>
+                  <svg class="chat-input-send" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                  </svg>
                 </div>
               </div>
             </div>
