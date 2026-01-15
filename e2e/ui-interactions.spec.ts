@@ -148,7 +148,7 @@ test.describe('PDF List Interactions', () => {
 
     // Chat input should show PDF-level placeholder
     const chatInput = window.locator('[data-testid="chat-input"]')
-    await expect(chatInput).toHaveAttribute('placeholder', /Ask a question about this document/)
+    await expect(chatInput).toHaveAttribute('placeholder', /Ask a question about this book/)
   })
 })
 
@@ -174,7 +174,7 @@ test.describe('Chat Input', () => {
     await setupApiKey(window)
 
     // Without PDF selected, the main area should show "No document selected" message
-    await expect(window.locator('text=No document selected')).toBeVisible()
+    await expect(window.locator('text=No book selected')).toBeVisible()
   })
 
   test('chat input is enabled after selecting processed PDF', async () => {
@@ -278,10 +278,10 @@ test.describe('Empty State', () => {
     await setupApiKey(window)
 
     // Should show "No documents yet" in sidebar
-    await expect(window.locator('text=No documents yet')).toBeVisible()
+    await expect(window.locator('text=No books yet')).toBeVisible()
 
     // Main area should show "No document selected"
-    await expect(window.locator('text=No document selected')).toBeVisible()
+    await expect(window.locator('text=No book selected')).toBeVisible()
 
     // Upload button should be present in main area
     await expect(window.locator('text=Upload').first()).toBeVisible()

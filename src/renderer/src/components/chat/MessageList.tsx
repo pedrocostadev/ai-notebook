@@ -177,7 +177,7 @@ export const MessageList = memo(function MessageList({ messages, streamingConten
             </div>
             <h3 className="text-base font-semibold text-foreground mb-2">Start a conversation</h3>
             <p className="text-sm leading-relaxed text-muted-foreground">
-              Ask a question about this document, or explore with commands like{' '}
+              Ask a question about this book, or explore with commands like{' '}
               <code className="px-1.5 py-0.5 rounded-md bg-muted text-xs font-mono">/summary</code> or{' '}
               <code className="px-1.5 py-0.5 rounded-md bg-muted text-xs font-mono">/key-concepts</code>
             </p>

@@ -71,9 +71,9 @@ export const ChatContainer = memo(function ChatContainer({ pdfId, chapterId, cha
             <div className="mb-6 p-5 rounded-2xl bg-muted/60">
               <FileText className="h-10 w-10 text-muted-foreground/60" />
             </div>
-            <h2 className="text-lg font-semibold text-foreground mb-2">No document selected</h2>
+            <h2 className="text-lg font-semibold text-foreground mb-2">No book selected</h2>
             <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
-              Upload a document to start chatting with AI
+              Upload a book to start chatting with AI
             </p>
             <button
               onClick={onUpload}
@@ -102,7 +102,7 @@ export const ChatContainer = memo(function ChatContainer({ pdfId, chapterId, cha
     if (isExecutingCommand) return commandLoadingMessage || 'Processing...'
     if (isProcessing) return 'Processing...'
     if (isChapterView) return `Ask a question about "${chapterTitle}"...`
-    return 'Ask a question about this document...'
+    return 'Ask a question about this book...'
   }
 
   const isDone = status === 'done'

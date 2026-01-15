@@ -177,7 +177,7 @@ export const PdfList = memo(function PdfList({
   if (pdfs.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center p-4 text-sm text-[var(--color-sidebar-foreground)]/50">
-        No documents yet
+        No books yet
       </div>
     );
   }
