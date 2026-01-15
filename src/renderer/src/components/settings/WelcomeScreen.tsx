@@ -51,7 +51,7 @@ export function WelcomeScreen({ models, defaultModel, theme, onComplete, onSetTh
               <BookOpen className="h-8 w-8" />
             </div>
             <h2 className="text-3xl font-bold mb-3">Chat with your PDFs</h2>
-            <p className="text-[var(--color-sidebar-foreground)]/70">Powered by AI to help you understand documents faster</p>
+            <p className="text-[var(--color-sidebar-foreground)]/70">Powered by AI to help you understand books faster</p>
           </div>
 
           <div className="space-y-5">
@@ -61,7 +61,7 @@ export function WelcomeScreen({ models, defaultModel, theme, onComplete, onSetTh
               </div>
               <div>
                 <h3 className="font-medium mb-1">Smart Search</h3>
-                <p className="text-sm text-[var(--color-sidebar-foreground)]/60">Find answers across your documents with semantic search</p>
+                <p className="text-sm text-[var(--color-sidebar-foreground)]/60">Find answers across your books with semantic search</p>
               </div>
             </div>
 

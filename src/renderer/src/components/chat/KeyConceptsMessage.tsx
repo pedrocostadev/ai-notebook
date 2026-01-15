@@ -127,7 +127,7 @@ export const KeyConceptsMessage = memo(function KeyConceptsMessage({ concepts, i
       <div className="flex items-center gap-2 pb-2 border-b">
         <Lightbulb className="h-5 w-5 text-amber-500" />
         <h3 className="font-semibold">
-          {isDocumentLevel ? 'Document Key Concepts' : 'Key Concepts'}
+          {isDocumentLevel ? 'Book Key Concepts' : 'Key Concepts'}
         </h3>
         <span className="text-sm text-muted-foreground">
           ({concepts.length} concepts)

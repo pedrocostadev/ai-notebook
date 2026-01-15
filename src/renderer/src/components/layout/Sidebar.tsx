@@ -88,14 +88,14 @@ export function Sidebar({
 
       {/* Section header with add button */}
       <div className="px-4 pt-4 pb-2 flex items-center justify-between">
-        <span className="text-xs font-medium text-[var(--color-sidebar-foreground)]/70 uppercase tracking-wide">Documents</span>
+        <span className="text-xs font-medium text-[var(--color-sidebar-foreground)]/70 uppercase tracking-wide">Books</span>
         <Button
           variant="ghost"
           size="icon"
           onClick={onUploadPdf}
           data-testid="upload-pdf-btn"
           className="h-6 w-6 text-[var(--color-sidebar-foreground)]/70 hover:text-[var(--color-sidebar-foreground)] hover:bg-[var(--color-sidebar-accent)]"
-          title="Upload document"
+          title="Upload book"
         >
           <Plus className="h-4 w-4" />
         </Button>
