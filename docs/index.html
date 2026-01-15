@@ -827,6 +827,22 @@
       flex-wrap: wrap;
     }
 
+    .cta-other-platforms {
+      margin-top: 20px;
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    .cta-other-platforms a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .cta-other-platforms a:hover {
+      color: var(--accent);
+    }
+
     .btn-secondary {
       display: inline-flex;
       align-items: center;
@@ -941,7 +957,7 @@
       <div class="nav-links">
         <a href="#features">Features</a>
         <a href="#how-it-works">How it works</a>
-        <a href="https://github.com/pedrocostadev/ai-notebook/releases/latest" class="nav-cta">Download</a>
+        <a id="nav-download" href="https://github.com/pedrocostadev/ai-notebook/releases/latest" class="nav-cta">Download</a>
       </div>
     </div>
   </nav>
@@ -959,13 +975,13 @@
           Upload any book. AI extracts chapters automatically. Ask questions and get answers with source citations. Your library, finally searchable.
         </p>
         <div class="hero-cta">
-          <a href="https://github.com/pedrocostadev/ai-notebook/releases/latest" class="btn-primary">
+          <a id="hero-download" href="https://github.com/pedrocostadev/ai-notebook/releases/latest" class="btn-primary">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
             </svg>
-            Download
+            <span id="hero-download-text">Download</span>
           </a>
-          <p class="hero-meta"><span>macOS 12+</span> · <span>Windows 10+</span> · <span>Linux</span></p>
+          <p class="hero-meta" id="hero-meta"><span>macOS 12+</span> · <span>Windows 10+</span> · <span>Linux</span></p>
         </div>
       </div>
 
@@ -1184,13 +1200,14 @@
           <h2>Ready to chat with your books?</h2>
           <p>Download AI Notebook. No signup required.</p>
           <div class="cta-buttons">
-            <a href="https://github.com/pedrocostadev/ai-notebook/releases/latest" class="btn-primary">
+            <a id="cta-download" href="https://github.com/pedrocostadev/ai-notebook/releases/latest" class="btn-primary">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
               </svg>
-              Download
+              <span id="cta-download-text">Download</span>
             </a>
           </div>
+          <p class="cta-other-platforms" id="other-platforms"></p>
         </div>
       </div>
     </div>
@@ -1209,6 +1226,59 @@
   </footer>
 
   <script>
+    // Download URLs
+    const RELEASE_BASE = 'https://github.com/pedrocostadev/ai-notebook/releases/download/v1.0.0/';
+    const DOWNLOADS = {
+      mac_arm: { url: RELEASE_BASE + 'AI.Notebook-darwin-arm64-1.0.0.zip', label: 'Download for Mac (Apple Silicon)' },
+      mac_intel: { url: RELEASE_BASE + 'AI.Notebook-darwin-x64-1.0.0.zip', label: 'Download for Mac (Intel)' },
+      windows: { url: RELEASE_BASE + 'AI.Notebook-1.0.0.Setup.exe', label: 'Download for Windows' },
+      linux_deb: { url: RELEASE_BASE + 'ai-notebook_1.0.0_amd64.deb', label: 'Download for Linux (deb)' },
+      linux_rpm: { url: RELEASE_BASE + 'ai-notebook-1.0.0-1.x86_64.rpm', label: 'Download for Linux (rpm)' }
+    };
+
+    // Detect OS
+    function detectOS() {
+      const ua = navigator.userAgent;
+      if (ua.includes('Mac')) {
+        // Check for Apple Silicon vs Intel (heuristic)
+        return 'mac_arm'; // Default to ARM, most new Macs are ARM
+      } else if (ua.includes('Windows')) {
+        return 'windows';
+      } else if (ua.includes('Linux')) {
+        return 'linux_deb';
+      }
+      return 'mac_arm'; // Default
+    }
+
+    // Get other platforms based on detected OS
+    function getOtherPlatforms(detected) {
+      const others = [];
+      if (detected !== 'windows') {
+        others.push('<a href="' + DOWNLOADS.windows.url + '">Windows</a>');
+      }
+      if (!detected.startsWith('mac')) {
+        others.push('<a href="' + DOWNLOADS.mac_arm.url + '">macOS</a>');
+      } else {
+        // Show Intel option for Mac users
+        others.push('<a href="' + DOWNLOADS.mac_intel.url + '">Mac (Intel)</a>');
+      }
+      if (!detected.startsWith('linux')) {
+        others.push('<a href="' + DOWNLOADS.linux_deb.url + '">Linux</a>');
+      }
+      return 'Also available for ' + others.join(', ');
+    }
+
+    // Update download buttons
+    const os = detectOS();
+    const download = DOWNLOADS[os];
+
+    document.getElementById('nav-download').href = download.url;
+    document.getElementById('hero-download').href = download.url;
+    document.getElementById('hero-download-text').textContent = download.label;
+    document.getElementById('cta-download').href = download.url;
+    document.getElementById('cta-download-text').textContent = download.label;
+    document.getElementById('other-platforms').innerHTML = getOtherPlatforms(os);
+
     // Scroll animations
     const observerOptions = {
       threshold: 0.1,
