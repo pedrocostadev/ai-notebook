@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Notebook — Chat with your Books</title>
+  <meta name="description" content="Upload books. AI extracts chapters. Ask questions. Get answers with sources.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg-primary: #07090c;
+      --bg-secondary: #0d1117;
+      --bg-card: #161b22;
+      --text-primary: #e6edf3;
+      --text-secondary: #8b949e;
+      --text-muted: #484f58;
+      --accent: #2dd4bf;
+      --accent-dim: #14b8a6;
+      --accent-glow: rgba(45, 212, 191, 0.15);
+      --accent-glow-strong: rgba(45, 212, 191, 0.3);
+      --border: rgba(139, 148, 158, 0.1);
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* Noise texture overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+      opacity: 0.03;
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    .serif {
+      font-family: 'Instrument Serif', Georgia, serif;
+    }
+
+    /* Container */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* Navigation */
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      padding: 20px 0;
+      background: linear-gradient(to bottom, var(--bg-primary) 0%, transparent 100%);
+    }
+
+    nav .container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--text-primary);
+    }
+
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dim) 100%);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 18px;
+      color: var(--bg-primary);
+      box-shadow: 0 0 20px var(--accent-glow);
+    }
+
+    .logo-text {
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+    }
+
+    .nav-links a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover {
+      color: var(--text-primary);
+    }
+
+    .nav-cta {
+      background: var(--text-primary);
+      color: var(--bg-primary) !important;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-weight: 600 !important;
+      transition: transform 0.2s, box-shadow 0.2s !important;
+    }
+
+    .nav-cta:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 20px rgba(230, 237, 243, 0.2);
+    }
+
+    /* Hero */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      padding: 120px 0 80px;
+      position: relative;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 800px;
+      height: 800px;
+      background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+      pointer-events: none;
+      opacity: 0.5;
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      padding: 8px 16px;
+      border-radius: 100px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 32px;
+      animation: fadeInUp 0.6s ease-out;
+    }
+
+    .hero-badge-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--accent);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .hero h1 {
+      font-family: 'Instrument Serif', Georgia, serif;
+      font-size: clamp(48px, 8vw, 80px);
+      font-weight: 400;
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+      margin-bottom: 24px;
+      animation: fadeInUp 0.6s ease-out 0.1s backwards;
+    }
+
+    .hero h1 em {
+      font-style: italic;
+      color: var(--accent);
+      text-shadow: 0 0 60px var(--accent-glow-strong);
+    }
+
+    .hero-description {
+      font-size: 18px;
+      color: var(--text-secondary);
+      max-width: 540px;
+      margin: 0 auto 40px;
+      line-height: 1.7;
+      animation: fadeInUp 0.6s ease-out 0.2s backwards;
+    }
+
+    .hero-cta {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      animation: fadeInUp 0.6s ease-out 0.3s backwards;
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--accent);
+      color: var(--bg-primary);
+      padding: 16px 32px;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.3s;
+      box-shadow: 0 0 40px var(--accent-glow-strong);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 40px var(--accent-glow-strong), 0 0 60px var(--accent-glow);
+    }
+
+    .btn-primary svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    .hero-meta {
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    .hero-meta span {
+      color: var(--text-secondary);
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Demo visual */
+    .hero-visual {
+      margin-top: 80px;
+      position: relative;
+      animation: fadeInUp 0.8s ease-out 0.4s backwards;
+    }
+
+    .hero-visual-window {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,0.05),
+        0 20px 50px rgba(0,0,0,0.5),
+        0 0 100px var(--accent-glow);
+    }
+
+    .window-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 16px 20px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .window-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--text-muted);
+    }
+
+    .window-dot:nth-child(1) { background: #ff5f57; }
+    .window-dot:nth-child(2) { background: #febc2e; }
+    .window-dot:nth-child(3) { background: #28c840; }
+
+    .window-content {
+      display: flex;
+      min-height: 500px;
+    }
+
+    .window-sidebar {
+      width: 260px;
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border);
+      padding: 16px;
+    }
+
+    .sidebar-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    .sidebar-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 4px;
+      cursor: default;
+    }
+
+    .sidebar-item.active {
+      background: var(--accent-glow);
+    }
+
+    .sidebar-item-icon {
+      width: 32px;
+      height: 32px;
+      background: var(--bg-card);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .sidebar-item-icon svg {
+      width: 16px;
+      height: 16px;
+      color: var(--accent);
+    }
+
+    .sidebar-item-text {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .sidebar-item-title {
+      font-size: 13px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .sidebar-item-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .sidebar-chapter {
+      padding: 8px 12px 8px 48px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      border-radius: 6px;
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .sidebar-chapter.active {
+      background: var(--accent-glow);
+      color: var(--accent);
+    }
+
+    .window-main {
+      flex: 1;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chat-message {
+      max-width: 80%;
+      margin-bottom: 16px;
+    }
+
+    .chat-message.user {
+      margin-left: auto;
+    }
+
+    .chat-bubble {
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .chat-message.user .chat-bubble {
+      background: var(--accent);
+      color: var(--bg-primary);
+      border-bottom-right-radius: 4px;
+    }
+
+    .chat-message.assistant .chat-bubble {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 4px;
+    }
+
+    .chat-source {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 8px;
+      padding: 6px 10px;
+      background: var(--bg-card);
+      border-radius: 6px;
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .chat-source svg {
+      width: 12px;
+      height: 12px;
+      color: var(--accent);
+    }
+
+    /* Features */
+    .features {
+      padding: 120px 0;
+      position: relative;
+    }
+
+    .section-header {
+      text-align: center;
+      max-width: 600px;
+      margin: 0 auto 80px;
+    }
+
+    .section-label {
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--accent);
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      font-family: 'Instrument Serif', Georgia, serif;
+      font-size: clamp(36px, 5vw, 48px);
+      font-weight: 400;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+      margin-bottom: 16px;
+    }
+
+    .section-description {
+      font-size: 16px;
+      color: var(--text-secondary);
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+
+    @media (max-width: 900px) {
+      .features-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 600px) {
+      .features-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .feature-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      transition: all 0.3s;
+    }
+
+    .feature-card:hover {
+      border-color: var(--accent-glow-strong);
+      transform: translateY(-4px);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+    }
+
+    .feature-icon {
+      width: 48px;
+      height: 48px;
+      background: var(--accent-glow);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+
+    .feature-icon svg {
+      width: 24px;
+      height: 24px;
+      color: var(--accent);
+    }
+
+    .feature-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      letter-spacing: -0.01em;
+    }
+
+    .feature-description {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    /* How it works */
+    .how-it-works {
+      padding: 120px 0;
+      background: var(--bg-secondary);
+      position: relative;
+    }
+
+    .how-it-works::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, var(--bg-primary) 0%, transparent 10%, transparent 90%, var(--bg-primary) 100%);
+      pointer-events: none;
+    }
+
+    .steps {
+      display: flex;
+      justify-content: space-between;
+      gap: 40px;
+      position: relative;
+    }
+
+    .steps::before {
+      content: '';
+      position: absolute;
+      top: 40px;
+      left: 80px;
+      right: 80px;
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent) 0%, var(--accent-dim) 50%, var(--text-muted) 100%);
+      opacity: 0.3;
+    }
+
+    @media (max-width: 800px) {
+      .steps {
+        flex-direction: column;
+      }
+      .steps::before {
+        display: none;
+      }
+    }
+
+    .step {
+      flex: 1;
+      text-align: center;
+      position: relative;
+      z-index: 1;
+    }
+
+    .step-number {
+      width: 80px;
+      height: 80px;
+      background: var(--bg-card);
+      border: 2px solid var(--border);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 24px;
+      font-family: 'Instrument Serif', Georgia, serif;
+      font-size: 32px;
+      color: var(--accent);
+      transition: all 0.3s;
+    }
+
+    .step:hover .step-number {
+      border-color: var(--accent);
+      box-shadow: 0 0 30px var(--accent-glow);
+    }
+
+    .step-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .step-description {
+      font-size: 14px;
+      color: var(--text-secondary);
+      max-width: 240px;
+      margin: 0 auto;
+    }
+
+    /* CTA */
+    .cta {
+      padding: 120px 0;
+      text-align: center;
+    }
+
+    .cta-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 80px 40px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cta-box::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .cta-content {
+      position: relative;
+      z-index: 1;
+    }
+
+    .cta h2 {
+      font-family: 'Instrument Serif', Georgia, serif;
+      font-size: clamp(32px, 5vw, 48px);
+      font-weight: 400;
+      margin-bottom: 16px;
+    }
+
+    .cta p {
+      font-size: 16px;
+      color: var(--text-secondary);
+      margin-bottom: 32px;
+    }
+
+    .cta-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: transparent;
+      color: var(--text-primary);
+      padding: 16px 32px;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      text-decoration: none;
+      border: 1px solid var(--border);
+      transition: all 0.3s;
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--text-secondary);
+      background: var(--bg-secondary);
+    }
+
+    .btn-secondary svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    /* Footer */
+    footer {
+      padding: 40px 0;
+      border-top: 1px solid var(--border);
+    }
+
+    footer .container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .footer-text {
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 24px;
+    }
+
+    .footer-links a {
+      font-size: 14px;
+      color: var(--text-secondary);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .footer-links a:hover {
+      color: var(--text-primary);
+    }
+
+    @media (max-width: 600px) {
+      footer .container {
+        flex-direction: column;
+        gap: 16px;
+        text-align: center;
+      }
+
+      .nav-links {
+        display: none;
+      }
+
+      .window-sidebar {
+        display: none;
+      }
+
+      .window-content {
+        min-height: 300px;
+      }
+    }
+
+    /* Scroll animations */
+    .fade-in {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: all 0.6s ease-out;
+    }
+
+    .fade-in.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation -->
+  <nav>
+    <div class="container">
+      <a href="#" class="logo">
+        <div class="logo-icon">N</div>
+        <span class="logo-text">AI Notebook</span>
+      </a>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#how-it-works">How it works</a>
+        <a href="#download" class="nav-cta">Download</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="container">
+      <div class="hero-content">
+        <div class="hero-badge">
+          <span class="hero-badge-dot"></span>
+          Desktop App for macOS &amp; Windows
+        </div>
+        <h1>Chat with your Books.<br><em>Intelligently.</em></h1>
+        <p class="hero-description">
+          Upload any book. AI extracts chapters automatically. Ask questions and get answers with source citations. Your library, finally searchable.
+        </p>
+        <div class="hero-cta">
+          <a href="#download" class="btn-primary">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+            </svg>
+            Download
+          </a>
+          <p class="hero-meta"><span>macOS 12+</span> · <span>Windows 10+</span></p>
+        </div>
+      </div>
+
+      <!-- App preview -->
+      <div class="hero-visual">
+        <div class="hero-visual-window">
+          <div class="window-header">
+            <div class="window-dot"></div>
+            <div class="window-dot"></div>
+            <div class="window-dot"></div>
+          </div>
+          <div class="window-content">
+            <div class="window-sidebar">
+              <div class="sidebar-title">Your Books</div>
+              <div class="sidebar-item">
+                <div class="sidebar-item-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                  </svg>
+                </div>
+                <div class="sidebar-item-text">
+                  <div class="sidebar-item-title">AI Engineering</div>
+                  <div class="sidebar-item-meta">10 chapters · Ready</div>
+                </div>
+              </div>
+              <!-- Chapters -->
+              <div class="sidebar-chapter">Ch 1. Introduction</div>
+              <div class="sidebar-chapter">Ch 2. Foundation Models</div>
+              <div class="sidebar-chapter">Ch 3. Evaluation</div>
+              <div class="sidebar-chapter">Ch 4. Prompt Engineering</div>
+              <div class="sidebar-chapter active">Ch 5. RAG and Agents</div>
+              <div class="sidebar-chapter">Ch 6. Finetuning</div>
+              <div class="sidebar-chapter">Ch 7. Dataset Engineering</div>
+              <div class="sidebar-chapter">Ch 8. Inference</div>
+              <div class="sidebar-chapter">Ch 9. Architecture</div>
+              <div class="sidebar-chapter">Ch 10. User Feedback</div>
+            </div>
+            <div class="window-main">
+              <div class="chat-message user">
+                <div class="chat-bubble">What is RAG and when should I use it?</div>
+              </div>
+              <div class="chat-message assistant">
+                <div class="chat-bubble">RAG (Retrieval-Augmented Generation) combines retrieval systems with LLMs. Use it when you need answers grounded in specific documents, want to reduce hallucinations, or need up-to-date information beyond the model's training data.</div>
+                <div class="chat-source">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+                  </svg>
+                  Chapter 6: RAG and Agents, p. 253
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section class="features" id="features">
+    <div class="container">
+      <div class="section-header fade-in">
+        <div class="section-label">Features</div>
+        <h2 class="section-title">Everything you need to understand your documents</h2>
+        <p class="section-description">No subscriptions. No cloud uploads. Your books stay on your machine.</p>
+      </div>
+
+      <div class="features-grid">
+        <div class="feature-card fade-in">
+          <div class="feature-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 00-1.883 2.542l.857 6a2.25 2.25 0 002.227 1.932H19.05a2.25 2.25 0 002.227-1.932l.857-6a2.25 2.25 0 00-1.883-2.542m-16.5 0V6A2.25 2.25 0 016 3.75h3.879a1.5 1.5 0 011.06.44l2.122 2.12a1.5 1.5 0 001.06.44H18A2.25 2.25 0 0120.25 9v.776" />
+            </svg>
+          </div>
+          <h3 class="feature-title">Smart Chapter Detection</h3>
+          <p class="feature-description">AI automatically parses your book's table of contents and organizes content into navigable chapters.</p>
+        </div>
+
+        <div class="feature-card fade-in">
+          <div class="feature-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+            </svg>
+          </div>
+          <h3 class="feature-title">Semantic Search</h3>
+          <p class="feature-description">Find relevant passages by meaning, not just keywords. Hybrid search combines vector similarity with full-text search.</p>
+        </div>
+
+        <div class="feature-card fade-in">
+          <div class="feature-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
+            </svg>
+          </div>
+          <h3 class="feature-title">Contextual Q&A</h3>
+          <p class="feature-description">Ask questions about the whole document or drill into specific chapters. Every answer includes source citations.</p>
+        </div>
+
+        <div class="feature-card fade-in">
+          <div class="feature-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
+            </svg>
+          </div>
+          <h3 class="feature-title">AI-Powered Summaries</h3>
+          <p class="feature-description">Get instant summaries and key concepts for any chapter with a single command.</p>
+        </div>
+
+        <div class="feature-card fade-in">
+          <div class="feature-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
+            </svg>
+          </div>
+          <h3 class="feature-title">Your API Key</h3>
+          <p class="feature-description">Use your own Google Gemini API key. No middleman, no markup, no account required with us.</p>
+        </div>
+
+        <div class="feature-card fade-in">
+          <div class="feature-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 12V5.25" />
+            </svg>
+          </div>
+          <h3 class="feature-title">Desktop App</h3>
+          <p class="feature-description">Runs on your computer, not in a browser tab. Your books are stored locally.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How it works -->
+  <section class="how-it-works" id="how-it-works">
+    <div class="container">
+      <div class="section-header fade-in">
+        <div class="section-label">How it works</div>
+        <h2 class="section-title">From book to insights in seconds</h2>
+      </div>
+
+      <div class="steps">
+        <div class="step fade-in">
+          <div class="step-number">1</div>
+          <h3 class="step-title">Upload your book</h3>
+          <p class="step-description">Drag and drop any book. The app copies it locally and starts processing.</p>
+        </div>
+        <div class="step fade-in">
+          <div class="step-number">2</div>
+          <h3 class="step-title">AI extracts structure</h3>
+          <p class="step-description">Chapters are detected automatically. Content is chunked and embedded for search.</p>
+        </div>
+        <div class="step fade-in">
+          <div class="step-number">3</div>
+          <h3 class="step-title">Start asking questions</h3>
+          <p class="step-description">Chat with the whole document or specific chapters. Get answers with citations.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta" id="download">
+    <div class="container">
+      <div class="cta-box fade-in">
+        <div class="cta-content">
+          <h2>Ready to chat with your books?</h2>
+          <p>Download AI Notebook. No signup required.</p>
+          <div class="cta-buttons">
+            <a href="#download" class="btn-primary">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+              </svg>
+              Download
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      <p class="footer-text">&copy; 2025 AI Notebook</p>
+      <div class="footer-links">
+        <a href="#features">Features</a>
+        <a href="#how-it-works">How it works</a>
+        <a href="#download">Download</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Scroll animations
+    const observerOptions = {
+      threshold: 0.1,
+      rootMargin: '0px 0px -50px 0px'
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, observerOptions);
+
+    document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+
+    // Smooth scroll for anchor links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function (e) {
+        e.preventDefault();
+        const target = document.querySelector(this.getAttribute('href'));
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    });
+  </script>
+</body>
+</html>
