@@ -95,7 +95,7 @@ export function Sidebar({
           onClick={onUploadPdf}
           data-testid="upload-pdf-btn"
           className="h-6 w-6 text-[var(--color-sidebar-foreground)]/70 hover:text-[var(--color-sidebar-foreground)] hover:bg-[var(--color-sidebar-accent)]"
-          title="Upload PDF"
+          title="Upload document"
         >
           <Plus className="h-4 w-4" />
         </Button>
