@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "AI-powered PDF notebook with RAG chat",
   "main": "out/main/index.js",
-  "author": "",
+  "author": "Pedro Costa",
   "license": "MIT",
   "scripts": {
     "dev": "electron-vite dev",
