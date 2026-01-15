@@ -56,7 +56,7 @@ export const ChatContainer = memo(function ChatContainer({ pdfId, chapterId, cha
               <div className="mb-6 p-5 rounded-2xl bg-muted/60">
                 <Loader2 className="h-10 w-10 text-primary animate-spin" />
               </div>
-              <h2 className="text-lg font-semibold text-foreground mb-2">Uploading PDF...</h2>
+              <h2 className="text-lg font-semibold text-foreground mb-2">Uploading...</h2>
               <p className="text-sm text-muted-foreground">Please wait while we process your file</p>
             </div>
           </div>
@@ -73,15 +73,16 @@ export const ChatContainer = memo(function ChatContainer({ pdfId, chapterId, cha
             </div>
             <h2 className="text-lg font-semibold text-foreground mb-2">No document selected</h2>
             <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
-              Upload a PDF to start chatting with your documents using AI
+              Upload a document to start chatting with AI
             </p>
             <button
               onClick={onUpload}
               className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 font-medium text-sm transition-colors shadow-sm"
             >
               <Upload className="h-4 w-4" />
-              Upload PDF
+              Upload
             </button>
+            <p className="text-xs text-muted-foreground mt-3">Supported: PDF</p>
           </div>
         </div>
       </div>
@@ -101,7 +102,7 @@ export const ChatContainer = memo(function ChatContainer({ pdfId, chapterId, cha
     if (isExecutingCommand) return commandLoadingMessage || 'Processing...'
     if (isProcessing) return 'Processing...'
     if (isChapterView) return `Ask a question about "${chapterTitle}"...`
-    return 'Ask a question about this PDF...'
+    return 'Ask a question about this document...'
   }
 
   const isDone = status === 'done'
@@ -147,10 +148,10 @@ export const ChatContainer = memo(function ChatContainer({ pdfId, chapterId, cha
             data-testid="open-pdf-btn"
             onClick={handleOpenPdf}
             className="titlebar-no-drag flex items-center gap-1.5 px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
-            title="Open PDF in viewer"
+            title="Open in viewer"
           >
             <ExternalLink className="h-3.5 w-3.5" />
-            <span>Open PDF</span>
+            <span>Open</span>
           </button>
         </div>
       )}

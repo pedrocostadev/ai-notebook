@@ -148,7 +148,7 @@ test.describe('PDF List Interactions', () => {
 
     // Chat input should show PDF-level placeholder
     const chatInput = window.locator('[data-testid="chat-input"]')
-    await expect(chatInput).toHaveAttribute('placeholder', /Ask a question about this PDF/)
+    await expect(chatInput).toHaveAttribute('placeholder', /Ask a question about this document/)
   })
 })
 
@@ -284,7 +284,7 @@ test.describe('Empty State', () => {
     await expect(window.locator('text=No document selected')).toBeVisible()
 
     // Upload button should be present in main area
-    await expect(window.locator('text=Upload PDF').first()).toBeVisible()
+    await expect(window.locator('text=Upload').first()).toBeVisible()
   })
 })
 
@@ -302,7 +302,7 @@ test.describe('Chat Header', () => {
     cleanupDb()
   })
 
-  test('shows Open PDF button when PDF is done processing', async () => {
+  test('shows Open button when PDF is done processing', async () => {
     app = await launchApp()
     const window = await app.firstWindow()
     await window.waitForLoadState('domcontentloaded')
@@ -324,8 +324,8 @@ test.describe('Chat Header', () => {
     // Should show "Ready to chat" status
     await expect(window.locator('text=Ready to chat')).toBeVisible()
 
-    // Should show "Open PDF" button
-    await expect(window.locator('text=Open PDF')).toBeVisible()
+    // Should show "Open" button
+    await expect(window.locator('text=Open')).toBeVisible()
   })
 
   test('shows Open button in chapter view when done processing', async () => {
