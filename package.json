@@ -20,6 +20,7 @@
     "@ai-sdk/google": "^1.2.0",
     "@electron-toolkit/utils": "^3.0.0",
     "@langchain/community": "^0.3.0",
+    "@langchain/core": "^0.3.80",
     "@langchain/textsplitters": "^0.1.0",
     "@radix-ui/react-alert-dialog": "^1.1.0",
     "@radix-ui/react-dialog": "^1.1.0",

@@ -10,7 +10,16 @@ const config: ForgeConfig = {
     name: 'AI Notebook',
     extraResource: ['./resources/icons'],
     icon: './resources/icons/mac/icon',
+    ignore: [
+      /^\/src($|\/)/,
+      /^\/e2e($|\/)/,
+      /^\/resources($|\/)/,
+      /^\/playwright/,
+      /^\/dist($|\/)/,
+      /^\/(tsconfig|forge\.config|electron\.vite|tailwind|postcss|components\.json|\.)/,
+    ],
   },
+  outDir: 'dist',
   rebuildConfig: {},
   makers: [
     new MakerSquirrel({}),
