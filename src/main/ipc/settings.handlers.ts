@@ -6,7 +6,10 @@ import {
   setChatModel,
   validateApiKey,
   hasApiKey,
-  CHAT_MODELS
+  CHAT_MODELS,
+  getTheme,
+  setTheme,
+  type Theme
 } from '../services/settings'
 import { startJobQueue } from '../services/job-queue'
 
@@ -55,5 +58,14 @@ export function registerSettingsHandlers(): void {
     const key = getApiKey()
     if (!key) return null
     return key.slice(0, 4) + '...' + key.slice(-4)
+  })
+
+  ipcMain.handle('settings:get-theme', () => {
+    return getTheme()
+  })
+
+  ipcMain.handle('settings:set-theme', (_, theme: Theme) => {
+    setTheme(theme)
+    return true
   })
 }

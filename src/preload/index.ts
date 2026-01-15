@@ -58,6 +58,8 @@ export type ChatModel = {
   name: string
 }
 
+export type Theme = 'system' | 'light' | 'dark'
+
 export type PdfMetadata = {
   title: string | null
   author: string | null
@@ -115,6 +117,8 @@ const api = {
   // Test-only: Set API key without validation
   setKeyTest: (key: string): Promise<boolean> => ipcRenderer.invoke('settings:set-key-test', key),
   getMaskedKey: (): Promise<string | null> => ipcRenderer.invoke('settings:get-key-masked'),
+  getTheme: (): Promise<Theme> => ipcRenderer.invoke('settings:get-theme'),
+  setTheme: (theme: Theme): Promise<boolean> => ipcRenderer.invoke('settings:set-theme', theme),
 
   // PDFs
   uploadPdf: (): Promise<{ pdfId: number; duplicate: boolean; existingPdfId?: number } | { error: string } | null> =>
