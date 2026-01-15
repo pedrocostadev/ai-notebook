@@ -1,19 +1,9 @@
-import { useState } from 'react'
+import { useState, useMemo, memo } from 'react'
 import { cn } from '@/lib/utils'
 import { Lightbulb, ChevronDown, ChevronUp, BookOpen } from 'lucide-react'
+import type { Concept, ConceptQuote } from '@/lib/types'
 
-export interface ConceptQuote {
-  text: string
-  pageEstimate?: number
-  chapterTitle?: string
-}
-
-export interface Concept {
-  name: string
-  definition: string
-  importance: number
-  quotes: ConceptQuote[]
-}
+export type { Concept, ConceptQuote }
 
 interface KeyConceptsMessageProps {
   concepts: Concept[]
@@ -40,7 +30,7 @@ function ImportanceStars({ importance }: { importance: number }) {
 
 const INITIAL_QUOTES_SHOWN = 3
 
-function ConceptCard({ concept, isDocumentLevel }: { concept: Concept; isDocumentLevel?: boolean }) {
+const ConceptCard = memo(function ConceptCard({ concept, isDocumentLevel }: { concept: Concept; isDocumentLevel?: boolean }) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [showAllQuotes, setShowAllQuotes] = useState(false)
 
@@ -81,9 +71,9 @@ function ConceptCard({ concept, isDocumentLevel }: { concept: Concept; isDocumen
             Supporting Evidence
           </p>
           <div className="space-y-2">
-            {visibleQuotes.map((quote, i) => (
+            {visibleQuotes.map((quote) => (
               <blockquote
-                key={i}
+                key={`${quote.text.slice(0, 30)}-${quote.pageEstimate ?? 0}`}
                 className="text-sm border-l-2 border-amber-500/50 pl-3 py-1"
               >
                 <p className="italic text-muted-foreground">"{quote.text}"</p>
@@ -114,9 +104,16 @@ function ConceptCard({ concept, isDocumentLevel }: { concept: Concept; isDocumen
       )}
     </div>
   )
-}
+})
 
-export function KeyConceptsMessage({ concepts, isDocumentLevel }: KeyConceptsMessageProps) {
+export const KeyConceptsMessage = memo(function KeyConceptsMessage({ concepts, isDocumentLevel }: KeyConceptsMessageProps) {
+  // Memoize grouped concepts to avoid recalculation on re-renders
+  const { highImportance, mediumImportance, lowImportance } = useMemo(() => ({
+    highImportance: concepts.filter((c) => c.importance >= 4),
+    mediumImportance: concepts.filter((c) => c.importance === 3),
+    lowImportance: concepts.filter((c) => c.importance <= 2)
+  }), [concepts])
+
   if (concepts.length === 0) {
     return (
       <div className="text-center text-muted-foreground py-4">
@@ -124,11 +121,6 @@ export function KeyConceptsMessage({ concepts, isDocumentLevel }: KeyConceptsMes
       </div>
     )
   }
-
-  // Group by importance for better organization
-  const highImportance = concepts.filter((c) => c.importance >= 4)
-  const mediumImportance = concepts.filter((c) => c.importance === 3)
-  const lowImportance = concepts.filter((c) => c.importance <= 2)
 
   return (
     <div className="space-y-4">
@@ -148,8 +140,8 @@ export function KeyConceptsMessage({ concepts, isDocumentLevel }: KeyConceptsMes
             Core Concepts
           </p>
           <div className="space-y-2">
-            {highImportance.map((concept, i) => (
-              <ConceptCard key={i} concept={concept} isDocumentLevel={isDocumentLevel} />
+            {highImportance.map((concept) => (
+              <ConceptCard key={concept.name} concept={concept} isDocumentLevel={isDocumentLevel} />
             ))}
           </div>
         </div>
@@ -161,8 +153,8 @@ export function KeyConceptsMessage({ concepts, isDocumentLevel }: KeyConceptsMes
             Notable Concepts
           </p>
           <div className="space-y-2">
-            {mediumImportance.map((concept, i) => (
-              <ConceptCard key={i} concept={concept} isDocumentLevel={isDocumentLevel} />
+            {mediumImportance.map((concept) => (
+              <ConceptCard key={concept.name} concept={concept} isDocumentLevel={isDocumentLevel} />
             ))}
           </div>
         </div>
@@ -174,12 +166,12 @@ export function KeyConceptsMessage({ concepts, isDocumentLevel }: KeyConceptsMes
             Supporting Concepts
           </p>
           <div className="space-y-2">
-            {lowImportance.map((concept, i) => (
-              <ConceptCard key={i} concept={concept} isDocumentLevel={isDocumentLevel} />
+            {lowImportance.map((concept) => (
+              <ConceptCard key={concept.name} concept={concept} isDocumentLevel={isDocumentLevel} />
             ))}
           </div>
         </div>
       )}
     </div>
   )
-}
+})

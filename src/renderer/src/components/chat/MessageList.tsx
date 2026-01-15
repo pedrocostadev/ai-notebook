@@ -1,22 +1,100 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, memo, useCallback } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
-import { QuizMessage, type QuizQuestion } from './QuizMessage'
-import { KeyConceptsMessage, type Concept } from './KeyConceptsMessage'
+import { QuizMessage } from './QuizMessage'
+import { KeyConceptsMessage } from './KeyConceptsMessage'
 import { MessageSquareText, BookOpen, Loader2, History, ChevronDown, ChevronUp } from 'lucide-react'
+import type { ChatMessage, Citation } from '@/lib/types'
 
-interface ChatMessage {
-  id: number
-  role: 'user' | 'assistant'
-  content: string
-  metadata: {
-    citations?: { chunkId: number; pageStart: number; pageEnd: number; quote: string }[]
-    followUpQuestions?: string[]
-    quiz?: QuizQuestion[]
-    concepts?: Concept[]
-    isDocumentLevel?: boolean
-  } | null
+// Memoized message item to prevent re-renders
+interface ChatMessageItemProps {
+  message: ChatMessage
+  pdfId?: number | null
+  onFollowUpClick?: (question: string) => void
+  onCitationClick: (citation: Citation) => void
 }
+
+const ChatMessageItem = memo(function ChatMessageItem({
+  message,
+  pdfId,
+  onFollowUpClick,
+  onCitationClick
+}: ChatMessageItemProps) {
+  const hasQuiz = message.metadata?.quiz && message.metadata.quiz.length > 0
+  const hasConcepts = message.metadata?.concepts && message.metadata.concepts.length > 0
+  const isWideMessage = hasQuiz || hasConcepts
+
+  return (
+    <div className={cn('flex', message.role === 'user' ? 'justify-end' : 'justify-start')}>
+      <div
+        className={cn(
+          'rounded-2xl px-4 py-3',
+          isWideMessage ? 'max-w-[95%] w-full' : 'max-w-[80%]',
+          message.role === 'user'
+            ? 'bg-primary text-primary-foreground rounded-br-md'
+            : 'bg-muted rounded-bl-md'
+        )}
+        data-testid={`message-${message.role}`}
+      >
+        {hasQuiz ? (
+          <QuizMessage questions={message.metadata!.quiz!} />
+        ) : hasConcepts ? (
+          <KeyConceptsMessage
+            concepts={message.metadata!.concepts!}
+            isDocumentLevel={message.metadata!.isDocumentLevel}
+          />
+        ) : (
+          <>
+            <p className="whitespace-pre-wrap text-[15px] leading-relaxed">{message.content}</p>
+            {message.metadata && message.role === 'assistant' &&
+              ((message.metadata.citations && message.metadata.citations.length > 0) ||
+               (message.metadata.followUpQuestions && message.metadata.followUpQuestions.length > 0)) && (
+              <div className="mt-3 pt-3 border-t border-foreground/10 space-y-3">
+                {message.metadata.citations && message.metadata.citations.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-medium text-foreground/70">Sources:</p>
+                    {message.metadata.citations.map((citation) => (
+                      <blockquote
+                        key={`${citation.chunkId}-${citation.pageStart}`}
+                        className="text-xs italic border-l-2 border-primary/30 pl-2.5 py-0.5 text-muted-foreground hover:bg-foreground/5 cursor-pointer rounded-r transition-colors"
+                        onClick={() => onCitationClick(citation)}
+                        title={`Open page ${citation.pageStart} in PDF viewer`}
+                      >
+                        <span className="not-italic font-medium text-primary/80">
+                          {citation.pageStart === citation.pageEnd
+                            ? `p. ${citation.pageStart}`
+                            : `pp. ${citation.pageStart}-${citation.pageEnd}`}
+                        </span>
+                        :{' '}
+                        "{citation.quote}"
+                      </blockquote>
+                    ))}
+                  </div>
+                )}
+                {message.metadata.followUpQuestions && message.metadata.followUpQuestions.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-foreground/70">Follow-up questions:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {message.metadata.followUpQuestions.map((q) => (
+                        <button
+                          key={q}
+                          onClick={() => onFollowUpClick?.(q)}
+                          className="text-xs text-left px-3 py-1.5 rounded-full bg-primary/10 hover:bg-primary/15 text-primary transition-colors cursor-pointer"
+                        >
+                          {q}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  )
+})
 
 interface MessageListProps {
   messages: ChatMessage[]
@@ -30,10 +108,16 @@ interface MessageListProps {
   chapterId?: number | null
 }
 
-export function MessageList({ messages, streamingContent, isStreaming, commandLoading, onFollowUpClick, isChapterLoading, chapterTitle, pdfId, chapterId }: MessageListProps) {
+export const MessageList = memo(function MessageList({ messages, streamingContent, isStreaming, commandLoading, onFollowUpClick, isChapterLoading, chapterTitle, pdfId, chapterId }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [compactionInfo, setCompactionInfo] = useState<{ isCompacted: boolean; summarizedCount: number; summary: string | null } | null>(null)
   const [showSummary, setShowSummary] = useState(false)
+
+  const handleCitationClick = useCallback((citation: Citation) => {
+    if (pdfId) {
+      window.api.openPdfAtPage(pdfId, citation.pageStart)
+    }
+  }, [pdfId])
 
   // Fetch compaction info in dev mode
   useEffect(() => {
@@ -103,9 +187,6 @@ export function MessageList({ messages, streamingContent, isStreaming, commandLo
       <div className="space-y-5 max-w-3xl mx-auto">
         {messages.map((message, index) => {
           const showCompactionDivider = compactionInfo?.isCompacted && index === compactionInfo.summarizedCount
-          const hasQuiz = message.metadata?.quiz && message.metadata.quiz.length > 0
-          const hasConcepts = message.metadata?.concepts && message.metadata.concepts.length > 0
-          const isWideMessage = hasQuiz || hasConcepts
 
           return (
             <div key={message.id}>
@@ -130,74 +211,12 @@ export function MessageList({ messages, streamingContent, isStreaming, commandLo
                   )}
                 </div>
               )}
-              <div className={cn('flex', message.role === 'user' ? 'justify-end' : 'justify-start')}>
-              <div
-                className={cn(
-                  'rounded-2xl px-4 py-3',
-                  isWideMessage ? 'max-w-[95%] w-full' : 'max-w-[80%]',
-                  message.role === 'user'
-                    ? 'bg-primary text-primary-foreground rounded-br-md'
-                    : 'bg-muted rounded-bl-md'
-                )}
-                data-testid={`message-${message.role}`}
-              >
-                {hasQuiz ? (
-                  <QuizMessage questions={message.metadata!.quiz!} />
-                ) : hasConcepts ? (
-                  <KeyConceptsMessage
-                    concepts={message.metadata!.concepts!}
-                    isDocumentLevel={message.metadata!.isDocumentLevel}
-                  />
-                ) : (
-                  <>
-                    <p className="whitespace-pre-wrap text-[15px] leading-relaxed">{message.content}</p>
-                    {message.metadata && message.role === 'assistant' &&
-                      ((message.metadata.citations && message.metadata.citations.length > 0) ||
-                       (message.metadata.followUpQuestions && message.metadata.followUpQuestions.length > 0)) && (
-                      <div className="mt-3 pt-3 border-t border-foreground/10 space-y-3">
-                        {message.metadata.citations && message.metadata.citations.length > 0 && (
-                          <div className="space-y-1.5">
-                            <p className="text-xs font-medium text-foreground/70">Sources:</p>
-                            {message.metadata.citations.map((citation, i) => (
-                              <blockquote
-                                key={i}
-                                className="text-xs italic border-l-2 border-primary/30 pl-2.5 py-0.5 text-muted-foreground hover:bg-foreground/5 cursor-pointer rounded-r transition-colors"
-                                onClick={() => pdfId && window.api.openPdfAtPage(pdfId, citation.pageStart)}
-                                title={`Open page ${citation.pageStart} in PDF viewer`}
-                              >
-                                <span className="not-italic font-medium text-primary/80">
-                                  {citation.pageStart === citation.pageEnd
-                                    ? `p. ${citation.pageStart}`
-                                    : `pp. ${citation.pageStart}-${citation.pageEnd}`}
-                                </span>
-                                :{' '}
-                                "{citation.quote}"
-                              </blockquote>
-                            ))}
-                          </div>
-                        )}
-                        {message.metadata.followUpQuestions && message.metadata.followUpQuestions.length > 0 && (
-                          <div className="space-y-2">
-                            <p className="text-xs font-medium text-foreground/70">Follow-up questions:</p>
-                            <div className="flex flex-wrap gap-2">
-                              {message.metadata.followUpQuestions.map((q, i) => (
-                                <button
-                                  key={i}
-                                  onClick={() => onFollowUpClick?.(q)}
-                                  className="text-xs text-left px-3 py-1.5 rounded-full bg-primary/10 hover:bg-primary/15 text-primary transition-colors cursor-pointer"
-                                >
-                                  {q}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-              </div>
+              <ChatMessageItem
+                message={message}
+                pdfId={pdfId}
+                onFollowUpClick={onFollowUpClick}
+                onCitationClick={handleCitationClick}
+              />
             </div>
           )
         })}
@@ -225,4 +244,4 @@ export function MessageList({ messages, streamingContent, isStreaming, commandLo
       )}
     </ScrollArea>
   )
-}
+})

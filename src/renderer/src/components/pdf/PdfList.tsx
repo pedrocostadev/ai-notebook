@@ -1,3 +1,4 @@
+import { memo, useCallback, useMemo } from "react";
 import {
   FileText,
   Trash2,
@@ -29,6 +30,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { type ChapterProgressState, STAGE_LABELS } from "@/lib/types";
 
 interface Pdf {
   id: number;
@@ -49,28 +51,9 @@ interface Chapter {
   concepts_status: string | null;
 }
 
-type ProcessingStage = "extracting" | "chunking" | "embedding";
-
-interface ChapterProgressState {
-  [chapterId: number]: {
-    progress: number;
-    stage: ProcessingStage;
-    chunksTotal?: number;
-    chunksProcessed?: number;
-    embeddingsTotal?: number;
-    embeddingsProcessed?: number;
-  };
-}
-
 interface ChaptersState {
   [pdfId: number]: Chapter[];
 }
-
-const STAGE_LABELS: Record<ProcessingStage, string> = {
-  extracting: "Extracting",
-  chunking: "Chunking",
-  embedding: "Embedding",
-};
 
 interface PdfListProps {
   pdfs: Pdf[];
@@ -86,7 +69,7 @@ interface PdfListProps {
   onToggleExpand: (pdfId: number) => void;
 }
 
-export function PdfList({
+export const PdfList = memo(function PdfList({
   pdfs,
   chapters,
   expandedPdfIds,
@@ -99,7 +82,7 @@ export function PdfList({
   onCancel,
   onToggleExpand,
 }: PdfListProps) {
-  const getChapterStatusIndicator = (chapter: Chapter) => {
+  const getChapterStatusIndicator = useCallback((chapter: Chapter) => {
     const p = chapterProgress[chapter.id];
     const isFullyProcessed =
       chapter.status === "done" &&
@@ -173,9 +156,9 @@ export function PdfList({
     return (
       <Loader2 className="h-3 w-3 animate-spin text-[var(--color-sidebar-foreground)]/50" />
     );
-  };
+  }, [chapterProgress, recentlyCompletedChapters]);
 
-  const getPdfStatusIndicator = (pdf: Pdf) => {
+  const getPdfStatusIndicator = useCallback((pdf: Pdf) => {
     if (pdf.status === "error") {
       return <AlertCircle className="h-3.5 w-3.5 text-red-400" />;
     }
@@ -185,11 +168,11 @@ export function PdfList({
     return (
       <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--color-sidebar-foreground)]/50" />
     );
-  };
+  }, []);
 
-  const isPdfProcessing = (pdf: Pdf) => {
+  const isPdfProcessing = useCallback((pdf: Pdf) => {
     return pdf.status === "processing" || pdf.status === "pending";
-  };
+  }, []);
 
   if (pdfs.length === 0) {
     return (
@@ -385,4 +368,4 @@ export function PdfList({
       </div>
     </ScrollArea>
   );
-}
+});

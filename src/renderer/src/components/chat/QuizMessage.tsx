@@ -1,14 +1,9 @@
-import { useState } from 'react'
+import { useState, memo, useCallback } from 'react'
 import { cn } from '@/lib/utils'
 import { CheckCircle2, XCircle, HelpCircle } from 'lucide-react'
+import type { QuizQuestion } from '@/lib/types'
 
-export interface QuizQuestion {
-  question: string
-  options: string[]
-  correctIndex: number
-  explanation: string
-  conceptName: string
-}
+export type { QuizQuestion }
 
 interface QuizMessageProps {
   questions: QuizQuestion[]
@@ -16,7 +11,7 @@ interface QuizMessageProps {
 
 type AnswerState = 'unanswered' | 'correct' | 'incorrect'
 
-export function QuizMessage({ questions }: QuizMessageProps) {
+export const QuizMessage = memo(function QuizMessage({ questions }: QuizMessageProps) {
   const [selectedAnswers, setSelectedAnswers] = useState<(number | null)[]>(
     new Array(questions.length).fill(null)
   )
@@ -24,26 +19,29 @@ export function QuizMessage({ questions }: QuizMessageProps) {
     new Array(questions.length).fill(false)
   )
 
-  const handleSelect = (questionIndex: number, optionIndex: number) => {
-    if (showResults[questionIndex]) return // Don't allow changes after revealing
+  const handleSelect = useCallback((questionIndex: number, optionIndex: number) => {
+    setSelectedAnswers(prev => {
+      if (showResults[questionIndex]) return prev // Don't allow changes after revealing
+      const newAnswers = [...prev]
+      newAnswers[questionIndex] = optionIndex
+      return newAnswers
+    })
+  }, [showResults])
 
-    const newAnswers = [...selectedAnswers]
-    newAnswers[questionIndex] = optionIndex
-    setSelectedAnswers(newAnswers)
-  }
+  const handleCheck = useCallback((questionIndex: number) => {
+    setShowResults(prev => {
+      const newShowResults = [...prev]
+      newShowResults[questionIndex] = true
+      return newShowResults
+    })
+  }, [])
 
-  const handleCheck = (questionIndex: number) => {
-    const newShowResults = [...showResults]
-    newShowResults[questionIndex] = true
-    setShowResults(newShowResults)
-  }
-
-  const getAnswerState = (questionIndex: number): AnswerState => {
+  const getAnswerState = useCallback((questionIndex: number): AnswerState => {
     if (!showResults[questionIndex]) return 'unanswered'
     return selectedAnswers[questionIndex] === questions[questionIndex].correctIndex
       ? 'correct'
       : 'incorrect'
-  }
+  }, [showResults, selectedAnswers, questions])
 
   const optionLabels = ['A', 'B', 'C', 'D']
 
@@ -69,7 +67,7 @@ export function QuizMessage({ questions }: QuizMessageProps) {
 
         return (
           <div
-            key={qIndex}
+            key={`${q.conceptName}-${qIndex}`}
             className={cn(
               'p-4 rounded-lg border transition-colors',
               answerState === 'correct' && 'border-green-500 bg-green-50 dark:bg-green-950/30',
@@ -171,4 +169,4 @@ export function QuizMessage({ questions }: QuizMessageProps) {
       )}
     </div>
   )
-}
+})

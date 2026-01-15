@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { ChatContainer } from '@/components/chat/ChatContainer'
 import { SettingsDialog } from '@/components/settings/SettingsDialog'
 import { WelcomeScreen } from '@/components/settings/WelcomeScreen'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { ErrorBoundary } from '@/components/ui/error-boundary'
 import { useSettings } from '@/hooks/useSettings'
 import { usePdfs } from '@/hooks/usePdfs'
 
@@ -23,7 +24,7 @@ export default function App() {
     return false
   }
 
-  const handleUpload = async () => {
+  const handleUpload = useCallback(async () => {
     const result = await pdfs.uploadPdf()
     if (!result.success && result.error) {
       if (result.error === 'SCANNED_PDF') {
@@ -36,7 +37,9 @@ export default function App() {
     } else if (result.duplicate) {
       setToast({ message: 'This PDF is already uploaded. Navigating to it.', type: 'info' })
     }
-  }
+  }, [pdfs.uploadPdf])
+
+  const handleOpenSettings = useCallback(() => setSettingsOpen(true), [])
 
   // Auto-dismiss toast
   useEffect(() => {
@@ -84,31 +87,35 @@ export default function App() {
   return (
     <TooltipProvider>
     <div className="h-screen flex">
-      <Sidebar
-        pdfs={pdfs.pdfs}
-        chapters={pdfs.chapters}
-        expandedPdfIds={pdfs.expandedPdfIds}
-        selectedPdfId={pdfs.selectedPdfId}
-        selectedChapterId={pdfs.selectedChapterId}
-        chapterProgress={pdfs.chapterProgress}
-        recentlyCompletedChapters={pdfs.recentlyCompletedChapters}
-        onSelectPdf={pdfs.selectPdf}
-        onDeletePdf={pdfs.deletePdf}
-        onCancelPdf={pdfs.cancelPdfProcessing}
-        onToggleExpand={pdfs.toggleExpanded}
-        onUploadPdf={handleUpload}
-        onOpenSettings={() => setSettingsOpen(true)}
-      />
-      <ChatContainer
-        pdfId={pdfs.selectedPdfId}
-        chapterId={pdfs.selectedChapterId}
-        chapterTitle={pdfs.selectedChapter?.title}
-        chapters={pdfs.selectedPdfId ? pdfs.chapters[pdfs.selectedPdfId] : undefined}
-        status={getDisplayStatus()}
-        progress={getDisplayProgress()}
-        isUploading={pdfs.isUploading}
-        onUpload={handleUpload}
-      />
+      <ErrorBoundary>
+        <Sidebar
+          pdfs={pdfs.pdfs}
+          chapters={pdfs.chapters}
+          expandedPdfIds={pdfs.expandedPdfIds}
+          selectedPdfId={pdfs.selectedPdfId}
+          selectedChapterId={pdfs.selectedChapterId}
+          chapterProgress={pdfs.chapterProgress}
+          recentlyCompletedChapters={pdfs.recentlyCompletedChapters}
+          onSelectPdf={pdfs.selectPdf}
+          onDeletePdf={pdfs.deletePdf}
+          onCancelPdf={pdfs.cancelPdfProcessing}
+          onToggleExpand={pdfs.toggleExpanded}
+          onUploadPdf={handleUpload}
+          onOpenSettings={handleOpenSettings}
+        />
+      </ErrorBoundary>
+      <ErrorBoundary>
+        <ChatContainer
+          pdfId={pdfs.selectedPdfId}
+          chapterId={pdfs.selectedChapterId}
+          chapterTitle={pdfs.selectedChapter?.title}
+          chapters={pdfs.selectedPdfId ? pdfs.chapters[pdfs.selectedPdfId] : undefined}
+          status={getDisplayStatus()}
+          progress={getDisplayProgress()}
+          isUploading={pdfs.isUploading}
+          onUpload={handleUpload}
+        />
+      </ErrorBoundary>
       <SettingsDialog
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
