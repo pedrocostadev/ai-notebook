@@ -40,5 +40,5 @@ Stored in `~/Library/Application Support/ai-notebook/`:
 To remove all user data:
 
 ```bash
-rm -rf ~/Library/Application\ Support/ai-notebook
+rm -rf ~/Library/Application\ Support/AI\ Notebook
 ```
