@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Install — AI Notebook</title>
+  <meta name="description" content="Download and install AI Notebook for macOS, Windows, or Linux.">
+  <link rel="icon" type="image/png" href="icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg-primary: #0f172a;
+      --bg-secondary: #1e293b;
+      --bg-card: #334155;
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --accent: #14b8a6;
+      --accent-dim: #0d9488;
+      --accent-glow: rgba(20, 184, 166, 0.15);
+      --accent-glow-strong: rgba(20, 184, 166, 0.3);
+      --border: rgba(148, 163, 184, 0.1);
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* Navigation */
+    nav {
+      padding: 20px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    nav .container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--text-primary);
+    }
+
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+    }
+
+    .logo-text {
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+
+    .nav-links a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover {
+      color: var(--text-primary);
+    }
+
+    /* Main content */
+    main {
+      padding: 80px 0;
+    }
+
+    h1 {
+      font-family: 'Instrument Serif', Georgia, serif;
+      font-size: 48px;
+      font-weight: 400;
+      margin-bottom: 16px;
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle {
+      font-size: 18px;
+      color: var(--text-secondary);
+      margin-bottom: 32px;
+    }
+
+    /* macOS Alert */
+    .macos-alert {
+      display: none;
+      background: linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(245, 158, 11, 0.05) 100%);
+      border: 1px solid rgba(251, 191, 36, 0.3);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 32px;
+      gap: 16px;
+    }
+
+    .macos-alert.visible {
+      display: flex;
+    }
+
+    .alert-icon {
+      flex-shrink: 0;
+      width: 40px;
+      height: 40px;
+      background: rgba(251, 191, 36, 0.2);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .alert-icon svg {
+      width: 24px;
+      height: 24px;
+      color: #fbbf24;
+    }
+
+    .alert-content {
+      flex: 1;
+    }
+
+    .alert-content h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #fbbf24;
+      margin-bottom: 8px;
+    }
+
+    .alert-content > p {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 12px;
+    }
+
+    .alert-code {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+      font-size: 14px;
+      color: #fbbf24;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .alert-code code {
+      flex: 1;
+    }
+
+    .alert-reason {
+      font-size: 12px !important;
+      color: var(--text-muted) !important;
+      margin-bottom: 0 !important;
+    }
+
+    /* Download cards */
+    .downloads {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-bottom: 48px;
+    }
+
+    .download-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px 24px;
+      transition: border-color 0.2s;
+    }
+
+    .download-card:hover {
+      border-color: var(--accent-glow-strong);
+    }
+
+    .download-card.recommended {
+      border-color: var(--accent);
+      background: linear-gradient(135deg, var(--bg-card) 0%, rgba(20, 184, 166, 0.05) 100%);
+    }
+
+    .download-info {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .download-icon {
+      width: 40px;
+      height: 40px;
+      color: var(--text-secondary);
+    }
+
+    .download-details h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .download-details p {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .download-badge {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--accent);
+      background: var(--accent-glow);
+      padding: 4px 8px;
+      border-radius: 4px;
+      margin-left: 8px;
+    }
+
+    .download-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--accent);
+      color: var(--bg-primary);
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+
+    .download-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 20px var(--accent-glow-strong);
+    }
+
+    .download-btn svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    /* Copy button */
+    .copy-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 4px 8px;
+      font-size: 11px;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .copy-btn:hover {
+      border-color: var(--text-muted);
+      color: var(--text-secondary);
+    }
+
+    .copy-btn.copied {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* Footer */
+    footer {
+      padding: 40px 0;
+      border-top: 1px solid var(--border);
+      margin-top: 80px;
+    }
+
+    footer .container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .footer-text {
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 24px;
+    }
+
+    .footer-links a {
+      font-size: 14px;
+      color: var(--text-secondary);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .footer-links a:hover {
+      color: var(--text-primary);
+    }
+
+    @media (max-width: 600px) {
+      h1 {
+        font-size: 36px;
+      }
+
+      .download-card {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 16px;
+      }
+
+      .download-btn {
+        justify-content: center;
+      }
+
+      footer .container {
+        flex-direction: column;
+        gap: 16px;
+        text-align: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="container">
+      <a href="index.html" class="logo">
+        <img src="icon.png" alt="AI Notebook" class="logo-icon">
+        <span class="logo-text">AI Notebook</span>
+      </a>
+      <div class="nav-links">
+        <a href="index.html">← Back to home</a>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+    <div class="container">
+      <h1>Download AI Notebook</h1>
+      <p class="subtitle">Choose your platform and follow the installation instructions.</p>
+
+      <div class="macos-alert" id="macos-alert">
+        <div class="alert-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+          </svg>
+        </div>
+        <div class="alert-content">
+          <h3>macOS requires an extra step</h3>
+          <p>After installing, open Terminal and run this command:</p>
+          <div class="alert-code">
+            <code>xattr -cr "/Applications/AI Notebook.app"</code>
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          </div>
+          <p class="alert-reason">The app is not code-signed. This removes the macOS quarantine flag.</p>
+        </div>
+      </div>
+
+      <div class="downloads" id="downloads">
+        <!-- Populated by JS -->
+      </div>
+
+          </div>
+  </main>
+
+  <footer>
+    <div class="container">
+      <p class="footer-text">&copy; 2026 AI Notebook</p>
+      <div class="footer-links">
+        <a href="index.html">Home</a>
+        <a href="https://github.com/pedrocostadev/ai-notebook">GitHub</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const REPO = 'pedrocostadev/ai-notebook';
+
+    const downloadIcon = `<svg class="download-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+    </svg>`;
+
+    function detectOS() {
+      const ua = navigator.userAgent;
+      if (ua.includes('Mac')) return 'mac';
+      if (ua.includes('Windows')) return 'windows';
+      if (ua.includes('Linux')) return 'linux';
+      return 'mac';
+    }
+
+    function copyCode(btn) {
+      const code = btn.previousElementSibling.textContent;
+      navigator.clipboard.writeText(code);
+      btn.textContent = 'Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = 'Copy';
+        btn.classList.remove('copied');
+      }, 2000);
+    }
+
+    function renderDownloads(downloads, detectedOS) {
+      const container = document.getElementById('downloads');
+
+      const platforms = [
+        { key: 'mac_arm', name: 'macOS (Apple Silicon)', desc: 'For M1, M2, M3, M4 Macs', os: 'mac' },
+        { key: 'mac_intel', name: 'macOS (Intel)', desc: 'For Intel-based Macs', os: 'mac' },
+        { key: 'windows', name: 'Windows', desc: 'Windows 10 or later', os: 'windows' },
+        { key: 'linux_deb', name: 'Linux (deb)', desc: 'Ubuntu, Debian, and derivatives', os: 'linux' },
+        { key: 'linux_rpm', name: 'Linux (rpm)', desc: 'Fedora, RHEL, and derivatives', os: 'linux' }
+      ];
+
+      // Sort: detected OS first
+      platforms.sort((a, b) => {
+        if (a.os === detectedOS && b.os !== detectedOS) return -1;
+        if (a.os !== detectedOS && b.os === detectedOS) return 1;
+        return 0;
+      });
+
+      container.innerHTML = platforms.map((p, i) => {
+        const isRecommended = i === 0 && p.os === detectedOS;
+        return `
+          <div class="download-card ${isRecommended ? 'recommended' : ''}">
+            <div class="download-info">
+              ${downloadIcon}
+              <div class="download-details">
+                <h3>${p.name}${isRecommended ? '<span class="download-badge">Recommended</span>' : ''}</h3>
+                <p>${p.desc}</p>
+              </div>
+            </div>
+            <a href="${downloads[p.key].url}" class="download-btn" data-os="${p.os}">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+              </svg>
+              Download
+            </a>
+          </div>
+        `;
+      }).join('');
+
+      // Show/hide macOS alert when clicking download
+      container.querySelectorAll('.download-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          if (btn.dataset.os === 'mac') {
+            document.getElementById('macos-alert').classList.add('visible');
+          }
+        });
+      });
+    }
+
+    async function init() {
+      const detectedOS = detectOS();
+
+      // Show macOS alert prominently for Mac users
+      if (detectedOS === 'mac') {
+        document.getElementById('macos-alert').classList.add('visible');
+      }
+
+      try {
+        const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`);
+        if (!res.ok) throw new Error('API error');
+        const data = await res.json();
+        const tag = data.tag_name;
+        const version = tag.replace('v', '');
+
+        const RELEASE_BASE = `https://github.com/${REPO}/releases/download/${tag}/`;
+        const downloads = {
+          mac_arm: { url: RELEASE_BASE + `AI.Notebook-${version}-arm64.dmg` },
+          mac_intel: { url: RELEASE_BASE + `AI.Notebook-${version}-x64.dmg` },
+          windows: { url: RELEASE_BASE + `AI.Notebook-${version}.Setup.exe` },
+          linux_deb: { url: RELEASE_BASE + `ai-notebook_${version}_amd64.deb` },
+          linux_rpm: { url: RELEASE_BASE + `ai-notebook-${version}-1.x86_64.rpm` }
+        };
+
+        renderDownloads(downloads, detectedOS);
+      } catch (e) {
+        // Fallback to releases page
+        const fallback = `https://github.com/${REPO}/releases/latest`;
+        const downloads = {
+          mac_arm: { url: fallback },
+          mac_intel: { url: fallback },
+          windows: { url: fallback },
+          linux_deb: { url: fallback },
+          linux_rpm: { url: fallback }
+        };
+        renderDownloads(downloads, detectedOS);
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

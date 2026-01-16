@@ -9,6 +9,18 @@ Desktop app for chatting with PDFs using RAG (Retrieval-Augmented Generation).
 - **AI**: Google Gemini via AI-SDK
 - **Vector DB**: SQLite + sqlite-vec + FTS5
 
+## Production Installation
+
+### macOS
+
+The app is not code-signed. After installing, run:
+
+```bash
+xattr -cr "/Applications/AI Notebook.app"
+```
+
+Then open the app normally.
+
 ## Development
 
 ```bash

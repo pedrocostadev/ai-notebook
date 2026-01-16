@@ -957,7 +957,7 @@
       <div class="nav-links">
         <a href="#features">Features</a>
         <a href="#how-it-works">How it works</a>
-        <a id="nav-download" href="https://github.com/pedrocostadev/ai-notebook/releases/latest" class="nav-cta">Download</a>
+        <a id="nav-download" href="install.html" class="nav-cta">Download</a>
       </div>
     </div>
   </nav>
@@ -975,7 +975,7 @@
           Upload any book. AI extracts chapters automatically. Ask questions and get answers with source citations. Your library, finally searchable.
         </p>
         <div class="hero-cta">
-          <a id="hero-download" href="https://github.com/pedrocostadev/ai-notebook/releases/latest" class="btn-primary">
+          <a id="hero-download" href="install.html" class="btn-primary">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
             </svg>
@@ -1200,7 +1200,7 @@
           <h2>Ready to chat with your books?</h2>
           <p>Download AI Notebook. No signup required.</p>
           <div class="cta-buttons">
-            <a id="cta-download" href="https://github.com/pedrocostadev/ai-notebook/releases/latest" class="btn-primary">
+            <a id="cta-download" href="install.html" class="btn-primary">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
               </svg>
@@ -1220,93 +1220,12 @@
       <div class="footer-links">
         <a href="#features">Features</a>
         <a href="#how-it-works">How it works</a>
-        <a href="https://github.com/pedrocostadev/ai-notebook/releases/latest">Download</a>
+        <a href="install.html">Download</a>
       </div>
     </div>
   </footer>
 
   <script>
-    // Config
-    const REPO = 'pedrocostadev/ai-notebook';
-    const FALLBACK_URL = `https://github.com/${REPO}/releases/latest`;
-
-    // Detect OS
-    function detectOS() {
-      const ua = navigator.userAgent;
-      if (ua.includes('Mac')) {
-        return 'mac_arm'; // Default to ARM, most new Macs are ARM
-      } else if (ua.includes('Windows')) {
-        return 'windows';
-      } else if (ua.includes('Linux')) {
-        return 'linux_deb';
-      }
-      return 'mac_arm';
-    }
-
-    // Get other platforms HTML
-    function getOtherPlatforms(detected, downloads) {
-      const others = [];
-      if (detected !== 'windows') {
-        others.push(`<a href="${downloads.windows.url}">Windows</a>`);
-      }
-      if (!detected.startsWith('mac')) {
-        others.push(`<a href="${downloads.mac_arm.url}">macOS</a>`);
-      } else {
-        others.push(`<a href="${downloads.mac_intel.url}">Mac (Intel)</a>`);
-      }
-      if (!detected.startsWith('linux')) {
-        others.push(`<a href="${downloads.linux_deb.url}">Linux</a>`);
-      }
-      return 'Also available for ' + others.join(', ');
-    }
-
-    // Update download buttons with URLs
-    function updateDownloadButtons(downloads) {
-      const os = detectOS();
-      const download = downloads[os];
-
-      document.getElementById('nav-download').href = download.url;
-      document.getElementById('hero-download').href = download.url;
-      document.getElementById('hero-download-text').textContent = download.label;
-      document.getElementById('cta-download').href = download.url;
-      document.getElementById('cta-download-text').textContent = download.label;
-      document.getElementById('other-platforms').innerHTML = getOtherPlatforms(os, downloads);
-    }
-
-    // Set fallback URLs (releases page)
-    function setFallbackUrls() {
-      document.getElementById('nav-download').href = FALLBACK_URL;
-      document.getElementById('hero-download').href = FALLBACK_URL;
-      document.getElementById('cta-download').href = FALLBACK_URL;
-    }
-
-    // Fetch latest release and init downloads
-    async function initDownloads() {
-      try {
-        const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`);
-        if (!res.ok) throw new Error('API error');
-        const data = await res.json();
-        const tag = data.tag_name;
-        const version = tag.replace('v', '');
-
-        const RELEASE_BASE = `https://github.com/${REPO}/releases/download/${tag}/`;
-        const downloads = {
-          mac_arm: { url: RELEASE_BASE + `AI.Notebook-${version}-arm64.dmg`, label: 'Download for Mac (Apple Silicon)' },
-          mac_intel: { url: RELEASE_BASE + `AI.Notebook-${version}-x64.dmg`, label: 'Download for Mac (Intel)' },
-          windows: { url: RELEASE_BASE + `AI.Notebook-${version}.Setup.exe`, label: 'Download for Windows' },
-          linux_deb: { url: RELEASE_BASE + `ai-notebook_${version}_amd64.deb`, label: 'Download for Linux (deb)' },
-          linux_rpm: { url: RELEASE_BASE + `ai-notebook-${version}-1.x86_64.rpm`, label: 'Download for Linux (rpm)' }
-        };
-
-        updateDownloadButtons(downloads);
-      } catch (e) {
-        setFallbackUrls();
-      }
-    }
-
-    // Initialize
-    initDownloads();
-
     // Scroll animations
     const observerOptions = {
       threshold: 0.1,
