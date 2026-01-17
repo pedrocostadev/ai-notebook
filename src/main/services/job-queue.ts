@@ -1,6 +1,7 @@
 import { BrowserWindow } from 'electron'
 import {
   getNextPendingJob,
+  getPendingJobs,
   updateJobStatus,
   getChunksByChapterId,
   insertEmbedding,
@@ -14,7 +15,8 @@ import {
   updateChapterSummaryStatus,
   updatePdfMetadata,
   insertConcepts,
-  updateChapterConceptsStatus
+  updateChapterConceptsStatus,
+  type PendingJob
 } from './database'
 import { generateEmbeddings } from './embeddings'
 import { getApiKey } from './settings'
@@ -32,45 +34,113 @@ const MAX_ATTEMPTS = 3
 const BASE_DELAY = 1000
 const BATCH_SIZE = 100
 
-let isProcessing = false
-let processingTimeout: NodeJS.Timeout | null = null
-let currentPdfId: number | null = null
-let currentChapterId: number | null = null
-let cancelRequested = false
+// Parallel processing configuration
+// Process up to 3 chapters concurrently to balance speed vs API rate limits
+const MAX_CONCURRENT_JOBS = 3
+
+// Track active workers by job ID
+const activeWorkers = new Map<number, { pdfId: number; chapterId: number | null }>()
+
+// Track cancel requests per PDF
+const cancelRequestedFor = new Set<number>()
+
+let schedulerTimeout: NodeJS.Timeout | null = null
+let isSchedulerRunning = false
 
 export type ProcessingStage = 'extracting' | 'chunking' | 'embedding'
 
 export function startJobQueue(): void {
-  if (processingTimeout || isProcessing) return
-  processNextJob()
+  if (schedulerTimeout || isSchedulerRunning) return
+  scheduleNextBatch()
 }
 
 export function stopJobQueue(): void {
-  if (processingTimeout) {
-    clearTimeout(processingTimeout)
-    processingTimeout = null
+  if (schedulerTimeout) {
+    clearTimeout(schedulerTimeout)
+    schedulerTimeout = null
   }
-  isProcessing = false
+  isSchedulerRunning = false
 }
 
-async function processNextJob(): Promise<void> {
-  if (isProcessing) return
+/**
+ * Scheduler that fills available worker slots with pending jobs.
+ * Runs periodically to check for new jobs and spawn workers.
+ */
+async function scheduleNextBatch(): Promise<void> {
+  if (isSchedulerRunning) return
+  isSchedulerRunning = true
 
-  const job = getNextPendingJob()
-  if (!job) {
-    processingTimeout = setTimeout(processNextJob, 5000)
-    return
+  try {
+    // Check if API key is available
+    if (!getApiKey()) {
+      schedulerTimeout = setTimeout(scheduleNextBatch, 5000)
+      isSchedulerRunning = false
+      return
+    }
+
+    // Calculate available slots
+    const availableSlots = MAX_CONCURRENT_JOBS - activeWorkers.size
+
+    if (availableSlots <= 0) {
+      // All slots full, wait for workers to finish
+      schedulerTimeout = setTimeout(scheduleNextBatch, 500)
+      isSchedulerRunning = false
+      return
+    }
+
+    // Get pending jobs (up to available slots)
+    const pendingJobs = getPendingJobs(availableSlots)
+
+    if (pendingJobs.length === 0) {
+      // No pending jobs, poll again later
+      schedulerTimeout = setTimeout(scheduleNextBatch, 5000)
+      isSchedulerRunning = false
+      return
+    }
+
+    // Filter out jobs that are already being processed (by chapter or PDF-level jobs)
+    const jobsToProcess = pendingJobs.filter((job) => {
+      // Don't process if this job is already active
+      if (activeWorkers.has(job.id)) return false
+
+      // Don't process if cancel was requested for this PDF
+      if (cancelRequestedFor.has(job.pdf_id)) return false
+
+      // For PDF-level jobs (metadata, consolidate), only run if no other jobs for this PDF are active
+      if (job.chapter_id === null) {
+        for (const [, worker] of activeWorkers) {
+          if (worker.pdfId === job.pdf_id) return false
+        }
+      }
+
+      return true
+    })
+
+    // Spawn workers for each job
+    for (const job of jobsToProcess) {
+      if (activeWorkers.size >= MAX_CONCURRENT_JOBS) break
+
+      // Mark job as active
+      activeWorkers.set(job.id, { pdfId: job.pdf_id, chapterId: job.chapter_id })
+
+      // Spawn worker (don't await - run in parallel)
+      processJob(job).catch((err) => {
+        console.error(`[JobQueue] Unhandled error in worker for job ${job.id}:`, err)
+      })
+    }
+
+    // Schedule next batch check
+    schedulerTimeout = setTimeout(scheduleNextBatch, 100)
+  } finally {
+    isSchedulerRunning = false
   }
+}
 
-  if (!getApiKey()) {
-    processingTimeout = setTimeout(processNextJob, 5000)
-    return
-  }
-
-  isProcessing = true
-  currentPdfId = job.pdf_id
-  currentChapterId = job.chapter_id
-  cancelRequested = false
+/**
+ * Process a single job. Runs as an independent worker.
+ */
+async function processJob(job: PendingJob): Promise<void> {
+  const isCancelled = (): boolean => cancelRequestedFor.has(job.pdf_id)
 
   try {
     updateJobStatus(job.id, 'running')
@@ -85,16 +155,13 @@ async function processNextJob(): Promise<void> {
       // Process chapter (chunk text)
       await processChapter(job.pdf_id, job.chapter_id, fullText, pages, labelMap)
 
-      if (cancelRequested) {
-        currentPdfId = null
-        currentChapterId = null
-        isProcessing = false
-        processingTimeout = setTimeout(processNextJob, 100)
+      if (isCancelled()) {
+        cleanupWorker(job.id)
         return
       }
 
       // Generate embeddings for this chapter's chunks
-      await processChapterEmbeddings(job.pdf_id, job.chapter_id)
+      await processChapterEmbeddings(job.pdf_id, job.chapter_id, isCancelled)
     } else if (job.type === 'summary' && job.chapter_id !== null) {
       // Generate chapter summary using chapter data directly (cached)
       updateChapterSummaryStatus(job.chapter_id, 'processing')
@@ -154,11 +221,8 @@ async function processNextJob(): Promise<void> {
 
       const concepts = await generateChapterConcepts(chunksWithPages)
 
-      if (cancelRequested) {
-        currentPdfId = null
-        currentChapterId = null
-        isProcessing = false
-        processingTimeout = setTimeout(processNextJob, 100)
+      if (isCancelled()) {
+        cleanupWorker(job.id)
         return
       }
 
@@ -188,11 +252,8 @@ async function processNextJob(): Promise<void> {
       })
     }
 
-    if (cancelRequested) {
-      currentPdfId = null
-      currentChapterId = null
-      isProcessing = false
-      processingTimeout = setTimeout(processNextJob, 100)
+    if (isCancelled()) {
+      cleanupWorker(job.id)
       return
     }
 
@@ -207,11 +268,8 @@ async function processNextJob(): Promise<void> {
       checkPdfCompletion(job.pdf_id)
     }
   } catch (err) {
-    if (cancelRequested) {
-      currentPdfId = null
-      currentChapterId = null
-      isProcessing = false
-      processingTimeout = setTimeout(processNextJob, 100)
+    if (isCancelled()) {
+      cleanupWorker(job.id)
       return
     }
 
@@ -233,20 +291,19 @@ async function processNextJob(): Promise<void> {
         updateChapterSummaryStatus(job.chapter_id, 'error', errorMsg)
       }
     } else {
+      // Reset to pending for retry with exponential backoff
       updateJobStatus(job.id, 'pending', errorMsg)
-      const delay = BASE_DELAY * Math.pow(2, job.attempts)
-      currentPdfId = null
-      currentChapterId = null
-      processingTimeout = setTimeout(processNextJob, delay)
-      isProcessing = false
-      return
     }
+  } finally {
+    cleanupWorker(job.id)
   }
+}
 
-  currentPdfId = null
-  currentChapterId = null
-  isProcessing = false
-  processingTimeout = setTimeout(processNextJob, 100)
+/**
+ * Clean up worker state after job completion or cancellation.
+ */
+function cleanupWorker(jobId: number): void {
+  activeWorkers.delete(jobId)
 }
 
 function checkPdfCompletion(pdfId: number): void {
@@ -261,7 +318,11 @@ function checkPdfCompletion(pdfId: number): void {
   }
 }
 
-async function processChapterEmbeddings(pdfId: number, chapterId: number): Promise<void> {
+async function processChapterEmbeddings(
+  pdfId: number,
+  chapterId: number,
+  isCancelled: () => boolean
+): Promise<void> {
   const chunks = getChunksByChapterId(chapterId)
   if (chunks.length === 0) return
 
@@ -278,14 +339,14 @@ async function processChapterEmbeddings(pdfId: number, chapterId: number): Promi
   })
 
   for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
-    if (cancelRequested) return
+    if (isCancelled()) return
 
     const batch = chunks.slice(i, i + BATCH_SIZE)
     const texts = batch.map((c) => c.content)
 
     const embeddings = await generateEmbeddings(texts)
 
-    if (cancelRequested) return
+    if (isCancelled()) return
 
     for (let j = 0; j < batch.length; j++) {
       try {
@@ -391,15 +452,18 @@ export function notifyConceptsProgress(data: ConceptsProgressData): void {
 }
 
 export function isJobProcessing(pdfId: number): boolean {
+  // Check if any active worker is processing this PDF
+  for (const [, worker] of activeWorkers) {
+    if (worker.pdfId === pdfId) return true
+  }
+  // Also check pending jobs
   const job = getNextPendingJob()
   return job?.pdf_id === pdfId
 }
 
 export function cancelProcessing(pdfId: number): boolean {
-  // If this PDF is currently being processed, set cancel flag
-  if (currentPdfId === pdfId) {
-    cancelRequested = true
-  }
+  // Mark this PDF as cancelled (active workers will check this)
+  cancelRequestedFor.add(pdfId)
 
   // Invalidate PDF cache before deletion
   const pdf = getPdf(pdfId)
@@ -410,12 +474,29 @@ export function cancelProcessing(pdfId: number): boolean {
   // Always delete the PDF and associated data (handles stale processing state after app restart)
   deletePdfFile(pdfId)
   deletePdf(pdfId)
+
+  // Clean up cancel request after a delay (allow workers to see it)
+  setTimeout(() => {
+    cancelRequestedFor.delete(pdfId)
+  }, 5000)
+
   return true
 }
 
 // Request cancellation for current PDF without deleting (test-only)
 export function requestCancelForPdf(pdfId: number): void {
-  if (currentPdfId === pdfId) {
-    cancelRequested = true
-  }
+  cancelRequestedFor.add(pdfId)
+  // Clean up after delay
+  setTimeout(() => {
+    cancelRequestedFor.delete(pdfId)
+  }, 5000)
+}
+
+// Export for testing/debugging
+export function getActiveWorkerCount(): number {
+  return activeWorkers.size
+}
+
+export function getMaxConcurrentJobs(): number {
+  return MAX_CONCURRENT_JOBS
 }
