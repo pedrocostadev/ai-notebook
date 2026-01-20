@@ -639,9 +639,9 @@ export function getPendingJobs(limit: number): PendingJob[] {
          CASE type
            WHEN 'embed' THEN 1
            WHEN 'summary' THEN 2
-           WHEN 'concepts' THEN 3
-           WHEN 'metadata' THEN 4
-           WHEN 'consolidate' THEN 5
+           WHEN 'concepts' THEN 2
+           WHEN 'metadata' THEN 3
+           WHEN 'consolidate' THEN 4
          END,
          created_at
        LIMIT ?`
