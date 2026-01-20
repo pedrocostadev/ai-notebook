@@ -22,9 +22,7 @@ export function useCommandExecution({ pdfId, chapterId, onReloadHistory }: UseCo
 
   // Save command result to chat history
   const saveCommandResult = useCallback(async (
-    command: string,
     result: string,
-    _targetChapterId?: number,
     metadata?: object
   ) => {
     if (!pdfId) return
@@ -33,7 +31,7 @@ export function useCommandExecution({ pdfId, chapterId, onReloadHistory }: UseCo
   }, [pdfId, chapterId, onReloadHistory])
 
   // Save user command for feedback
-  const saveUserCommand = useCallback(async (command: string, _targetChapterId?: number) => {
+  const saveUserCommand = useCallback(async (command: string) => {
     if (!pdfId) return
     await window.api.saveMessage(pdfId, chapterId, 'user', command)
     onReloadHistory()
@@ -44,13 +42,13 @@ export function useCommandExecution({ pdfId, chapterId, onReloadHistory }: UseCo
     const chapterToUse = targetChapterId ?? chapterId
     const result = await window.api.getChapterSummary(chapterToUse!)
     if ('summary' in result) {
-      await saveCommandResult('/summary', result.summary, chapterToUse!)
+      await saveCommandResult(result.summary)
     } else if ('empty' in result) {
-      await saveCommandResult('/summary', 'This chapter doesn\'t have enough content to generate a summary (e.g., preface, acknowledgments, or table of contents).', chapterToUse!)
+      await saveCommandResult('This chapter doesn\'t have enough content to generate a summary (e.g., preface, acknowledgments, or table of contents).')
     } else if ('pending' in result) {
-      await saveCommandResult('/summary', 'Summary is still being generated. Please try again later.', chapterToUse!)
+      await saveCommandResult('Summary is still being generated. Please try again later.')
     } else {
-      await saveCommandResult('/summary', `Error: ${result.error}`, chapterToUse!)
+      await saveCommandResult(`Error: ${result.error}`)
     }
   }, [chapterId, saveCommandResult])
 
@@ -70,11 +68,11 @@ export function useCommandExecution({ pdfId, chapterId, onReloadHistory }: UseCo
         `**Language:** ${meta.language ?? 'Not found'}`,
         `**Subject:** ${meta.subject ?? 'Not found'}`
       ]
-      await saveCommandResult('/book_meta_data', lines.join('\n'))
+      await saveCommandResult(lines.join('\n'))
     } else if ('pending' in result) {
-      await saveCommandResult('/book_meta_data', 'Metadata is still being extracted. Please try again later.')
+      await saveCommandResult('Metadata is still being extracted. Please try again later.')
     } else {
-      await saveCommandResult('/book_meta_data', `Error: ${result.error}`)
+      await saveCommandResult(`Error: ${result.error}`)
     }
   }, [pdfId, saveCommandResult])
 
@@ -88,40 +86,28 @@ export function useCommandExecution({ pdfId, chapterId, onReloadHistory }: UseCo
       const result = await window.api.getDocumentConcepts(pdfId, true)
       if ('concepts' in result) {
         if (result.concepts.length === 0) {
-          await saveCommandResult('/key-concepts', 'No key concepts have been extracted for this document yet.')
+          await saveCommandResult('No key concepts have been extracted for this document yet.')
         } else {
-          const concepts = result.concepts.map((c) => ({
-            name: c.name,
-            definition: c.definition,
-            importance: c.importance,
-            quotes: c.quotes
-          }))
-          await saveCommandResult('/key-concepts', '', undefined, { concepts, isDocumentLevel: true })
+          await saveCommandResult('', { concepts: result.concepts, isDocumentLevel: true })
         }
       } else if ('pending' in result) {
-        await saveCommandResult('/key-concepts', 'Key concepts are still being extracted. Please try again later.')
+        await saveCommandResult('Key concepts are still being extracted. Please try again later.')
       } else {
-        await saveCommandResult('/key-concepts', `Error: ${result.error}`)
+        await saveCommandResult(`Error: ${result.error}`)
       }
     } else {
       // Chapter concepts
       const result = await window.api.getChapterConcepts(chapterToUse)
       if ('concepts' in result) {
         if (result.concepts.length === 0) {
-          await saveCommandResult('/key-concepts', 'This chapter doesn\'t contain key concepts to extract (e.g., preface, acknowledgments, or index).', chapterToUse)
+          await saveCommandResult('This chapter doesn\'t contain key concepts to extract (e.g., preface, acknowledgments, or index).')
         } else {
-          const concepts = result.concepts.map((c) => ({
-            name: c.name,
-            definition: c.definition,
-            importance: c.importance,
-            quotes: c.quotes
-          }))
-          await saveCommandResult('/key-concepts', '', chapterToUse, { concepts, isDocumentLevel: false })
+          await saveCommandResult('', { concepts: result.concepts, isDocumentLevel: false })
         }
       } else if ('pending' in result) {
-        await saveCommandResult('/key-concepts', 'Key concepts are still being extracted. Please try again later.', chapterToUse)
+        await saveCommandResult('Key concepts are still being extracted. Please try again later.')
       } else {
-        await saveCommandResult('/key-concepts', `Error: ${result.error}`, chapterToUse)
+        await saveCommandResult(`Error: ${result.error}`)
       }
     }
   }, [pdfId, chapterId, saveCommandResult])
@@ -133,13 +119,13 @@ export function useCommandExecution({ pdfId, chapterId, onReloadHistory }: UseCo
     const result = await window.api.generateQuiz(pdfId, chapterToUse)
 
     if ('questions' in result) {
-      await saveCommandResult('/test-my-knowledge', '', chapterToUse ?? undefined, { quiz: result.questions })
+      await saveCommandResult('', { quiz: result.questions })
     } else if ('empty' in result) {
-      await saveCommandResult('/test-my-knowledge', 'This chapter doesn\'t have key concepts to generate a quiz from (e.g., preface, acknowledgments, or index).', chapterToUse ?? undefined)
+      await saveCommandResult('This chapter doesn\'t have key concepts to generate a quiz from (e.g., preface, acknowledgments, or index).')
     } else if ('pending' in result) {
-      await saveCommandResult('/test-my-knowledge', 'Key concepts are still being extracted. Please try again later.', chapterToUse ?? undefined)
+      await saveCommandResult('Key concepts are still being extracted. Please try again later.')
     } else {
-      await saveCommandResult('/test-my-knowledge', `Error: ${result.error}`, chapterToUse ?? undefined)
+      await saveCommandResult(`Error: ${result.error}`)
     }
   }, [pdfId, chapterId, saveCommandResult])
 
@@ -162,7 +148,7 @@ export function useCommandExecution({ pdfId, chapterId, onReloadHistory }: UseCo
     setIsExecuting(true)
     setLoadingMessage(message)
 
-    await saveUserCommand(command.name, targetChapterId)
+    await saveUserCommand(command.name)
 
     try {
       switch (command.name) {

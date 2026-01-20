@@ -105,6 +105,16 @@ export const ChatContainer = memo(function ChatContainer({ pdfId, chapterId, cha
     return 'Ask a question about this book...'
   }
 
+  function getProcessingMessage(): string {
+    if (isChapterView) {
+      return progress ? formatProgressDetails(progress) : 'Processing...'
+    }
+    if (totalChapters > 0) {
+      return `Processing chapter ${processingChapterIndex} of ${totalChapters}`
+    }
+    return 'Processing...'
+  }
+
   const isDone = status === 'done'
 
   const showHeader = (isChapterView && chapterTitle) || (!isChapterView && isDone)
@@ -160,13 +170,7 @@ export const ChatContainer = memo(function ChatContainer({ pdfId, chapterId, cha
       {isProcessing && (
         <div data-testid="processing-indicator" className="px-4 py-3 bg-muted/40 border-b flex items-center gap-3 text-sm">
           <Loader2 className="h-4 w-4 animate-spin text-primary" />
-          <span className="text-muted-foreground">
-            {isChapterView
-              ? (progress ? formatProgressDetails(progress) : 'Processing...')
-              : (totalChapters > 0
-                  ? `Processing chapter ${processingChapterIndex} of ${totalChapters}`
-                  : 'Processing...')}
-          </span>
+          <span className="text-muted-foreground">{getProcessingMessage()}</span>
         </div>
       )}
       {hasError && (

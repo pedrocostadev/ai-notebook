@@ -1,4 +1,4 @@
-import { createGoogleGenerativeAI } from '@ai-sdk/google'
+import { createGoogleGenerativeAI, type GoogleGenerativeAIProvider } from '@ai-sdk/google'
 import { generateText, generateObject } from 'ai'
 import { z } from 'zod'
 import { getApiKey, getChatModel } from './settings'
@@ -17,6 +17,17 @@ import {
   deleteConceptsByPdfId,
   type ConceptQuote
 } from './database'
+
+function getGoogleProvider(): { google: GoogleGenerativeAIProvider; modelId: string } {
+  const apiKey = getApiKey()
+  if (!apiKey) {
+    throw new Error('API key not configured')
+  }
+  return {
+    google: createGoogleGenerativeAI({ apiKey }),
+    modelId: getChatModel()
+  }
+}
 
 export const PdfMetadataSchema = z.object({
   title: z.string().nullable().describe('The title of the book/document'),
@@ -39,19 +50,13 @@ export async function generateChapterSummary(chapterText: string): Promise<strin
     return null
   }
 
-  const apiKey = getApiKey()
-  if (!apiKey) {
-    throw new Error('API key not configured')
-  }
-
-  const chatModel = getChatModel()
-  const google = createGoogleGenerativeAI({ apiKey })
+  const { google, modelId } = getGoogleProvider()
 
   // Limit text to avoid token limits (roughly 100k chars = ~25k tokens)
   const truncatedText = chapterText.slice(0, 100000)
 
   const { text } = await generateText({
-    model: google(chatModel),
+    model: google(modelId),
     system: `You are an expert at summarizing academic and technical content.
 Create a detailed, comprehensive summary of the chapter provided.
 The summary should:
@@ -67,19 +72,13 @@ The summary should:
 }
 
 export async function generatePdfMetadata(pdfText: string): Promise<PdfMetadata> {
-  const apiKey = getApiKey()
-  if (!apiKey) {
-    throw new Error('API key not configured')
-  }
-
-  const chatModel = getChatModel()
-  const google = createGoogleGenerativeAI({ apiKey })
+  const { google, modelId } = getGoogleProvider()
 
   // Use only first portion of text (title page, copyright, etc. are usually at start)
   const textForMetadata = pdfText.slice(0, 20000)
 
   const { object } = await generateObject({
-    model: google(chatModel),
+    model: google(modelId),
     schema: PdfMetadataSchema,
     system: `You are an expert at extracting bibliographic metadata from documents.
 Extract metadata from the provided text, which typically comes from the beginning of a book or document.
@@ -103,13 +102,7 @@ export interface ChunkWithPage {
 }
 
 export async function generateChapterConcepts(chunks: ChunkWithPage[]): Promise<Concept[]> {
-  const apiKey = getApiKey()
-  if (!apiKey) {
-    throw new Error('API key not configured')
-  }
-
-  const chatModel = getChatModel()
-  const google = createGoogleGenerativeAI({ apiKey })
+  const { google, modelId } = getGoogleProvider()
 
   // Format chunks with page markers for the AI
   const formattedText = chunks
@@ -127,7 +120,7 @@ export async function generateChapterConcepts(chunks: ChunkWithPage[]): Promise<
 
   try {
     const { object } = await generateObject({
-      model: google(chatModel),
+      model: google(modelId),
       schema: ChapterConceptsSchema,
       system: `You are an expert at extracting key concepts from educational content.
 Extract 10-20 key concepts from the chapter provided.
@@ -166,16 +159,13 @@ Order concepts by importance (highest first).`,
 }
 
 export async function consolidatePdfConcepts(pdfId: number): Promise<void> {
-  const apiKey = getApiKey()
-  if (!apiKey) {
-    throw new Error('API key not configured')
-  }
-
   // Get all chapter concepts (non-consolidated)
   const allConcepts = getConceptsByPdfId(pdfId, false).filter((c) => !c.is_consolidated)
   if (allConcepts.length === 0) {
     return
   }
+
+  const { google, modelId } = getGoogleProvider()
 
   // Get chapters for context
   const chapters = getChaptersByPdfId(pdfId)
@@ -195,15 +185,12 @@ export async function consolidatePdfConcepts(pdfId: number): Promise<void> {
     })
   }
 
-  const chatModel = getChatModel()
-  const google = createGoogleGenerativeAI({ apiKey })
-
   // Truncate if too many concepts (to fit in context)
   const conceptsJson = JSON.stringify(conceptsByChapter)
   const truncatedJson = conceptsJson.slice(0, 80000)
 
   const { object } = await generateObject({
-    model: google(chatModel),
+    model: google(modelId),
     schema: ConsolidatedConceptsSchema,
     system: `You consolidate chapter-level concepts into document-level concepts.
 Given concepts from multiple chapters:
@@ -235,17 +222,11 @@ Given concepts from multiple chapters:
 export async function generateQuizQuestions(
   concepts: Array<{ name: string; definition: string; importance: number; quotes: Array<{ text: string }> }>
 ): Promise<QuizQuestion[]> {
-  const apiKey = getApiKey()
-  if (!apiKey) {
-    throw new Error('API key not configured')
-  }
-
   if (concepts.length === 0) {
     return []
   }
 
-  const chatModel = getChatModel()
-  const google = createGoogleGenerativeAI({ apiKey })
+  const { google, modelId } = getGoogleProvider()
 
   // Build concept summary for prompt
   const conceptSummary = concepts
@@ -257,7 +238,7 @@ export async function generateQuizQuestions(
     .join('\n\n')
 
   const { object } = await generateObject({
-    model: google(chatModel),
+    model: google(modelId),
     schema: QuizSchema,
     system: `You are an expert at creating educational assessments.
 Create multiple choice questions that test understanding of the provided concepts.

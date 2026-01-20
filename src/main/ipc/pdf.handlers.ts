@@ -5,31 +5,55 @@ import { processPdf, deletePdfFile } from '../services/pdf-processor'
 import { startJobQueue, cancelProcessing, requestCancelForPdf } from '../services/job-queue'
 import { parseOutlineFromPdf } from '../services/toc-parser'
 
+type PdfUploadResult = { id: number } | { error: string } | null
+
+async function handlePdfUpload(filePath: string, password?: string): Promise<PdfUploadResult> {
+  try {
+    const processResult = await processPdf(filePath, password)
+    startJobQueue()
+    return processResult
+  } catch (err) {
+    if (err instanceof Error) {
+      if (err.message === 'PASSWORD_REQUIRED') {
+        return { error: 'PASSWORD_REQUIRED' }
+      }
+      if (err.message === 'SCANNED_PDF') {
+        return { error: 'SCANNED_PDF' }
+      }
+      return { error: err.message }
+    }
+    return { error: 'Unknown error' }
+  }
+}
+
+function openPdfAtPageMacOS(filepath: string, pageNumber: number): void {
+  const script = `
+    tell application "Preview"
+      activate
+      open POSIX file "${filepath}"
+      delay 0.5
+      tell application "System Events"
+        keystroke "g" using {option down, command down}
+        delay 0.2
+        keystroke "${pageNumber}"
+        delay 0.1
+        keystroke return
+      end tell
+    end tell
+  `
+  spawn('osascript', ['-e', script], { detached: true, stdio: 'ignore' }).unref()
+}
+
 export function registerPdfHandlers(): void {
   // Test-only: Direct file upload without dialog
   ipcMain.handle('pdf:upload-file', async (_, filePath: string) => {
     if (process.env.NODE_ENV !== 'test') {
       return { error: 'Not allowed outside test environment' }
     }
-    try {
-      const processResult = await processPdf(filePath)
-      startJobQueue()
-      return processResult
-    } catch (err) {
-      if (err instanceof Error) {
-        if (err.message === 'PASSWORD_REQUIRED') {
-          return { error: 'PASSWORD_REQUIRED' }
-        }
-        if (err.message === 'SCANNED_PDF') {
-          return { error: 'SCANNED_PDF' }
-        }
-        return { error: err.message }
-      }
-      return { error: 'Unknown error' }
-    }
+    return handlePdfUpload(filePath)
   })
 
-  ipcMain.handle('pdf:upload', async (event) => {
+  ipcMain.handle('pdf:upload', async () => {
     const result = await dialog.showOpenDialog({
       properties: ['openFile'],
       filters: [{ name: 'PDF', extensions: ['pdf'] }]
@@ -39,37 +63,11 @@ export function registerPdfHandlers(): void {
       return null
     }
 
-    const filePath = result.filePaths[0]
-
-    try {
-      const processResult = await processPdf(filePath)
-      startJobQueue()
-      return processResult
-    } catch (err) {
-      if (err instanceof Error) {
-        if (err.message === 'PASSWORD_REQUIRED') {
-          return { error: 'PASSWORD_REQUIRED' }
-        }
-        if (err.message === 'SCANNED_PDF') {
-          return { error: 'SCANNED_PDF' }
-        }
-        return { error: err.message }
-      }
-      return { error: 'Unknown error' }
-    }
+    return handlePdfUpload(result.filePaths[0])
   })
 
   ipcMain.handle('pdf:upload-with-password', async (_, filePath: string, password: string) => {
-    try {
-      const processResult = await processPdf(filePath, password)
-      startJobQueue()
-      return processResult
-    } catch (err) {
-      if (err instanceof Error) {
-        return { error: err.message }
-      }
-      return { error: 'Unknown error' }
-    }
+    return handlePdfUpload(filePath, password)
   })
 
   ipcMain.handle('pdf:list', () => {
@@ -142,28 +140,10 @@ export function registerPdfHandlers(): void {
     const startPage = chapter.start_page ?? 1
 
     try {
-      // On macOS, use skim or Preview with page parameter
       if (process.platform === 'darwin') {
-        // Try to open with Preview at specific page using AppleScript
-        const script = `
-          tell application "Preview"
-            activate
-            open POSIX file "${pdf.filepath}"
-            delay 0.5
-            tell application "System Events"
-              keystroke "g" using {option down, command down}
-              delay 0.2
-              keystroke "${startPage}"
-              delay 0.1
-              keystroke return
-            end tell
-          end tell
-        `
-        spawn('osascript', ['-e', script], { detached: true, stdio: 'ignore' }).unref()
+        openPdfAtPageMacOS(pdf.filepath, startPage)
         return { success: true, page: startPage }
       }
-
-      // Fallback: just open the PDF
       await shell.openPath(pdf.filepath)
       return { success: true, page: startPage }
     } catch (err) {
@@ -191,27 +171,10 @@ export function registerPdfHandlers(): void {
     }
 
     try {
-      // On macOS, use Preview with page parameter via AppleScript
       if (process.platform === 'darwin') {
-        const script = `
-          tell application "Preview"
-            activate
-            open POSIX file "${pdf.filepath}"
-            delay 0.5
-            tell application "System Events"
-              keystroke "g" using {option down, command down}
-              delay 0.2
-              keystroke "${pageNumber}"
-              delay 0.1
-              keystroke return
-            end tell
-          end tell
-        `
-        spawn('osascript', ['-e', script], { detached: true, stdio: 'ignore' }).unref()
+        openPdfAtPageMacOS(pdf.filepath, pageNumber)
         return { success: true, page: pageNumber }
       }
-
-      // Fallback: just open the PDF
       await shell.openPath(pdf.filepath)
       return { success: true, page: pageNumber }
     } catch (err) {

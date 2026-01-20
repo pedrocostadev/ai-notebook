@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useMemo } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 
 export interface SlashCommand {
@@ -14,6 +14,12 @@ export const SLASH_COMMANDS: SlashCommand[] = [
   { name: '/test-my-knowledge', description: 'Test your knowledge with a quiz', scope: 'chapter' }
 ]
 
+export function getFilteredCommands(filter: string): SlashCommand[] {
+  return SLASH_COMMANDS.filter((cmd) =>
+    cmd.name.toLowerCase().includes(filter.toLowerCase())
+  )
+}
+
 interface SlashCommandMenuProps {
   filter: string
   selectedIndex: number
@@ -24,9 +30,7 @@ interface SlashCommandMenuProps {
 export function SlashCommandMenu({ filter, selectedIndex, onSelect, visible }: SlashCommandMenuProps) {
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([])
 
-  const filteredCommands = SLASH_COMMANDS.filter((cmd) =>
-    cmd.name.toLowerCase().includes(filter.toLowerCase())
-  )
+  const filteredCommands = useMemo(() => getFilteredCommands(filter), [filter])
 
   useEffect(() => {
     if (visible && itemRefs.current[selectedIndex]) {
@@ -64,11 +68,5 @@ export function SlashCommandMenu({ filter, selectedIndex, onSelect, visible }: S
         </ScrollArea>
       </div>
     </div>
-  )
-}
-
-export function getFilteredCommands(filter: string): SlashCommand[] {
-  return SLASH_COMMANDS.filter((cmd) =>
-    cmd.name.toLowerCase().includes(filter.toLowerCase())
   )
 }

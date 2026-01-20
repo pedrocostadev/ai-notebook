@@ -294,17 +294,19 @@ async function processJob(job: PendingJob): Promise<void> {
 
     if (job.attempts + 1 >= MAX_ATTEMPTS) {
       updateJobStatus(job.id, 'failed', errorMsg)
-      // Only update chapter status for embed jobs (the primary processing job)
-      if (job.type === 'embed' && job.chapter_id !== null) {
-        updateChapterStatus(job.chapter_id, 'error', errorMsg)
-      }
-      // Update concepts status separately (non-blocking for chapter status)
-      if (job.type === 'concepts' && job.chapter_id !== null) {
-        updateChapterConceptsStatus(job.chapter_id, 'error', errorMsg)
-      }
-      // Update summary status separately (non-blocking for chapter status)
-      if (job.type === 'summary' && job.chapter_id !== null) {
-        updateChapterSummaryStatus(job.chapter_id, 'error', errorMsg)
+      // Update job-specific status if chapter-scoped
+      if (job.chapter_id !== null) {
+        switch (job.type) {
+          case 'embed':
+            updateChapterStatus(job.chapter_id, 'error', errorMsg)
+            break
+          case 'concepts':
+            updateChapterConceptsStatus(job.chapter_id, 'error', errorMsg)
+            break
+          case 'summary':
+            updateChapterSummaryStatus(job.chapter_id, 'error', errorMsg)
+            break
+        }
       }
     } else {
       // Reset to pending for retry with exponential backoff

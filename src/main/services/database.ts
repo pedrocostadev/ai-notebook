@@ -3,6 +3,69 @@ import { app } from 'electron'
 import { join } from 'path'
 import { existsSync, mkdirSync } from 'fs'
 
+// Row types for database queries
+export interface PdfRow {
+  id: number
+  filename: string
+  filepath: string
+  status: string
+  page_count: number | null
+  error_message: string | null
+  created_at: string
+}
+
+export interface PdfListRow {
+  id: number
+  filename: string
+  status: string
+  created_at: string
+  title: string | null
+}
+
+export interface ChapterRow {
+  id: number
+  pdf_id: number
+  title: string
+  chapter_index: number
+  start_idx: number
+  end_idx: number
+  start_page: number | null
+  status: string
+  error_message: string | null
+}
+
+export interface ChapterListRow {
+  id: number
+  pdf_id: number
+  title: string
+  chapter_index: number
+  start_page: number | null
+  is_auxiliary: boolean
+  status: string
+  error_message: string | null
+  summary_status: string | null
+  concepts_status: string | null
+}
+
+export interface ChunkRow {
+  id: number
+  chapter_id: number | null
+  chunk_index: number
+  content: string
+  heading: string | null
+  page_start: number
+  page_end: number
+  token_count: number
+}
+
+export interface MessageRow {
+  id: number
+  role: string
+  content: string
+  metadata: string | null
+  created_at: string
+}
+
 let db: Database.Database | null = null
 
 export function getDb(): Database.Database {
@@ -139,41 +202,13 @@ export async function initDatabase(): Promise<void> {
     );
   `)
 
-  // Migrations for existing databases
+  // Migrations for existing databases (ALTER TABLE only - CREATE statements are in main schema)
   const migrations = [
     'ALTER TABLE pdfs ADD COLUMN metadata JSON',
     'ALTER TABLE chapters ADD COLUMN summary TEXT',
     'ALTER TABLE chapters ADD COLUMN concepts_status TEXT DEFAULT NULL',
     'ALTER TABLE chapters ADD COLUMN concepts_error TEXT DEFAULT NULL',
     'ALTER TABLE chapters ADD COLUMN is_auxiliary BOOLEAN DEFAULT FALSE',
-    `CREATE TABLE IF NOT EXISTS concepts (
-      id INTEGER PRIMARY KEY,
-      pdf_id INTEGER REFERENCES pdfs(id) ON DELETE CASCADE,
-      chapter_id INTEGER REFERENCES chapters(id) ON DELETE CASCADE,
-      name TEXT NOT NULL,
-      definition TEXT NOT NULL,
-      importance INTEGER CHECK(importance BETWEEN 1 AND 5),
-      quotes JSON,
-      is_consolidated BOOLEAN DEFAULT FALSE,
-      source_concept_ids JSON,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`,
-    'CREATE INDEX IF NOT EXISTS idx_concepts_pdf ON concepts(pdf_id)',
-    'CREATE INDEX IF NOT EXISTS idx_concepts_chapter ON concepts(chapter_id)',
-    // Performance indexes for common queries
-    'CREATE INDEX IF NOT EXISTS idx_chunks_chapter ON chunks(chapter_id)',
-    'CREATE INDEX IF NOT EXISTS idx_chapters_pdf ON chapters(pdf_id)',
-    'CREATE INDEX IF NOT EXISTS idx_messages_pdf_chapter ON messages(pdf_id, chapter_id)',
-    'CREATE INDEX IF NOT EXISTS idx_jobs_status_created ON jobs(status, created_at)',
-    `CREATE TABLE IF NOT EXISTS conversation_summaries (
-      id INTEGER PRIMARY KEY,
-      pdf_id INTEGER REFERENCES pdfs(id) ON DELETE CASCADE,
-      chapter_id INTEGER REFERENCES chapters(id) ON DELETE CASCADE,
-      summary TEXT NOT NULL,
-      last_message_id INTEGER NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      UNIQUE(pdf_id, chapter_id)
-    )`,
     'ALTER TABLE chapters ADD COLUMN summary_status TEXT DEFAULT NULL',
     'ALTER TABLE chapters ADD COLUMN summary_error TEXT DEFAULT NULL'
   ]
@@ -254,33 +289,11 @@ export function getPdfByHash(hash: string): { id: number; filename: string } | u
     .get(hash) as { id: number; filename: string } | undefined
 }
 
-export function getPdf(id: number): {
-  id: number
-  filename: string
-  filepath: string
-  status: string
-  page_count: number | null
-  error_message: string | null
-  created_at: string
-} | undefined {
-  return getDb().prepare('SELECT * FROM pdfs WHERE id = ?').get(id) as {
-    id: number
-    filename: string
-    filepath: string
-    status: string
-    page_count: number | null
-    error_message: string | null
-    created_at: string
-  } | undefined
+export function getPdf(id: number): PdfRow | undefined {
+  return getDb().prepare('SELECT * FROM pdfs WHERE id = ?').get(id) as PdfRow | undefined
 }
 
-export function getAllPdfs(): {
-  id: number
-  filename: string
-  status: string
-  created_at: string
-  title: string | null
-}[] {
+export function getAllPdfs(): PdfListRow[] {
   const rows = getDb()
     .prepare('SELECT id, filename, status, created_at, metadata FROM pdfs ORDER BY created_at DESC')
     .all() as { id: number; filename: string; status: string; created_at: string; metadata: string | null }[]
@@ -293,13 +306,7 @@ export function getAllPdfs(): {
         title = meta.title || null
       } catch { /* ignore parse errors */ }
     }
-    return {
-      id: row.id,
-      filename: row.filename,
-      status: row.status,
-      created_at: row.created_at,
-      title
-    }
+    return { id: row.id, filename: row.filename, status: row.status, created_at: row.created_at, title }
   })
 }
 
@@ -338,59 +345,15 @@ export function insertChapter(
   return result.lastInsertRowid as number
 }
 
-export function getChaptersByPdfId(pdfId: number, excludeAuxiliary: boolean = false): {
-  id: number
-  pdf_id: number
-  title: string
-  chapter_index: number
-  start_page: number | null
-  is_auxiliary: boolean
-  status: string
-  error_message: string | null
-  summary_status: string | null
-  concepts_status: string | null
-}[] {
+export function getChaptersByPdfId(pdfId: number, excludeAuxiliary: boolean = false): ChapterListRow[] {
   const query = excludeAuxiliary
     ? 'SELECT id, pdf_id, title, chapter_index, start_page, is_auxiliary, status, error_message, summary_status, concepts_status FROM chapters WHERE pdf_id = ? AND is_auxiliary = 0 ORDER BY chapter_index'
     : 'SELECT id, pdf_id, title, chapter_index, start_page, is_auxiliary, status, error_message, summary_status, concepts_status FROM chapters WHERE pdf_id = ? ORDER BY chapter_index'
-  return getDb()
-    .prepare(query)
-    .all(pdfId) as {
-    id: number
-    pdf_id: number
-    title: string
-    chapter_index: number
-    start_page: number | null
-    is_auxiliary: boolean
-    status: string
-    error_message: string | null
-    summary_status: string | null
-    concepts_status: string | null
-  }[]
+  return getDb().prepare(query).all(pdfId) as ChapterListRow[]
 }
 
-export function getChapter(id: number): {
-  id: number
-  pdf_id: number
-  title: string
-  chapter_index: number
-  start_idx: number
-  end_idx: number
-  start_page: number | null
-  status: string
-  error_message: string | null
-} | undefined {
-  return getDb().prepare('SELECT * FROM chapters WHERE id = ?').get(id) as {
-    id: number
-    pdf_id: number
-    title: string
-    chapter_index: number
-    start_idx: number
-    end_idx: number
-    start_page: number | null
-    status: string
-    error_message: string | null
-  } | undefined
+export function getChapter(id: number): ChapterRow | undefined {
+  return getDb().prepare('SELECT * FROM chapters WHERE id = ?').get(id) as ChapterRow | undefined
 }
 
 export function updateChapterStatus(id: number, status: string, errorMessage?: string): void {
@@ -491,68 +454,20 @@ export function insertChunk(
   return result.lastInsertRowid as number
 }
 
-export function getChunksByPdfId(pdfId: number): {
-  id: number
-  chapter_id: number | null
-  chunk_index: number
-  content: string
-  heading: string | null
-  page_start: number
-  page_end: number
-  token_count: number
-}[] {
-  return getDb().prepare('SELECT * FROM chunks WHERE pdf_id = ? ORDER BY chunk_index').all(pdfId) as {
-    id: number
-    chapter_id: number | null
-    chunk_index: number
-    content: string
-    heading: string | null
-    page_start: number
-    page_end: number
-    token_count: number
-  }[]
+export function getChunksByPdfId(pdfId: number): ChunkRow[] {
+  return getDb().prepare('SELECT * FROM chunks WHERE pdf_id = ? ORDER BY chunk_index').all(pdfId) as ChunkRow[]
 }
 
-export function getChunksByChapterId(chapterId: number): {
-  id: number
-  chunk_index: number
-  content: string
-  heading: string | null
-  page_start: number
-  page_end: number
-  token_count: number
-}[] {
-  return getDb().prepare('SELECT * FROM chunks WHERE chapter_id = ? ORDER BY chunk_index').all(chapterId) as {
-    id: number
-    chunk_index: number
-    content: string
-    heading: string | null
-    page_start: number
-    page_end: number
-    token_count: number
-  }[]
+export function getChunksByChapterId(chapterId: number): Omit<ChunkRow, 'chapter_id'>[] {
+  return getDb().prepare('SELECT * FROM chunks WHERE chapter_id = ? ORDER BY chunk_index').all(chapterId) as Omit<ChunkRow, 'chapter_id'>[]
 }
 
-export function getChunksByIds(ids: number[]): {
-  id: number
-  content: string
-  heading: string | null
-  page_start: number
-  page_end: number
-  token_count: number
-}[] {
+export function getChunksByIds(ids: number[]): Omit<ChunkRow, 'chapter_id' | 'chunk_index'>[] {
   if (ids.length === 0) return []
   const placeholders = ids.map(() => '?').join(',')
   return getDb()
     .prepare(`SELECT id, content, heading, page_start, page_end, token_count FROM chunks WHERE id IN (${placeholders})`)
-    .all(...ids) as {
-    id: number
-    content: string
-    heading: string | null
-    page_start: number
-    page_end: number
-    token_count: number
-  }[]
+    .all(...ids) as Omit<ChunkRow, 'chapter_id' | 'chunk_index'>[]
 }
 
 // Messages CRUD
@@ -571,21 +486,15 @@ export function insertMessage(
   return result.lastInsertRowid as number
 }
 
-export function getMessagesByPdfId(pdfId: number, chapterId: number | null = null): {
-  id: number
-  role: string
-  content: string
-  metadata: string | null
-  created_at: string
-}[] {
+export function getMessagesByPdfId(pdfId: number, chapterId: number | null = null): MessageRow[] {
   if (chapterId === null) {
     return getDb()
       .prepare('SELECT * FROM messages WHERE pdf_id = ? AND chapter_id IS NULL ORDER BY created_at')
-      .all(pdfId) as { id: number; role: string; content: string; metadata: string | null; created_at: string }[]
+      .all(pdfId) as MessageRow[]
   }
   return getDb()
     .prepare('SELECT * FROM messages WHERE pdf_id = ? AND chapter_id = ? ORDER BY created_at')
-    .all(pdfId, chapterId) as { id: number; role: string; content: string; metadata: string | null; created_at: string }[]
+    .all(pdfId, chapterId) as MessageRow[]
 }
 
 // Jobs CRUD
@@ -600,13 +509,15 @@ export function insertJob(pdfId: number, chapterId: number | null, type: JobType
   return result.lastInsertRowid as number
 }
 
-export function getNextPendingJob(): {
+export type PendingJob = {
   id: number
   pdf_id: number
   chapter_id: number | null
   type: string
   attempts: number
-} | undefined {
+}
+
+export function getNextPendingJob(): PendingJob | undefined {
   return getDb()
     .prepare(
       `SELECT id, pdf_id, chapter_id, type, attempts FROM jobs
@@ -614,15 +525,7 @@ export function getNextPendingJob(): {
        ORDER BY created_at
        LIMIT 1`
     )
-    .get() as { id: number; pdf_id: number; chapter_id: number | null; type: string; attempts: number } | undefined
-}
-
-export type PendingJob = {
-  id: number
-  pdf_id: number
-  chapter_id: number | null
-  type: string
-  attempts: number
+    .get() as PendingJob | undefined
 }
 
 /**
