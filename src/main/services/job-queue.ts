@@ -44,6 +44,9 @@ const activeWorkers = new Map<number, { pdfId: number; chapterId: number | null 
 // Track cancel requests per PDF
 const cancelRequestedFor = new Set<number>()
 
+// Track retry delays for failed jobs (job ID -> retry timestamp)
+const jobRetryAfter = new Map<number, number>()
+
 let schedulerTimeout: NodeJS.Timeout | null = null
 let isSchedulerRunning = false
 
@@ -106,10 +109,22 @@ async function scheduleNextBatch(): Promise<void> {
       // Don't process if cancel was requested for this PDF
       if (cancelRequestedFor.has(job.pdf_id)) return false
 
+      // Respect exponential backoff for retries
+      const retryAfter = jobRetryAfter.get(job.id)
+      if (retryAfter && Date.now() < retryAfter) return false
+
       // For PDF-level jobs (metadata, consolidate), only run if no other jobs for this PDF are active
       if (job.chapter_id === null) {
         for (const [, worker] of activeWorkers) {
           if (worker.pdfId === job.pdf_id) return false
+        }
+      }
+
+      // For chapter-level concepts/summary jobs, only run if embed job for same chapter is not active
+      // (concepts depends on chunks created by embed)
+      if ((job.type === 'concepts' || job.type === 'summary') && job.chapter_id !== null) {
+        for (const [, worker] of activeWorkers) {
+          if (worker.chapterId === job.chapter_id) return false
         }
       }
 
@@ -258,6 +273,7 @@ async function processJob(job: PendingJob): Promise<void> {
     }
 
     updateJobStatus(job.id, 'done')
+    jobRetryAfter.delete(job.id) // Clear any retry delay on success
     // Only update chapter status for embed jobs (the primary processing job)
     if (job.type === 'embed' && job.chapter_id !== null) {
       updateChapterStatus(job.chapter_id, 'done')
@@ -292,6 +308,8 @@ async function processJob(job: PendingJob): Promise<void> {
       }
     } else {
       // Reset to pending for retry with exponential backoff
+      const delay = BASE_DELAY * Math.pow(2, job.attempts)
+      jobRetryAfter.set(job.id, Date.now() + delay)
       updateJobStatus(job.id, 'pending', errorMsg)
     }
   } finally {
