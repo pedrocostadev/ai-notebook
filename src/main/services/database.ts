@@ -617,6 +617,38 @@ export function getNextPendingJob(): {
     .get() as { id: number; pdf_id: number; chapter_id: number | null; type: string; attempts: number } | undefined
 }
 
+export type PendingJob = {
+  id: number
+  pdf_id: number
+  chapter_id: number | null
+  type: string
+  attempts: number
+}
+
+/**
+ * Get multiple pending jobs for parallel processing.
+ * Prioritizes embed jobs first (to enable chat faster), then other job types.
+ * Returns jobs that can run in parallel (different chapters or non-chapter jobs).
+ */
+export function getPendingJobs(limit: number): PendingJob[] {
+  return getDb()
+    .prepare(
+      `SELECT id, pdf_id, chapter_id, type, attempts FROM jobs
+       WHERE status = 'pending'
+       ORDER BY
+         CASE type
+           WHEN 'embed' THEN 1
+           WHEN 'summary' THEN 2
+           WHEN 'concepts' THEN 2
+           WHEN 'metadata' THEN 3
+           WHEN 'consolidate' THEN 4
+         END,
+         created_at
+       LIMIT ?`
+    )
+    .all(limit) as PendingJob[]
+}
+
 export function updateJobStatus(id: number, status: string, lastError?: string): void {
   getDb()
     .prepare('UPDATE jobs SET status = ?, last_error = ?, attempts = attempts + 1 WHERE id = ?')
