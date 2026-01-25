@@ -44,6 +44,13 @@ function openPdfAtPageMacOS(filepath: string, pageNumber: number): void {
   spawn('osascript', ['-e', script], { detached: true, stdio: 'ignore' }).unref()
 }
 
+function openPdfAtPageWindows(filepath: string, pageNumber: number): void {
+  // Convert Windows path to file:// URL format and add page fragment
+  // Edge supports #page=N for navigating to specific pages
+  const fileUrl = `file:///${filepath.replace(/\\/g, '/')}#page=${pageNumber}`
+  spawn('msedge', [fileUrl], { detached: true, stdio: 'ignore', shell: true }).unref()
+}
+
 export function registerPdfHandlers(): void {
   // Test-only: Direct file upload without dialog
   ipcMain.handle('pdf:upload-file', async (_, filePath: string) => {
@@ -144,6 +151,10 @@ export function registerPdfHandlers(): void {
         openPdfAtPageMacOS(pdf.filepath, startPage)
         return { success: true, page: startPage }
       }
+      if (process.platform === 'win32') {
+        openPdfAtPageWindows(pdf.filepath, startPage)
+        return { success: true, page: startPage }
+      }
       await shell.openPath(pdf.filepath)
       return { success: true, page: startPage }
     } catch (err) {
@@ -173,6 +184,10 @@ export function registerPdfHandlers(): void {
     try {
       if (process.platform === 'darwin') {
         openPdfAtPageMacOS(pdf.filepath, pageNumber)
+        return { success: true, page: pageNumber }
+      }
+      if (process.platform === 'win32') {
+        openPdfAtPageWindows(pdf.filepath, pageNumber)
         return { success: true, page: pageNumber }
       }
       await shell.openPath(pdf.filepath)
