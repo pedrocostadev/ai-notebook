@@ -477,8 +477,6 @@ export async function processChapter(
 
   updateChapterStatus(chapterId, 'processing')
 
-  const pageCount = boundaries.length
-
   const chapterText = fullText.substring(chapter.start_idx, chapter.end_idx)
 
   const splitter = new RecursiveCharacterTextSplitter({

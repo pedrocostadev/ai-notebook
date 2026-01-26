@@ -27,7 +27,9 @@ export const ChatResponseMetadataSchema = z.object({
           .describe(
             'An exact quote from the chunk that supports your answer. ' +
               'Keep quotes concise (1-2 sentences max).'
-          )
+          ),
+        pageStart: z.number().optional().describe('Starting page number (injected at runtime)'),
+        pageEnd: z.number().optional().describe('Ending page number (injected at runtime)')
       })
     )
     .optional()
