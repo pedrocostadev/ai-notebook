@@ -90,3 +90,24 @@ jobs:
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  update-landing-page:
+    needs: release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Update version in install.html
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          sed -i "s/const VERSION = '[^']*'/const VERSION = '$VERSION'/" docs/install.html
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/install.html
+          git commit -m "chore: update download links to $GITHUB_REF_NAME" || exit 0
+          git push

@@ -401,7 +401,26 @@
   </footer>
 
   <script>
+    // Version updated by CI on release
+    const VERSION = '1.0.0';
     const REPO = 'pedrocostadev/ai-notebook';
+    const BASE = `https://github.com/${REPO}/releases/download/v${VERSION}`;
+
+    const downloads = {
+      mac_arm: `${BASE}/AI.Notebook-${VERSION}-arm64.dmg`,
+      mac_intel: `${BASE}/AI.Notebook-${VERSION}-x64.dmg`,
+      windows: `${BASE}/AI.Notebook-${VERSION}.Setup.exe`,
+      linux_deb: `${BASE}/ai-notebook_${VERSION}_amd64.deb`,
+      linux_rpm: `${BASE}/ai-notebook-${VERSION}-1.x86_64.rpm`
+    };
+
+    const platforms = [
+      { key: 'mac_arm', name: 'macOS (Apple Silicon)', desc: 'For M1, M2, M3, M4 Macs', os: 'mac' },
+      { key: 'mac_intel', name: 'macOS (Intel)', desc: 'For Intel-based Macs', os: 'mac' },
+      { key: 'windows', name: 'Windows', desc: 'Windows 10 or later', os: 'windows' },
+      { key: 'linux_deb', name: 'Linux (deb)', desc: 'Ubuntu, Debian, and derivatives', os: 'linux' },
+      { key: 'linux_rpm', name: 'Linux (rpm)', desc: 'Fedora, RHEL, and derivatives', os: 'linux' }
+    ];
 
     const downloadIcon = `<svg class="download-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
       <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
@@ -426,25 +445,22 @@
       }, 2000);
     }
 
-    function renderDownloads(downloads, detectedOS) {
+    function init() {
+      const detectedOS = detectOS();
       const container = document.getElementById('downloads');
 
-      const platforms = [
-        { key: 'mac_arm', name: 'macOS (Apple Silicon)', desc: 'For M1, M2, M3, M4 Macs', os: 'mac' },
-        { key: 'mac_intel', name: 'macOS (Intel)', desc: 'For Intel-based Macs', os: 'mac' },
-        { key: 'windows', name: 'Windows', desc: 'Windows 10 or later', os: 'windows' },
-        { key: 'linux_deb', name: 'Linux (deb)', desc: 'Ubuntu, Debian, and derivatives', os: 'linux' },
-        { key: 'linux_rpm', name: 'Linux (rpm)', desc: 'Fedora, RHEL, and derivatives', os: 'linux' }
-      ];
+      if (detectedOS === 'mac') {
+        document.getElementById('macos-alert').classList.add('visible');
+      }
 
       // Sort: detected OS first
-      platforms.sort((a, b) => {
+      const sorted = [...platforms].sort((a, b) => {
         if (a.os === detectedOS && b.os !== detectedOS) return -1;
         if (a.os !== detectedOS && b.os === detectedOS) return 1;
         return 0;
       });
 
-      container.innerHTML = platforms.map((p, i) => {
+      container.innerHTML = sorted.map((p, i) => {
         const isRecommended = i === 0 && p.os === detectedOS;
         return `
           <div class="download-card ${isRecommended ? 'recommended' : ''}">
@@ -455,7 +471,7 @@
                 <p>${p.desc}</p>
               </div>
             </div>
-            <a href="${downloads[p.key].url}" class="download-btn" data-os="${p.os}">
+            <a href="${downloads[p.key]}" class="download-btn" data-os="${p.os}">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
               </svg>
@@ -465,7 +481,6 @@
         `;
       }).join('');
 
-      // Show/hide macOS alert when clicking download
       container.querySelectorAll('.download-btn').forEach(btn => {
         btn.addEventListener('click', () => {
           if (btn.dataset.os === 'mac') {
@@ -473,45 +488,6 @@
           }
         });
       });
-    }
-
-    async function init() {
-      const detectedOS = detectOS();
-
-      // Show macOS alert prominently for Mac users
-      if (detectedOS === 'mac') {
-        document.getElementById('macos-alert').classList.add('visible');
-      }
-
-      try {
-        const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`);
-        if (!res.ok) throw new Error('API error');
-        const data = await res.json();
-        const tag = data.tag_name;
-        const version = tag.replace('v', '');
-
-        const RELEASE_BASE = `https://github.com/${REPO}/releases/download/${tag}/`;
-        const downloads = {
-          mac_arm: { url: RELEASE_BASE + `AI.Notebook-${version}-arm64.dmg` },
-          mac_intel: { url: RELEASE_BASE + `AI.Notebook-${version}-x64.dmg` },
-          windows: { url: RELEASE_BASE + `AI.Notebook-${version}.Setup.exe` },
-          linux_deb: { url: RELEASE_BASE + `ai-notebook_${version}_amd64.deb` },
-          linux_rpm: { url: RELEASE_BASE + `ai-notebook-${version}-1.x86_64.rpm` }
-        };
-
-        renderDownloads(downloads, detectedOS);
-      } catch (e) {
-        // Fallback to releases page
-        const fallback = `https://github.com/${REPO}/releases/latest`;
-        const downloads = {
-          mac_arm: { url: fallback },
-          mac_intel: { url: fallback },
-          windows: { url: fallback },
-          linux_deb: { url: fallback },
-          linux_rpm: { url: fallback }
-        };
-        renderDownloads(downloads, detectedOS);
-      }
     }
 
     init();
