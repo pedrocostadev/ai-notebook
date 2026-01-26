@@ -486,6 +486,11 @@ export function insertMessage(
   return result.lastInsertRowid as number
 }
 
+export function updateMessageMetadata(messageId: number, metadata: object): void {
+  const stmt = getDb().prepare('UPDATE messages SET metadata = ? WHERE id = ?')
+  stmt.run(JSON.stringify(metadata), messageId)
+}
+
 export function getMessagesByPdfId(pdfId: number, chapterId: number | null = null): MessageRow[] {
   if (chapterId === null) {
     return getDb()

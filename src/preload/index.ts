@@ -230,6 +230,11 @@ const api = {
     ipcRenderer.on('chat:done', listener)
     return () => ipcRenderer.removeListener('chat:done', listener)
   },
+  onChatMetadata: (callback: (data: { messageId: number; metadata: ChatMessage['metadata'] }) => void) => {
+    const listener = (_: unknown, data: { messageId: number; metadata: ChatMessage['metadata'] }) => callback(data)
+    ipcRenderer.on('chat:metadata', listener)
+    return () => ipcRenderer.removeListener('chat:metadata', listener)
+  },
   onChapterProgress: (callback: (data: ChapterProgress) => void) => {
     const listener = (_: unknown, data: ChapterProgress) => callback(data)
     ipcRenderer.on('chapter:progress', listener)

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 interface ChatMessage {
   id: number
@@ -15,7 +15,6 @@ export function useChat(pdfId: number | null, chapterId: number | null) {
   const [isStreaming, setIsStreaming] = useState(false)
   const [streamingContent, setStreamingContent] = useState('')
   const [loading, setLoading] = useState(false)
-  const streamingIdRef = useRef<number>(0)
 
   const loadHistory = useCallback(async () => {
     if (!pdfId) {
@@ -37,25 +36,22 @@ export function useChat(pdfId: number | null, chapterId: number | null) {
       setStreamingContent((prev) => prev + chunk)
     })
 
-    const unsubDone = window.api.onChatDone((metadata) => {
+    const unsubDone = window.api.onChatDone(() => {
       setIsStreaming(false)
-      streamingIdRef.current += 1
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: streamingIdRef.current,
-          role: 'assistant',
-          content: '',
-          metadata
-        }
-      ])
       setStreamingContent('')
       loadHistory()
+    })
+
+    const unsubMetadata = window.api.onChatMetadata(({ messageId, metadata }) => {
+      setMessages((prev) =>
+        prev.map((msg) => (msg.id === messageId ? { ...msg, metadata } : msg))
+      )
     })
 
     return () => {
       unsubStream()
       unsubDone()
+      unsubMetadata()
     }
   }, [loadHistory])
 

@@ -6,6 +6,7 @@ import {
   ftsSearch,
   getChunksByIds,
   insertMessage,
+  updateMessageMetadata,
   getMessagesByPdfId,
   getConversationSummary,
   upsertConversationSummary,
@@ -312,6 +313,7 @@ export async function chat(
 
   const { textStream, text } = streamText({
     model: google(chatModel),
+    maxTokens: 2048,
     system: `You are a helpful book assistant that answers questions about the PDF document.
 
 RULES:
@@ -321,27 +323,52 @@ RULES:
 4. If context doesn't contain enough information, say so clearly
 5. Do not make up information not in the context
 6. Answer directly without meta-references like "The text mentions..."
+7. Keep answers concise and focused. Aim for 2-4 paragraphs unless more detail is explicitly requested.
 
 You may help with meta-requests like "explain simpler" or "give examples" as long as they relate to book content.`,
     prompt
   })
 
+  // Batch stream chunks to reduce IPC overhead (flush every 50ms)
   let fullResponse = ''
+  let buffer = ''
+  let flushTimeout: NodeJS.Timeout | null = null
+
+  const flushBuffer = () => {
+    if (buffer) {
+      window.webContents.send('chat:stream', buffer)
+      buffer = ''
+    }
+    flushTimeout = null
+  }
+
   for await (const chunk of textStream) {
     fullResponse += chunk
-    window.webContents.send('chat:stream', chunk)
+    buffer += chunk
+
+    if (!flushTimeout) {
+      flushTimeout = setTimeout(flushBuffer, 50)
+    }
   }
+
+  // Flush remaining buffer
+  if (flushTimeout) clearTimeout(flushTimeout)
+  flushBuffer()
 
   // Ensure we have the full text
   fullResponse = await text
 
-  // Step 9: Generate metadata
-  let metadata: ChatResponseMetadata = {}
-  try {
-    const { object } = await generateObject({
-      model: google(chatModel),
-      schema: ChatResponseMetadataSchema,
-      prompt: `Given this answer to a question, extract metadata.
+  // Step 9: Send done immediately so UI can finalize, then generate metadata async
+  window.webContents.send('chat:done', {})
+
+  // Save message with empty metadata first (will update after metadata generated)
+  const messageId = insertMessage(pdfId, chapterId, 'assistant', fullResponse, {})
+
+  // Generate metadata asynchronously and send via separate event
+  generateObject({
+    model: google(chatModel),
+    schema: ChatResponseMetadataSchema,
+    prompt: `Given this answer to a question, extract metadata.
 
 IMPORTANT for follow-up questions:
 - Only suggest questions that can be answered using the context chunks below
@@ -354,28 +381,28 @@ Answer: ${fullResponse}
 
 Context chunks used (with IDs):
 ${contextChunks.map((c) => `[ID: ${c.id}] ${c.content.slice(0, 300)}`).join('\n\n')}`
+  })
+    .then(({ object }) => {
+      // Inject page numbers from context chunks (more reliable than AI extraction)
+      if (object.citations) {
+        const chunkPageMap = new Map(
+          contextChunks.map((c) => [c.id, { pageStart: c.page_start, pageEnd: c.page_end }])
+        )
+        object.citations = object.citations
+          .filter((citation) => chunkPageMap.has(citation.chunkId))
+          .map((citation) => {
+            const pages = chunkPageMap.get(citation.chunkId)!
+            return { ...citation, pageStart: pages.pageStart, pageEnd: pages.pageEnd }
+          })
+      }
+
+      // Update message with metadata and notify renderer
+      updateMessageMetadata(messageId, object)
+      window.webContents.send('chat:metadata', { messageId, metadata: object })
     })
-
-    // Inject page numbers from context chunks (more reliable than AI extraction)
-    if (object.citations) {
-      const chunkPageMap = new Map(contextChunks.map((c) => [c.id, { pageStart: c.page_start, pageEnd: c.page_end }]))
-      object.citations = object.citations
-        .filter((citation) => chunkPageMap.has(citation.chunkId))
-        .map((citation) => {
-          const pages = chunkPageMap.get(citation.chunkId)!
-          return { ...citation, pageStart: pages.pageStart, pageEnd: pages.pageEnd }
-        })
-    }
-
-    metadata = object
-  } catch (err) {
-    console.error('[RAG] Metadata generation failed:', err)
-  }
-
-  // Save assistant message
-  insertMessage(pdfId, chapterId, 'assistant', fullResponse, metadata)
-
-  window.webContents.send('chat:done', metadata)
+    .catch((err) => {
+      console.error('[RAG] Metadata generation failed:', err)
+    })
 }
 
 export function getChatHistory(pdfId: number, chapterId: number | null = null): {
