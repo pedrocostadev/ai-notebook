@@ -347,9 +347,21 @@ Question: ${query}
 
 Answer: ${fullResponse}
 
-Context chunks used (with IDs and pages):
-${contextChunks.map((c) => `[ID: ${c.id}, Pages: ${c.page_start}-${c.page_end}] ${c.content.slice(0, 300)}`).join('\n\n')}`
+Context chunks used (with IDs):
+${contextChunks.map((c) => `[ID: ${c.id}] ${c.content.slice(0, 300)}`).join('\n\n')}`
     })
+
+    // Inject page numbers from context chunks (more reliable than AI extraction)
+    if (object.citations) {
+      const chunkPageMap = new Map(contextChunks.map((c) => [c.id, { pageStart: c.page_start, pageEnd: c.page_end }]))
+      object.citations = object.citations
+        .filter((citation) => chunkPageMap.has(citation.chunkId))
+        .map((citation) => {
+          const pages = chunkPageMap.get(citation.chunkId)!
+          return { ...citation, pageStart: pages.pageStart, pageEnd: pages.pageEnd }
+        })
+    }
+
     metadata = object
   } catch (err) {
     console.error('[RAG] Metadata generation failed:', err)
