@@ -25,6 +25,7 @@ import {
   updatePdfMetadata
 } from './database'
 import { notifyChapterProgress } from './job-queue'
+import { setCachedPageLabels } from './pdf-cache'
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB
 
@@ -88,14 +89,15 @@ export interface PageBoundary {
   endIdx: number
 }
 
-export function computePageBoundaries(pages: string[]): PageBoundary[] {
+export function computePageBoundaries(pages: string[], pageNumbers?: number[]): PageBoundary[] {
   const boundaries: PageBoundary[] = []
   let currentIdx = 0
 
   for (let i = 0; i < pages.length; i++) {
     const pageContent = pages[i]
     boundaries.push({
-      pageNumber: i + 1,
+      // Use actual page number from metadata if available, otherwise fall back to array index
+      pageNumber: pageNumbers?.[i] ?? i + 1,
       startIdx: currentIdx,
       endIdx: currentIdx + pageContent.length
     })
@@ -143,7 +145,7 @@ export function findPageFromCharIndex(boundaries: PageBoundary[], charIndex: num
  * Returns the offset to add to a TOC page number to get the physical page index.
  * Example: if TOC says "Chapter 4...159" and it's on physical page 180, offset = 21
  */
-function detectPageOffset(pages: string[]): number {
+export function detectPageOffset(pages: string[]): number {
   if (pages.length < 10) return 0
 
   // Sample 4 pages from the middle (around 50% mark)
@@ -269,7 +271,33 @@ export async function processPdf(
     // Keep pages separate for TOC parsing
     const pages = docs.map((d) => d.pageContent)
     const fullText = pages.join('\n\n')
-    const boundaries = computePageBoundaries(pages)
+
+    // Get physical page numbers from PDFLoader metadata
+    const physicalPageNumbers = docs.map((d) => (d.metadata?.loc?.pageNumber as number) ?? 0)
+
+    // Load page labels to convert physical page -> display label
+    let labelMap = await loadPageLabels(destPath)
+    if (labelMap.size === 0) {
+      // Fallback: detect offset from content
+      const offset = detectPageOffset(pages)
+      if (offset > 0) {
+        labelMap = new Map<number, number>()
+        const totalPhysicalPages = docs[0]?.metadata?.pdf?.totalPages ?? pages.length
+        for (let i = 1; i <= totalPhysicalPages; i++) {
+          labelMap.set(i, i - offset)
+        }
+      }
+    }
+
+    // Convert physical pages to display labels
+    const pageNumbers = physicalPageNumbers.map((physical) => {
+      if (labelMap.size > 0) {
+        return labelMap.get(physical) ?? physical
+      }
+      return physical
+    })
+
+    const boundaries = computePageBoundaries(pages, pageNumbers)
 
     // Extract TOC - try PDF outline first (structured), fall back to AI parsing
     const collectedChapters: { id: number; tocChapter: TocChapter; index: number }[] = []
@@ -293,6 +321,11 @@ export async function processPdf(
     // Try PDF outline first (most reliable - uses embedded bookmarks)
     let tocResult = await parseOutlineFromPdf(destPath, onChapterFound)
     usedOutlineParsing = tocResult.hasToc && tocResult.chapters.length > 0
+
+    // Cache page labels from TOC parsing for chunk processing (same labels used for chapter navigation)
+    if (tocResult.pageLabels && tocResult.pageLabels.size > 0) {
+      setCachedPageLabels(destPath, tocResult.pageLabels)
+    }
 
     // Save title immediately if available from PDF metadata
     if (tocResult.title) {
@@ -430,8 +463,7 @@ export async function processChapter(
   pdfId: number,
   chapterId: number,
   fullText: string,
-  pages: string[],
-  labelMap: Map<number, number>
+  boundaries: PageBoundary[]
 ): Promise<void> {
   const chapter = getChapter(chapterId)
   if (!chapter) throw new Error('Chapter not found')
@@ -445,9 +477,7 @@ export async function processChapter(
 
   updateChapterStatus(chapterId, 'processing')
 
-  // Compute page boundaries for accurate page number lookup
-  const boundaries = computePageBoundaries(pages)
-  const pageCount = pages.length
+  const pageCount = boundaries.length
 
   const chapterText = fullText.substring(chapter.start_idx, chapter.end_idx)
 
@@ -493,15 +523,11 @@ export async function processChapter(
       }
     }
 
-    // Calculate page range using actual page boundaries (physical pages)
+    // Calculate page range using boundaries (boundaries already contain display page numbers)
     const chunkStartInFull = chapter.start_idx + actualPos
     const chunkEndInFull = chunkStartInFull + content.length
-    const physicalStart = findPageFromCharIndex(boundaries, chunkStartInFull)
-    const physicalEnd = Math.min(findPageFromCharIndex(boundaries, chunkEndInFull), pageCount)
-
-    // Convert to page labels for UI display (what user sees when opening PDF)
-    const pageStart = physicalToLabel(physicalStart, labelMap)
-    const pageEnd = physicalToLabel(physicalEnd, labelMap)
+    const pageStart = findPageFromCharIndex(boundaries, chunkStartInFull)
+    const pageEnd = findPageFromCharIndex(boundaries, chunkEndInFull)
 
     // Next chunk expected at (current_end - overlap)
     expectedPos = actualPos + content.length - CHUNK_OVERLAP

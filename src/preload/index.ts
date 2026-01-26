@@ -187,6 +187,13 @@ const api = {
     hasToc: boolean
     chapters: { title: string; pageNumber: number }[]
   } | { error: string }> => ipcRenderer.invoke('pdf:get-outline-test', pdfId),
+  // Test-only: Get chunks for a chapter (for verifying page numbers)
+  getChunksByChapterTest: (chapterId: number): Promise<{
+    id: number
+    page_start: number
+    page_end: number
+    content: string
+  }[] | { error: string }> => ipcRenderer.invoke('chunks:get-by-chapter-test', chapterId),
 
   // Chat
   sendMessage: (pdfId: number, chapterId: number | null, message: string): Promise<boolean> =>

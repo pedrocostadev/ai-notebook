@@ -12,6 +12,7 @@ import {
   waitForLocalStorage,
   getChapterDetails,
   getPdfOutline,
+  getChunksByChapter,
   SAMPLE_PDF
 } from './fixtures'
 
@@ -573,5 +574,84 @@ test.describe('Slash Commands', () => {
 
     // The test passes if all chapters have correct start_page
     expect(mismatches).toHaveLength(0)
+  })
+
+  test('chunk page numbers use display labels not physical pages (citation page fix)', async () => {
+    // This test verifies the fix for citation page numbers
+    // Bug: PDFLoader skips some pages, so array index != physical page
+    // Fix: Use pdfjs page labels to convert physical page -> display label
+    test.setTimeout(300000) // 5 minutes for full processing
+
+    app = await launchApp()
+    const window = await app.firstWindow()
+    await window.waitForLoadState('domcontentloaded')
+
+    await setupApiKey(window)
+
+    // Upload the real AI Engineering book
+    const { pdfId } = await uploadPdf(window, AI_ENGINEERING_BOOK)
+
+    // Wait for chapters to be created
+    const chapters = await waitForChapters(window, pdfId, 120000)
+    expect(chapters.length).toBeGreaterThan(3)
+
+    // Find Chapter 7. Finetuning (we know this chapter has page label 307)
+    const finetuningChapter = chapters.find((c) => c.title.includes('Finetuning'))
+    expect(finetuningChapter).toBeDefined()
+
+    // Wait for chunks to be created (checking every 3 seconds for up to 3 minutes)
+    let chunks: { id: number; page_start: number; page_end: number; content: string }[] = []
+    const maxWaitMs = 180000
+    const startTime = Date.now()
+
+    while (Date.now() - startTime < maxWaitMs) {
+      try {
+        chunks = await getChunksByChapter(window, finetuningChapter!.id)
+        if (chunks.length > 0) {
+          console.log(`Found ${chunks.length} chunks after ${Math.round((Date.now() - startTime) / 1000)}s`)
+          break
+        }
+      } catch {
+        // Ignore errors while waiting
+      }
+      await new Promise((r) => setTimeout(r, 3000))
+    }
+
+    expect(chunks.length).toBeGreaterThan(0)
+
+    // Get the PDF outline to know expected page labels
+    const outline = await getPdfOutline(window, pdfId)
+    const finetuningOutline = outline.chapters.find((c) => c.title.includes('Finetuning'))
+    expect(finetuningOutline).toBeDefined()
+
+    // The chapter should start at page label 307 (not physical page 331)
+    const expectedStartLabel = (finetuningOutline as { pageLabel?: number }).pageLabel ?? finetuningOutline!.pageNumber
+    console.log(`\nChapter 7. Finetuning expected start page label: ${expectedStartLabel}`)
+
+    // Verify chunk page numbers are display labels (around 307-365 for Finetuning chapter)
+    // NOT physical pages (which would be around 331-390)
+    const sampleChunks = chunks.slice(0, 5)
+    console.log('Sample chunk page numbers:')
+    for (const chunk of sampleChunks) {
+      console.log(`  Chunk ${chunk.id}: pages ${chunk.page_start}-${chunk.page_end}`)
+    }
+
+    // First chunk should be near the chapter start page (label)
+    // Allow some tolerance since first chunk might not start exactly at chapter start
+    const firstChunkPage = chunks[0].page_start
+    const tolerance = 5
+    expect(firstChunkPage).toBeGreaterThanOrEqual(expectedStartLabel - tolerance)
+    expect(firstChunkPage).toBeLessThanOrEqual(expectedStartLabel + tolerance)
+
+    // Page numbers should be in the display label range (307-365 for Finetuning)
+    // NOT in the physical page range (331-390)
+    // If we see pages > 330, that's a bug (using physical pages instead of labels)
+    const maxExpectedLabel = expectedStartLabel + 60 // Chapter is about 56 pages
+    for (const chunk of chunks) {
+      expect(chunk.page_start).toBeLessThanOrEqual(maxExpectedLabel)
+      expect(chunk.page_end).toBeLessThanOrEqual(maxExpectedLabel)
+    }
+
+    console.log(`\nAll ${chunks.length} chunks have valid display page labels (${expectedStartLabel}-${maxExpectedLabel})`)
   })
 })
