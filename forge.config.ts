@@ -7,7 +7,7 @@ import { MakerRpm } from '@electron-forge/maker-rpm'
 const config: ForgeConfig = {
   packagerConfig: {
     asar: {
-      unpack: '**/{better-sqlite3,sqlite-vec}/**'
+      unpack: '**/{better-sqlite3,sqlite-vec,sqlite-vec-*}/**'
     },
     name: 'AI Notebook',
     executableName: 'ai-notebook',
