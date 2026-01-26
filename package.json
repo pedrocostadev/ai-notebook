@@ -12,8 +12,8 @@
     "start": "electron-vite preview",
     "make": "electron-forge make",
     "package": "electron-forge package",
-    "rebuild": "electron-rebuild -f -w better-sqlite3 -w sqlite-vec",
-    "postinstall": "electron-rebuild -f -w better-sqlite3 -w sqlite-vec",
+    "rebuild": "electron-rebuild -f -w better-sqlite3,sqlite-vec",
+    "postinstall": "electron-rebuild -f -w better-sqlite3,sqlite-vec",
     "test": "playwright test"
   },
   "dependencies": {
