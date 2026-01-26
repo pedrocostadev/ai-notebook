@@ -1,7 +1,7 @@
 {
   "name": "ai-notebook",
   "productName": "AI Notebook",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "AI-powered PDF notebook with RAG chat",
   "main": "out/main/index.js",
   "author": "Pedro Costa",
@@ -12,8 +12,8 @@
     "start": "electron-vite preview",
     "make": "electron-forge make",
     "package": "electron-forge package",
-    "rebuild": "electron-rebuild -f -w better-sqlite3",
-    "postinstall": "electron-rebuild -f -w better-sqlite3",
+    "rebuild": "electron-rebuild -f -w better-sqlite3 -w sqlite-vec",
+    "postinstall": "electron-rebuild -f -w better-sqlite3 -w sqlite-vec",
     "test": "playwright test"
   },
   "dependencies": {
