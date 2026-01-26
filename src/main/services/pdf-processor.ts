@@ -89,6 +89,57 @@ export interface PageBoundary {
   endIdx: number
 }
 
+/**
+ * Extract physical page numbers from PDFLoader docs, with fallback to 1-indexed array position.
+ */
+export function getPhysicalPageNumbers(docs: { metadata?: { loc?: { pageNumber?: number } } }[]): number[] {
+  return docs.map((d, idx) => (d.metadata?.loc?.pageNumber as number) ?? idx + 1)
+}
+
+/**
+ * Build page labels map from physical pages. Returns empty map if no labels/offset detected.
+ */
+export async function buildLabelMap(
+  filepath: string,
+  pages: string[],
+  totalPhysicalPages: number,
+  presetLabelMap?: Map<number, number>
+): Promise<Map<number, number>> {
+  // Use preset if available
+  if (presetLabelMap && presetLabelMap.size > 0) {
+    return presetLabelMap
+  }
+
+  // Try loading from PDF
+  let labelMap = await loadPageLabels(filepath)
+  if (labelMap.size > 0) {
+    return labelMap
+  }
+
+  // Fallback: detect offset from content
+  const offset = detectPageOffset(pages)
+  if (offset > 0) {
+    labelMap = new Map<number, number>()
+    for (let i = 1; i <= totalPhysicalPages; i++) {
+      labelMap.set(i, i - offset)
+    }
+  }
+
+  return labelMap
+}
+
+/**
+ * Convert physical page numbers to display labels using label map.
+ */
+export function physicalToDisplayPages(physicalPageNumbers: number[], labelMap: Map<number, number>): number[] {
+  return physicalPageNumbers.map((physical) => {
+    if (labelMap.size > 0) {
+      return labelMap.get(physical) ?? physical
+    }
+    return physical
+  })
+}
+
 export function computePageBoundaries(pages: string[], pageNumbers?: number[]): PageBoundary[] {
   const boundaries: PageBoundary[] = []
   let currentIdx = 0
@@ -272,31 +323,11 @@ export async function processPdf(
     const pages = docs.map((d) => d.pageContent)
     const fullText = pages.join('\n\n')
 
-    // Get physical page numbers from PDFLoader metadata
-    const physicalPageNumbers = docs.map((d) => (d.metadata?.loc?.pageNumber as number) ?? 0)
-
-    // Load page labels to convert physical page -> display label
-    let labelMap = await loadPageLabels(destPath)
-    if (labelMap.size === 0) {
-      // Fallback: detect offset from content
-      const offset = detectPageOffset(pages)
-      if (offset > 0) {
-        labelMap = new Map<number, number>()
-        const totalPhysicalPages = docs[0]?.metadata?.pdf?.totalPages ?? pages.length
-        for (let i = 1; i <= totalPhysicalPages; i++) {
-          labelMap.set(i, i - offset)
-        }
-      }
-    }
-
-    // Convert physical pages to display labels
-    const pageNumbers = physicalPageNumbers.map((physical) => {
-      if (labelMap.size > 0) {
-        return labelMap.get(physical) ?? physical
-      }
-      return physical
-    })
-
+    // Build page boundaries with display labels
+    const physicalPageNumbers = getPhysicalPageNumbers(docs)
+    const totalPhysicalPages = (docs[0]?.metadata?.pdf?.totalPages as number) ?? pages.length
+    const labelMap = await buildLabelMap(destPath, pages, totalPhysicalPages)
+    const pageNumbers = physicalToDisplayPages(physicalPageNumbers, labelMap)
     const boundaries = computePageBoundaries(pages, pageNumbers)
 
     // Extract TOC - try PDF outline first (structured), fall back to AI parsing

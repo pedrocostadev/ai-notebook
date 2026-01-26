@@ -1,5 +1,11 @@
 import { PDFLoader } from '@langchain/community/document_loaders/fs/pdf'
-import { loadPageLabels, computePageBoundaries, detectPageOffset, type PageBoundary } from './pdf-processor'
+import {
+  computePageBoundaries,
+  getPhysicalPageNumbers,
+  buildLabelMap,
+  physicalToDisplayPages,
+  type PageBoundary
+} from './pdf-processor'
 
 export interface CachedPdfData {
   pages: string[]
@@ -49,33 +55,11 @@ export async function getCachedPdfData(filepath: string): Promise<CachedPdfData>
   const pages = docs.map((d) => d.pageContent)
   const fullText = pages.join('\n\n')
 
-  // Get physical page numbers from PDFLoader metadata (loc.pageNumber is physical page)
-  const physicalPageNumbers = docs.map((d) => (d.metadata?.loc?.pageNumber as number) ?? 0)
-
-  // Load page labels to convert physical page -> display label
-  let labelMap = presetLabelMap && presetLabelMap.size > 0 ? presetLabelMap : await loadPageLabels(filepath)
-
-  // If still no labels, detect offset from content and build synthetic map
-  if (labelMap.size === 0) {
-    const offset = detectPageOffset(pages)
-    if (offset > 0) {
-      labelMap = new Map<number, number>()
-      // Build map for physical pages (1-indexed)
-      const totalPhysicalPages = docs[0]?.metadata?.pdf?.totalPages ?? pages.length
-      for (let i = 1; i <= totalPhysicalPages; i++) {
-        labelMap.set(i, i - offset)
-      }
-    }
-  }
-
-  // Convert physical pages to display labels for boundaries
-  const pageNumbers = physicalPageNumbers.map((physical) => {
-    if (labelMap.size > 0) {
-      return labelMap.get(physical) ?? physical
-    }
-    return physical
-  })
-
+  // Build page boundaries with display labels
+  const physicalPageNumbers = getPhysicalPageNumbers(docs)
+  const totalPhysicalPages = (docs[0]?.metadata?.pdf?.totalPages as number) ?? pages.length
+  const labelMap = await buildLabelMap(filepath, pages, totalPhysicalPages, presetLabelMap)
+  const pageNumbers = physicalToDisplayPages(physicalPageNumbers, labelMap)
   const boundaries = computePageBoundaries(pages, pageNumbers)
 
   const data: CachedPdfData = {
