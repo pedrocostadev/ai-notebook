@@ -1,5 +1,5 @@
 import { ipcMain, dialog, shell } from 'electron'
-import { spawn } from 'child_process'
+import { spawn, execSync } from 'child_process'
 import { getAllPdfs, getPdf, deletePdf as dbDeletePdf, getChaptersByPdfId, updatePdfStatus, updateChapterStatus, getChapter, markAllJobsDoneForPdf, getChunksByChapterId } from '../services/database'
 import { processPdf, deletePdfFile } from '../services/pdf-processor'
 import { startJobQueue, cancelProcessing, requestCancelForPdf } from '../services/job-queue'
@@ -42,6 +42,45 @@ function openPdfAtPageMacOS(filepath: string, pageNumber: number): void {
     end tell
   `
   spawn('osascript', ['-e', script], { detached: true, stdio: 'ignore' }).unref()
+}
+
+function openPdfAtPageWindows(filepath: string, pageNumber: number): void {
+  // Convert Windows path to file:// URL format and add page fragment
+  // Edge supports #page=N for navigating to specific pages
+  const fileUrl = `file:///${filepath.replace(/\\/g, '/')}#page=${pageNumber}`
+  spawn('msedge', [fileUrl], { detached: true, stdio: 'ignore', shell: true }).unref()
+}
+
+function commandExists(cmd: string): boolean {
+  try {
+    execSync(`which ${cmd}`, { stdio: 'ignore' })
+    return true
+  } catch {
+    return false
+  }
+}
+
+function openPdfAtPageLinux(filepath: string, pageNumber: number): boolean {
+  // Try Evince first (GNOME - most common on Ubuntu/Debian)
+  if (commandExists('evince')) {
+    spawn('evince', ['--page-label', String(pageNumber), filepath], {
+      detached: true,
+      stdio: 'ignore'
+    }).unref()
+    return true
+  }
+
+  // Try Okular (KDE)
+  if (commandExists('okular')) {
+    spawn('okular', ['-p', String(pageNumber), filepath], {
+      detached: true,
+      stdio: 'ignore'
+    }).unref()
+    return true
+  }
+
+  // No supported viewer found - return false to fall back to shell.openPath
+  return false
 }
 
 export function registerPdfHandlers(): void {
@@ -144,6 +183,13 @@ export function registerPdfHandlers(): void {
         openPdfAtPageMacOS(pdf.filepath, startPage)
         return { success: true, page: startPage }
       }
+      if (process.platform === 'win32') {
+        openPdfAtPageWindows(pdf.filepath, startPage)
+        return { success: true, page: startPage }
+      }
+      if (process.platform === 'linux' && openPdfAtPageLinux(pdf.filepath, startPage)) {
+        return { success: true, page: startPage }
+      }
       await shell.openPath(pdf.filepath)
       return { success: true, page: startPage }
     } catch (err) {
@@ -173,6 +219,13 @@ export function registerPdfHandlers(): void {
     try {
       if (process.platform === 'darwin') {
         openPdfAtPageMacOS(pdf.filepath, pageNumber)
+        return { success: true, page: pageNumber }
+      }
+      if (process.platform === 'win32') {
+        openPdfAtPageWindows(pdf.filepath, pageNumber)
+        return { success: true, page: pageNumber }
+      }
+      if (process.platform === 'linux' && openPdfAtPageLinux(pdf.filepath, pageNumber)) {
         return { success: true, page: pageNumber }
       }
       await shell.openPath(pdf.filepath)
