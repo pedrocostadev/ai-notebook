@@ -343,6 +343,11 @@ You may help with meta-requests like "explain simpler" or "give examples" as lon
       schema: ChatResponseMetadataSchema,
       prompt: `Given this answer to a question, extract metadata.
 
+IMPORTANT for follow-up questions:
+- Only suggest questions that can be answered using the context chunks below
+- Do NOT assume the PDF contains information beyond what's shown
+- If no good follow-up questions are clearly answerable from these chunks, omit them
+
 Question: ${query}
 
 Answer: ${fullResponse}
