@@ -120,7 +120,9 @@ export async function buildLabelMap(
   const offset = detectPageOffset(pages)
   if (offset > 0) {
     labelMap = new Map<number, number>()
-    for (let i = 1; i <= totalPhysicalPages; i++) {
+    // Only add labels for pages after front matter (where label would be positive)
+    // Front matter pages (i <= offset) fall back to physical page via physicalToDisplayPages
+    for (let i = offset + 1; i <= totalPhysicalPages; i++) {
       labelMap.set(i, i - offset)
     }
   }
