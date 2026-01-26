@@ -21,6 +21,14 @@ xattr -cr "/Applications/AI Notebook.app"
 
 Then open the app normally.
 
+### Windows
+
+Run the installer. If SmartScreen blocks it, click "More info" → "Run anyway".
+
+### Linux
+
+Install the `.deb` or `.rpm` package, or extract the `.tar.gz` to your preferred location.
+
 ## Development
 
 ```bash
