@@ -278,6 +278,15 @@ export async function initDatabase(): Promise<void> {
   } catch (e) {
     console.warn('vec_chunks trigger skipped:', e)
   }
+
+  // Reset stuck processing states from interrupted sessions
+  db.exec(`
+    UPDATE jobs SET status = 'pending' WHERE status = 'running';
+    UPDATE chapters SET status = 'pending' WHERE status = 'processing';
+    UPDATE chapters SET summary_status = 'pending' WHERE summary_status = 'processing';
+    UPDATE chapters SET concepts_status = 'pending' WHERE concepts_status = 'processing';
+    UPDATE pdfs SET status = 'pending' WHERE status = 'processing';
+  `)
 }
 
 // PDF CRUD

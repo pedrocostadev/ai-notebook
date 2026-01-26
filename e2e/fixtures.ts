@@ -345,3 +345,49 @@ export async function getChunksByChapter(
     content: string
   }[]
 }
+
+// Simulate stuck processing state (test-only)
+export async function simulateStuckProcessing(window: Page, pdfId: number): Promise<void> {
+  const result = await window.evaluate(async (id) => {
+    const api = (window as unknown as {
+      api: { simulateStuckProcessing: (pdfId: number) => Promise<{ success: boolean } | { error: string }> }
+    }).api
+    return await api.simulateStuckProcessing(id)
+  }, pdfId)
+
+  if (result && typeof result === 'object' && 'error' in result) {
+    throw new Error(`Failed to simulate stuck processing: ${(result as { error: string }).error}`)
+  }
+}
+
+// Get processing statuses for verification (test-only)
+export async function getProcessingStatuses(
+  window: Page,
+  pdfId: number
+): Promise<{
+  pdf: { status: string } | undefined
+  chapters: { id: number; status: string; summary_status: string; concepts_status: string }[]
+  jobs: { id: number; status: string; type: string }[]
+}> {
+  const result = await window.evaluate(async (id) => {
+    const api = (window as unknown as {
+      api: {
+        getProcessingStatuses: (pdfId: number) => Promise<{
+          pdf: { status: string } | undefined
+          chapters: { id: number; status: string; summary_status: string; concepts_status: string }[]
+          jobs: { id: number; status: string; type: string }[]
+        } | { error: string }>
+      }
+    }).api
+    return await api.getProcessingStatuses(id)
+  }, pdfId)
+
+  if (result && typeof result === 'object' && 'error' in result) {
+    throw new Error(`Failed to get statuses: ${(result as { error: string }).error}`)
+  }
+  return result as {
+    pdf: { status: string } | undefined
+    chapters: { id: number; status: string; summary_status: string; concepts_status: string }[]
+    jobs: { id: number; status: string; type: string }[]
+  }
+}

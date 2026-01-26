@@ -3,6 +3,7 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { registerHandlers } from './ipc/handlers'
 import { initDatabase } from './services/database'
+import { startJobQueue } from './services/job-queue'
 
 // Get icon path based on environment
 function getIconPath(): string {
@@ -64,6 +65,7 @@ app.whenReady().then(async () => {
 
   await initDatabase()
   registerHandlers()
+  startJobQueue()
   createWindow()
 
   app.on('activate', function () {

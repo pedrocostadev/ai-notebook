@@ -1,6 +1,6 @@
 import { ipcMain, dialog, shell } from 'electron'
 import { spawn, execSync } from 'child_process'
-import { getAllPdfs, getPdf, deletePdf as dbDeletePdf, getChaptersByPdfId, updatePdfStatus, updateChapterStatus, getChapter, markAllJobsDoneForPdf, getChunksByChapterId } from '../services/database'
+import { getAllPdfs, getPdf, deletePdf as dbDeletePdf, getChaptersByPdfId, updatePdfStatus, updateChapterStatus, getChapter, markAllJobsDoneForPdf, getChunksByChapterId, updateChapterSummaryStatus, updateChapterConceptsStatus, getDb } from '../services/database'
 import { processPdf, deletePdfFile } from '../services/pdf-processor'
 import { startJobQueue, cancelProcessing, requestCancelForPdf } from '../services/job-queue'
 import { parseOutlineFromPdf } from '../services/toc-parser'
@@ -268,5 +268,32 @@ export function registerPdfHandlers(): void {
       page_end: c.page_end,
       content: c.content.substring(0, 200) // Truncate for test performance
     }))
+  })
+
+  // Test-only: Simulate stuck processing state (as if app crashed mid-processing)
+  ipcMain.handle('test:simulate-stuck-processing', (_, pdfId: number) => {
+    if (process.env.NODE_ENV !== 'test') {
+      return { error: 'Not allowed outside test environment' }
+    }
+    const db = getDb()
+    // Set chapters to processing state
+    db.prepare(`UPDATE chapters SET status = 'processing', summary_status = 'processing', concepts_status = 'processing' WHERE pdf_id = ?`).run(pdfId)
+    // Set PDF to processing state
+    db.prepare(`UPDATE pdfs SET status = 'processing' WHERE id = ?`).run(pdfId)
+    // Set jobs to running state
+    db.prepare(`UPDATE jobs SET status = 'running' WHERE pdf_id = ?`).run(pdfId)
+    return { success: true }
+  })
+
+  // Test-only: Get processing statuses for verification
+  ipcMain.handle('test:get-processing-statuses', (_, pdfId: number) => {
+    if (process.env.NODE_ENV !== 'test') {
+      return { error: 'Not allowed outside test environment' }
+    }
+    const db = getDb()
+    const pdf = db.prepare('SELECT status FROM pdfs WHERE id = ?').get(pdfId) as { status: string } | undefined
+    const chapters = db.prepare('SELECT id, status, summary_status, concepts_status FROM chapters WHERE pdf_id = ?').all(pdfId) as { id: number; status: string; summary_status: string; concepts_status: string }[]
+    const jobs = db.prepare('SELECT id, status, type FROM jobs WHERE pdf_id = ?').all(pdfId) as { id: number; status: string; type: string }[]
+    return { pdf, chapters, jobs }
   })
 }

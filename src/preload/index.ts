@@ -249,7 +249,18 @@ const api = {
     const listener = (_: unknown, data: ConceptsProgress) => callback(data)
     ipcRenderer.on('concepts:progress', listener)
     return () => ipcRenderer.removeListener('concepts:progress', listener)
-  }
+  },
+
+  // Test-only: Simulate stuck processing state
+  simulateStuckProcessing: (pdfId: number): Promise<{ success: boolean } | { error: string }> =>
+    ipcRenderer.invoke('test:simulate-stuck-processing', pdfId),
+  // Test-only: Get processing statuses for verification
+  getProcessingStatuses: (pdfId: number): Promise<{
+    pdf: { status: string } | undefined
+    chapters: { id: number; status: string; summary_status: string; concepts_status: string }[]
+    jobs: { id: number; status: string; type: string }[]
+  } | { error: string }> =>
+    ipcRenderer.invoke('test:get-processing-statuses', pdfId)
 }
 
 contextBridge.exposeInMainWorld('api', api)
