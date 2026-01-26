@@ -1,7 +1,8 @@
 import Database from 'better-sqlite3'
 import { app } from 'electron'
-import { join } from 'path'
+import { join, dirname } from 'path'
 import { existsSync, mkdirSync } from 'fs'
+import { arch, platform } from 'process'
 
 // Row types for database queries
 export interface PdfRow {
@@ -95,8 +96,19 @@ export async function initDatabase(): Promise<void> {
 
   // Load sqlite-vec extension
   try {
-    const sqliteVec = await import('sqlite-vec')
-    sqliteVec.load(db)
+    // Determine platform-specific extension path
+    const os = platform === 'win32' ? 'windows' : platform
+    const ext = platform === 'win32' ? 'dll' : platform === 'darwin' ? 'dylib' : 'so'
+    const packageName = `sqlite-vec-${os}-${arch}`
+
+    // Get base path, handling asar packaging
+    let basePath = dirname(require.resolve('sqlite-vec'))
+    if (basePath.includes('app.asar')) {
+      basePath = basePath.replace('app.asar', 'app.asar.unpacked')
+    }
+    const extPath = join(basePath, '..', packageName, `vec0.${ext}`)
+
+    db.loadExtension(extPath)
   } catch (e) {
     console.warn('sqlite-vec not loaded:', e)
   }
