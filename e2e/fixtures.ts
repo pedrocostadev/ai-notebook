@@ -317,3 +317,31 @@ export async function getPdfOutline(
     chapters: { title: string; pageNumber: number }[]
   }
 }
+
+// Get chunks for a chapter (test-only)
+export async function getChunksByChapter(
+  window: Page,
+  chapterId: number
+): Promise<{
+  id: number
+  page_start: number
+  page_end: number
+  content: string
+}[]> {
+  const result = await window.evaluate(async (id) => {
+    const api = (window as unknown as {
+      api: { getChunksByChapterTest: (chapterId: number) => Promise<unknown> }
+    }).api
+    return await api.getChunksByChapterTest(id)
+  }, chapterId)
+
+  if (result && typeof result === 'object' && 'error' in result) {
+    throw new Error(`Failed to get chunks: ${(result as { error: string }).error}`)
+  }
+  return result as {
+    id: number
+    page_start: number
+    page_end: number
+    content: string
+  }[]
+}

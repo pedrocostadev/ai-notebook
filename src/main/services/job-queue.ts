@@ -165,10 +165,10 @@ async function processJob(job: PendingJob): Promise<void> {
       const pdf = getPdf(job.pdf_id)
       if (!pdf) throw new Error('PDF not found')
 
-      const { pages, fullText, labelMap } = await getCachedPdfData(pdf.filepath)
+      const { fullText, boundaries } = await getCachedPdfData(pdf.filepath)
 
       // Process chapter (chunk text)
-      await processChapter(job.pdf_id, job.chapter_id, fullText, pages, labelMap)
+      await processChapter(job.pdf_id, job.chapter_id, fullText, boundaries)
 
       if (isCancelled()) {
         cleanupWorker(job.id)

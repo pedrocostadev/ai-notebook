@@ -1,6 +1,6 @@
 import { ipcMain, dialog, shell } from 'electron'
 import { spawn } from 'child_process'
-import { getAllPdfs, getPdf, deletePdf as dbDeletePdf, getChaptersByPdfId, updatePdfStatus, updateChapterStatus, getChapter, markAllJobsDoneForPdf } from '../services/database'
+import { getAllPdfs, getPdf, deletePdf as dbDeletePdf, getChaptersByPdfId, updatePdfStatus, updateChapterStatus, getChapter, markAllJobsDoneForPdf, getChunksByChapterId } from '../services/database'
 import { processPdf, deletePdfFile } from '../services/pdf-processor'
 import { startJobQueue, cancelProcessing, requestCancelForPdf } from '../services/job-queue'
 import { parseOutlineFromPdf } from '../services/toc-parser'
@@ -201,5 +201,19 @@ export function registerPdfHandlers(): void {
       hasToc: result.hasToc,
       chapters
     }
+  })
+
+  // Test-only: Get chunks for a chapter (for verifying page numbers)
+  ipcMain.handle('chunks:get-by-chapter-test', (_, chapterId: number) => {
+    if (process.env.NODE_ENV !== 'test') {
+      return { error: 'Not allowed outside test environment' }
+    }
+    const chunks = getChunksByChapterId(chapterId)
+    return chunks.map((c) => ({
+      id: c.id,
+      page_start: c.page_start,
+      page_end: c.page_end,
+      content: c.content.substring(0, 200) // Truncate for test performance
+    }))
   })
 }

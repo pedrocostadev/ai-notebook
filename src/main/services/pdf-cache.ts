@@ -1,5 +1,11 @@
 import { PDFLoader } from '@langchain/community/document_loaders/fs/pdf'
-import { loadPageLabels, computePageBoundaries, type PageBoundary } from './pdf-processor'
+import {
+  computePageBoundaries,
+  getPhysicalPageNumbers,
+  buildLabelMap,
+  physicalToDisplayPages,
+  type PageBoundary
+} from './pdf-processor'
 
 export interface CachedPdfData {
   pages: string[]
@@ -19,10 +25,14 @@ const cache = new Map<string, CachedPdfData>()
  */
 export async function getCachedPdfData(filepath: string): Promise<CachedPdfData> {
   const existing = cache.get(filepath)
-  if (existing) {
+  // Check if we have a complete cache entry (pages loaded)
+  if (existing && existing.pages.length > 0) {
     existing.lastAccessed = Date.now()
     return existing
   }
+
+  // Preserve pre-set labelMap if available (from TOC parsing)
+  const presetLabelMap = existing?.labelMap
 
   // Evict oldest entry if cache is full
   if (cache.size >= MAX_CACHE_SIZE) {
@@ -44,8 +54,13 @@ export async function getCachedPdfData(filepath: string): Promise<CachedPdfData>
   const docs = await loader.load()
   const pages = docs.map((d) => d.pageContent)
   const fullText = pages.join('\n\n')
-  const boundaries = computePageBoundaries(pages)
-  const labelMap = await loadPageLabels(filepath)
+
+  // Build page boundaries with display labels
+  const physicalPageNumbers = getPhysicalPageNumbers(docs)
+  const totalPhysicalPages = (docs[0]?.metadata?.pdf?.totalPages as number) ?? pages.length
+  const labelMap = await buildLabelMap(filepath, pages, totalPhysicalPages, presetLabelMap)
+  const pageNumbers = physicalToDisplayPages(physicalPageNumbers, labelMap)
+  const boundaries = computePageBoundaries(pages, pageNumbers)
 
   const data: CachedPdfData = {
     pages,
@@ -57,6 +72,28 @@ export async function getCachedPdfData(filepath: string): Promise<CachedPdfData>
 
   cache.set(filepath, data)
   return data
+}
+
+/**
+ * Set page labels for a cached PDF (call after TOC parsing with known-good labels).
+ * If the PDF is not yet cached, this stores the labels for later use.
+ */
+export function setCachedPageLabels(filepath: string, labelMap: Map<number, number>): void {
+  const existing = cache.get(filepath)
+  if (existing) {
+    existing.labelMap = labelMap
+    existing.lastAccessed = Date.now()
+  } else {
+    // Store labels in a partial cache entry - will be completed when getCachedPdfData is called
+    // Use a marker to indicate this is incomplete
+    cache.set(filepath, {
+      pages: [],
+      fullText: '',
+      boundaries: [],
+      labelMap,
+      lastAccessed: Date.now()
+    })
+  }
 }
 
 /**

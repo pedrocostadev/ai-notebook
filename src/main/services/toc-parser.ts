@@ -31,6 +31,7 @@ export interface ParsedToc {
   hasToc: boolean
   chapters: TocChapter[]
   title?: string
+  pageLabels?: Map<number, number> // Physical page (1-indexed) -> label number
 }
 
 /**
@@ -115,7 +116,18 @@ export async function parseOutlineFromPdf(
       index++
     }
 
-    return { hasToc: true, chapters, title }
+    // Build pageLabels map for chunk processing (same data used for chapter pageLabel)
+    const labelMap = new Map<number, number>()
+    if (pageLabels) {
+      for (let i = 0; i < pageLabels.length; i++) {
+        const parsed = parseInt(pageLabels[i], 10)
+        if (!isNaN(parsed)) {
+          labelMap.set(i + 1, parsed) // i+1 = physical page (1-indexed)
+        }
+      }
+    }
+
+    return { hasToc: true, chapters, title, pageLabels: labelMap }
   } catch (error) {
     console.error('Outline extraction error:', error)
     return { hasToc: false, chapters: [] }
