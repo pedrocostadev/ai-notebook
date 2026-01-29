@@ -35,25 +35,19 @@ export const QuizMessage = memo(function QuizMessage({ questions, messageId, ini
   }, [showResults, messageId, questions])
 
   const handleSelect = useCallback((questionIndex: number, optionIndex: number) => {
-    setSelectedAnswers(prev => {
-      if (showResults[questionIndex]) return prev // Don't allow changes after revealing
-      const newAnswers = [...prev]
-      newAnswers[questionIndex] = optionIndex
-      return newAnswers
-    })
-  }, [showResults])
+    if (showResults[questionIndex]) return // Don't allow changes after revealing
 
-  const handleCheck = useCallback((questionIndex: number) => {
-    setSelectedAnswers(currentAnswers => {
-      pendingSaveRef.current = currentAnswers
-      return currentAnswers
-    })
+    const newAnswers = [...selectedAnswers]
+    newAnswers[questionIndex] = optionIndex
+    pendingSaveRef.current = newAnswers
+    setSelectedAnswers(newAnswers)
+
     setShowResults(prev => {
       const newShowResults = [...prev]
       newShowResults[questionIndex] = true
       return newShowResults
     })
-  }, [])
+  }, [showResults, selectedAnswers])
 
   const getAnswerState = useCallback((questionIndex: number): AnswerState => {
     if (!showResults[questionIndex]) return 'unanswered'
@@ -142,15 +136,6 @@ export const QuizMessage = memo(function QuizMessage({ questions, messageId, ini
                 )
               })}
             </div>
-
-            {!isRevealed && selectedAnswers[qIndex] !== null && (
-              <button
-                onClick={() => handleCheck(qIndex)}
-                className="mt-3 ml-6 px-4 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
-              >
-                Check Answer
-              </button>
-            )}
 
             {isRevealed && (
               <div className="mt-3 ml-6 p-3 rounded-md bg-muted/50 space-y-1">
