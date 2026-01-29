@@ -37,7 +37,11 @@ const ChatMessageItem = memo(function ChatMessageItem({
         data-testid={`message-${message.role}`}
       >
         {hasQuiz ? (
-          <QuizMessage questions={message.metadata!.quiz!} />
+          <QuizMessage
+            questions={message.metadata!.quiz!}
+            messageId={message.id}
+            initialAnswers={message.metadata!.quizAnswers}
+          />
         ) : hasConcepts ? (
           <KeyConceptsMessage
             concepts={message.metadata!.concepts!}

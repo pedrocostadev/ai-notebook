@@ -13,6 +13,7 @@ import {
   getChapterConceptsStatus,
   getChunksByChapterId,
   insertMessage,
+  updateMessageMetadata,
   getMessagesByPdfId,
   getConversationSummary,
   isJobPending,
@@ -64,6 +65,11 @@ export function registerChatHandlers(): void {
       return insertMessage(pdfId, chapterId, role, content, metadata)
     }
   )
+
+  // Update message metadata (e.g., quiz answers)
+  ipcMain.handle('chat:update-metadata', (_, messageId: number, metadata: object) => {
+    updateMessageMetadata(messageId, metadata)
+  })
 
   // Slash command handlers
   ipcMain.handle('slash:get-summary', (_, chapterId: number): { summary: string } | { pending: true } | { error: string } | { empty: true } => {

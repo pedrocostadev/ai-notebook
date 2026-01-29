@@ -1,23 +1,38 @@
-import { useState, memo, useCallback } from 'react'
+import { useState, memo, useCallback, useEffect, useRef } from 'react'
 import { cn } from '@/lib/utils'
 import { CheckCircle2, XCircle, HelpCircle } from 'lucide-react'
-import type { QuizQuestion } from '@/lib/types'
+import type { QuizQuestion, ChatMessageMetadata } from '@/lib/types'
 
 export type { QuizQuestion }
 
 interface QuizMessageProps {
   questions: QuizQuestion[]
+  messageId?: number
+  initialAnswers?: (number | null)[]
 }
 
 type AnswerState = 'unanswered' | 'correct' | 'incorrect'
 
-export const QuizMessage = memo(function QuizMessage({ questions }: QuizMessageProps) {
+export const QuizMessage = memo(function QuizMessage({ questions, messageId, initialAnswers }: QuizMessageProps) {
   const [selectedAnswers, setSelectedAnswers] = useState<(number | null)[]>(
-    new Array(questions.length).fill(null)
+    initialAnswers ?? new Array(questions.length).fill(null)
   )
   const [showResults, setShowResults] = useState<boolean[]>(
-    new Array(questions.length).fill(false)
+    initialAnswers ? initialAnswers.map(a => a !== null) : new Array(questions.length).fill(false)
   )
+  const pendingSaveRef = useRef<(number | null)[] | null>(null)
+
+  // Save answers to database when they change
+  useEffect(() => {
+    if (!messageId || !pendingSaveRef.current) return
+    const answersToSave = pendingSaveRef.current
+    pendingSaveRef.current = null
+
+    window.api.updateMessageMetadata(messageId, {
+      quiz: questions,
+      quizAnswers: answersToSave
+    } as ChatMessageMetadata)
+  }, [showResults, messageId, questions])
 
   const handleSelect = useCallback((questionIndex: number, optionIndex: number) => {
     setSelectedAnswers(prev => {
@@ -29,6 +44,10 @@ export const QuizMessage = memo(function QuizMessage({ questions }: QuizMessageP
   }, [showResults])
 
   const handleCheck = useCallback((questionIndex: number) => {
+    setSelectedAnswers(currentAnswers => {
+      pendingSaveRef.current = currentAnswers
+      return currentAnswers
+    })
     setShowResults(prev => {
       const newShowResults = [...prev]
       newShowResults[questionIndex] = true

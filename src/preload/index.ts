@@ -202,6 +202,8 @@ const api = {
     ipcRenderer.invoke('chat:history', pdfId, chapterId),
   saveMessage: (pdfId: number, chapterId: number | null, role: 'user' | 'assistant', content: string, metadata?: object): Promise<number> =>
     ipcRenderer.invoke('chat:save-message', pdfId, chapterId, role, content, metadata),
+  updateMessageMetadata: (messageId: number, metadata: object): Promise<void> =>
+    ipcRenderer.invoke('chat:update-metadata', messageId, metadata),
 
   // Slash commands
   getChapterSummary: (chapterId: number): Promise<SlashSummaryResult> =>

@@ -68,6 +68,7 @@ export interface ChatMessageMetadata {
   citations?: Citation[]
   followUpQuestions?: string[]
   quiz?: QuizQuestion[]
+  quizAnswers?: (number | null)[]
   concepts?: Concept[]
   isDocumentLevel?: boolean
 }
