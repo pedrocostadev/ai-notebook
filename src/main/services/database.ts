@@ -279,12 +279,12 @@ export async function initDatabase(): Promise<void> {
     console.warn('vec_chunks trigger skipped:', e)
   }
 
-  // Reset stuck processing states from interrupted sessions
+  // Reset stuck processing/error/failed states from interrupted sessions
   db.exec(`
-    UPDATE jobs SET status = 'pending' WHERE status = 'running';
+    UPDATE jobs SET status = 'pending' WHERE status IN ('running', 'failed');
     UPDATE chapters SET status = 'pending' WHERE status = 'processing';
-    UPDATE chapters SET summary_status = 'pending' WHERE summary_status = 'processing';
-    UPDATE chapters SET concepts_status = 'pending' WHERE concepts_status = 'processing';
+    UPDATE chapters SET summary_status = 'pending' WHERE summary_status IN ('processing', 'error');
+    UPDATE chapters SET concepts_status = 'pending' WHERE concepts_status IN ('processing', 'error');
     UPDATE pdfs SET status = 'pending' WHERE status = 'processing';
   `)
 }
@@ -841,6 +841,10 @@ export function deleteConceptsByPdfId(pdfId: number, consolidatedOnly: boolean =
   } else {
     getDb().prepare('DELETE FROM concepts WHERE pdf_id = ?').run(pdfId)
   }
+}
+
+export function deleteConceptsByChapterId(chapterId: number): void {
+  getDb().prepare('DELETE FROM concepts WHERE chapter_id = ?').run(chapterId)
 }
 
 export function updateChapterConceptsStatus(

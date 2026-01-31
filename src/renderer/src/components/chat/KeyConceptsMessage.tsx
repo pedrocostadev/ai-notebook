@@ -1,6 +1,6 @@
-import { useState, useMemo, memo } from 'react'
+import { useState, useMemo, memo, useCallback } from 'react'
 import { cn } from '@/lib/utils'
-import { Lightbulb, ChevronDown, ChevronUp, BookOpen } from 'lucide-react'
+import { Lightbulb, ChevronDown, ChevronUp, BookOpen, RefreshCw } from 'lucide-react'
 import type { Concept, ConceptQuote } from '@/lib/types'
 
 export type { Concept, ConceptQuote }
@@ -8,6 +8,8 @@ export type { Concept, ConceptQuote }
 interface KeyConceptsMessageProps {
   concepts: Concept[]
   isDocumentLevel?: boolean
+  pdfId?: number | null
+  chapterId?: number | null
 }
 
 function ImportanceStars({ importance }: { importance: number }) {
@@ -30,7 +32,7 @@ function ImportanceStars({ importance }: { importance: number }) {
 
 const INITIAL_QUOTES_SHOWN = 3
 
-const ConceptCard = memo(function ConceptCard({ concept, isDocumentLevel }: { concept: Concept; isDocumentLevel?: boolean }) {
+const ConceptCard = memo(function ConceptCard({ concept, isDocumentLevel, pdfId }: { concept: Concept; isDocumentLevel?: boolean; pdfId?: number | null }) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [showAllQuotes, setShowAllQuotes] = useState(false)
 
@@ -83,7 +85,19 @@ const ConceptCard = memo(function ConceptCard({ concept, isDocumentLevel }: { co
                     <span>{quote.chapterTitle}</span>
                   )}
                   {quote.pageEstimate && (
-                    <span className="font-medium">p. {quote.pageEstimate}</span>
+                    <span
+                      className={cn(
+                        'font-medium',
+                        pdfId && 'text-primary/80 hover:text-primary cursor-pointer hover:underline'
+                      )}
+                      onClick={pdfId && quote.pageEstimate ? (e) => {
+                        e.stopPropagation()
+                        window.api.openPdfAtPage(pdfId, quote.pageEstimate!)
+                      } : undefined}
+                      title={pdfId ? `Open page ${quote.pageEstimate} in PDF viewer` : undefined}
+                    >
+                      p. {quote.pageEstimate}
+                    </span>
                   )}
                   {!quote.chapterTitle && !quote.pageEstimate && (
                     <span>Source text</span>
@@ -106,13 +120,25 @@ const ConceptCard = memo(function ConceptCard({ concept, isDocumentLevel }: { co
   )
 })
 
-export const KeyConceptsMessage = memo(function KeyConceptsMessage({ concepts, isDocumentLevel }: KeyConceptsMessageProps) {
+export const KeyConceptsMessage = memo(function KeyConceptsMessage({ concepts, isDocumentLevel, pdfId, chapterId }: KeyConceptsMessageProps) {
+  const [isRegenerating, setIsRegenerating] = useState(false)
+
   // Memoize grouped concepts to avoid recalculation on re-renders
   const { highImportance, mediumImportance, lowImportance } = useMemo(() => ({
     highImportance: concepts.filter((c) => c.importance >= 4),
     mediumImportance: concepts.filter((c) => c.importance === 3),
     lowImportance: concepts.filter((c) => c.importance <= 2)
   }), [concepts])
+
+  const handleRegenerate = useCallback(async () => {
+    if (!chapterId || isRegenerating) return
+    setIsRegenerating(true)
+    try {
+      await window.api.regenerateConcepts(chapterId)
+    } finally {
+      setIsRegenerating(false)
+    }
+  }, [chapterId, isRegenerating])
 
   if (concepts.length === 0) {
     return (
@@ -132,6 +158,16 @@ export const KeyConceptsMessage = memo(function KeyConceptsMessage({ concepts, i
         <span className="text-sm text-muted-foreground">
           ({concepts.length} concepts)
         </span>
+        {import.meta.env.DEV && !isDocumentLevel && chapterId && (
+          <button
+            onClick={handleRegenerate}
+            disabled={isRegenerating}
+            className="ml-auto text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+            title="Regenerate concepts (dev only)"
+          >
+            <RefreshCw className={cn('h-3.5 w-3.5', isRegenerating && 'animate-spin')} />
+          </button>
+        )}
       </div>
 
       {highImportance.length > 0 && (
@@ -141,7 +177,7 @@ export const KeyConceptsMessage = memo(function KeyConceptsMessage({ concepts, i
           </p>
           <div className="space-y-2">
             {highImportance.map((concept) => (
-              <ConceptCard key={concept.name} concept={concept} isDocumentLevel={isDocumentLevel} />
+              <ConceptCard key={concept.name} concept={concept} isDocumentLevel={isDocumentLevel} pdfId={pdfId} />
             ))}
           </div>
         </div>
@@ -154,7 +190,7 @@ export const KeyConceptsMessage = memo(function KeyConceptsMessage({ concepts, i
           </p>
           <div className="space-y-2">
             {mediumImportance.map((concept) => (
-              <ConceptCard key={concept.name} concept={concept} isDocumentLevel={isDocumentLevel} />
+              <ConceptCard key={concept.name} concept={concept} isDocumentLevel={isDocumentLevel} pdfId={pdfId} />
             ))}
           </div>
         </div>
@@ -167,7 +203,7 @@ export const KeyConceptsMessage = memo(function KeyConceptsMessage({ concepts, i
           </p>
           <div className="space-y-2">
             {lowImportance.map((concept) => (
-              <ConceptCard key={concept.name} concept={concept} isDocumentLevel={isDocumentLevel} />
+              <ConceptCard key={concept.name} concept={concept} isDocumentLevel={isDocumentLevel} pdfId={pdfId} />
             ))}
           </div>
         </div>

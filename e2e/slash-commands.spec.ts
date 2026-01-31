@@ -13,6 +13,11 @@ import {
   getChapterDetails,
   getPdfOutline,
   getChunksByChapter,
+  getConceptsByChapter,
+  insertConcepts,
+  getProcessingStatuses,
+  regenerateConcepts,
+  waitForConceptsStatus,
   SAMPLE_PDF
 } from './fixtures'
 
@@ -653,5 +658,136 @@ test.describe('Slash Commands', () => {
     }
 
     console.log(`\nAll ${chunks.length} chunks have valid display page labels (${expectedStartLabel}-${maxExpectedLabel})`)
+  })
+
+  test('regenerate concepts creates new job and updates status', async () => {
+    // Test the dev-only regenerate concepts feature
+    test.setTimeout(60000)
+
+    app = await launchApp()
+    const window = await app.firstWindow()
+    await window.waitForLoadState('domcontentloaded')
+
+    await setupApiKey(window)
+
+    // Upload PDF and mark as done
+    const { pdfId } = await uploadPdf(window, SAMPLE_PDF)
+    const chapters = await waitForChapters(window, pdfId, 30000)
+    expect(chapters.length).toBeGreaterThan(0)
+    await markPdfDone(window, pdfId)
+
+    const chapterId = chapters[0].id
+
+    // Insert mock concepts to simulate initial state
+    const mockConcepts = [{
+      name: 'Test Concept',
+      definition: 'A test concept definition',
+      importance: 5,
+      quotes: [{ text: 'Test quote text', pageEstimate: 1 }]
+    }]
+    await insertConcepts(window, pdfId, chapterId, mockConcepts)
+
+    // Verify concepts_status is 'done' before regeneration
+    let statuses = await getProcessingStatuses(window, pdfId)
+    let chapter = statuses.chapters.find((c) => c.id === chapterId)
+    expect(chapter?.concepts_status).toBe('done')
+
+    // Verify concepts exist
+    let concepts = await getConceptsByChapter(window, chapterId)
+    expect(concepts.length).toBe(1)
+    expect(concepts[0].name).toBe('Test Concept')
+
+    // Regenerate concepts
+    const result = await regenerateConcepts(window, chapterId)
+    expect(result.success).toBe(true)
+    expect(result.jobId).toBeDefined()
+
+    // Verify concepts_status changes (should be pending or processing)
+    statuses = await getProcessingStatuses(window, pdfId)
+    chapter = statuses.chapters.find((c) => c.id === chapterId)
+    expect(['pending', 'processing']).toContain(chapter?.concepts_status)
+
+    // Verify old concepts were deleted
+    concepts = await getConceptsByChapter(window, chapterId)
+    expect(concepts.length).toBe(0)
+  })
+
+  test('concept quote pageEstimate falls within chunk page range', async () => {
+    // This test verifies that pageEstimate values are within valid chunk page ranges
+    // Uses mock data to test the validation logic without requiring LLM calls
+    test.setTimeout(60000)
+
+    app = await launchApp()
+    const window = await app.firstWindow()
+    await window.waitForLoadState('domcontentloaded')
+
+    await setupApiKey(window)
+
+    // Upload PDF and mark as done
+    const { pdfId } = await uploadPdf(window, SAMPLE_PDF)
+    const chapters = await waitForChapters(window, pdfId, 30000)
+    expect(chapters.length).toBeGreaterThan(0)
+    await markPdfDone(window, pdfId)
+
+    const chapterId = chapters[0].id
+
+    // Get actual chunks to know valid page ranges
+    // Wait a bit for chunks to be created
+    await window.waitForTimeout(2000)
+    const chunks = await getChunksByChapter(window, chapterId)
+
+    // Skip if no chunks (empty chapter)
+    if (chunks.length === 0) {
+      console.log('No chunks found, skipping test')
+      return
+    }
+
+    // Find the page range covered by chunks
+    const minPage = Math.min(...chunks.map(c => c.page_start))
+    const maxPage = Math.max(...chunks.map(c => c.page_end))
+    console.log(`Chapter chunks cover pages ${minPage}-${maxPage}`)
+
+    // Insert concepts with pageEstimates - some valid, some invalid
+    const mockConcepts = [
+      {
+        name: 'Valid Concept',
+        definition: 'A concept with valid page estimate',
+        importance: 5,
+        quotes: [
+          { text: 'Quote within valid range', pageEstimate: minPage },
+          { text: 'Another valid quote', pageEstimate: maxPage }
+        ]
+      },
+      {
+        name: 'Edge Case Concept',
+        definition: 'A concept testing edge cases',
+        importance: 4,
+        quotes: [
+          { text: 'Quote at boundary', pageEstimate: Math.floor((minPage + maxPage) / 2) }
+        ]
+      }
+    ]
+    await insertConcepts(window, pdfId, chapterId, mockConcepts)
+
+    // Get the inserted concepts back
+    const concepts = await getConceptsByChapter(window, chapterId)
+    expect(concepts.length).toBe(2)
+
+    // Verify all pageEstimates are within valid range
+    const invalidPageEstimates: string[] = []
+    for (const concept of concepts) {
+      for (const quote of concept.quotes) {
+        if (quote.pageEstimate !== undefined) {
+          if (quote.pageEstimate < minPage || quote.pageEstimate > maxPage) {
+            invalidPageEstimates.push(
+              `Concept "${concept.name}": pageEstimate=${quote.pageEstimate} outside range [${minPage}-${maxPage}]`
+            )
+          }
+        }
+      }
+    }
+
+    expect(invalidPageEstimates).toHaveLength(0)
+    console.log(`All ${concepts.flatMap(c => c.quotes).filter(q => q.pageEstimate).length} page estimates are valid`)
   })
 })

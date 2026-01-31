@@ -391,3 +391,89 @@ export async function getProcessingStatuses(
     jobs: { id: number; status: string; type: string }[]
   }
 }
+
+// Regenerate concepts for a chapter (dev/test-only)
+export async function regenerateConcepts(
+  window: Page,
+  chapterId: number
+): Promise<{ success: boolean; jobId?: number }> {
+  const result = await window.evaluate(async (id) => {
+    const api = (window as unknown as {
+      api: { regenerateConcepts: (chapterId: number) => Promise<{ success: boolean; jobId?: number } | { error: string }> }
+    }).api
+    return await api.regenerateConcepts(id)
+  }, chapterId)
+
+  if (result && typeof result === 'object' && 'error' in result) {
+    throw new Error(`Failed to regenerate concepts: ${(result as { error: string }).error}`)
+  }
+  return result as { success: boolean; jobId?: number }
+}
+
+// Insert concepts for a chapter (test-only)
+export async function insertConcepts(
+  window: Page,
+  pdfId: number,
+  chapterId: number,
+  concepts: { name: string; definition: string; importance: number; quotes: { text: string; pageEstimate?: number }[] }[]
+): Promise<{ success: boolean; ids: number[] }> {
+  const result = await window.evaluate(async ({ pdfId, chapterId, concepts }) => {
+    const api = (window as unknown as {
+      api: { insertConceptsTest: (pdfId: number, chapterId: number, concepts: unknown[]) => Promise<unknown> }
+    }).api
+    return await api.insertConceptsTest(pdfId, chapterId, concepts)
+  }, { pdfId, chapterId, concepts })
+
+  if (result && typeof result === 'object' && 'error' in result) {
+    throw new Error(`Failed to insert concepts: ${(result as { error: string }).error}`)
+  }
+  return result as { success: boolean; ids: number[] }
+}
+
+// Get concepts for a chapter (test-only)
+export async function getConceptsByChapter(
+  window: Page,
+  chapterId: number
+): Promise<{
+  id: number
+  name: string
+  importance: number
+  quotes: { text: string; pageEstimate?: number }[]
+}[]> {
+  const result = await window.evaluate(async (id) => {
+    const api = (window as unknown as {
+      api: { getConceptsByChapterTest: (chapterId: number) => Promise<unknown> }
+    }).api
+    return await api.getConceptsByChapterTest(id)
+  }, chapterId)
+
+  if (result && typeof result === 'object' && 'error' in result) {
+    throw new Error(`Failed to get concepts: ${(result as { error: string }).error}`)
+  }
+  return result as {
+    id: number
+    name: string
+    importance: number
+    quotes: { text: string; pageEstimate?: number }[]
+  }[]
+}
+
+// Wait for chapter concepts status to reach a specific value
+export async function waitForConceptsStatus(
+  window: Page,
+  pdfId: number,
+  chapterId: number,
+  targetStatus: string,
+  timeout = 60000
+): Promise<boolean> {
+  const startTime = Date.now()
+  while (Date.now() - startTime < timeout) {
+    const statuses = await getProcessingStatuses(window, pdfId)
+    const chapter = statuses.chapters.find((c) => c.id === chapterId)
+    if (chapter && chapter.concepts_status === targetStatus) {
+      return true
+    }
+    await window.waitForTimeout(500)
+  }
+  return false
+}

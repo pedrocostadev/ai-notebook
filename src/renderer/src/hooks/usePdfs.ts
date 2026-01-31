@@ -154,23 +154,25 @@ export function usePdfs() {
     })
 
     const unsubscribeConcepts = window.api.onConceptsProgress(async ({ pdfId, chapterId, stage }) => {
-      if (stage === 'done' && chapterId !== null) {
-        // Refresh chapters to get updated statuses
+      if (chapterId !== null) {
+        // Refresh chapters to get updated statuses (on both extracting and done)
         const updatedChapters = await window.api.listChapters(pdfId)
         setChapters((prev) => ({ ...prev, [pdfId]: updatedChapters }))
 
         // Check if chapter is now fully processed
-        const chapter = updatedChapters.find((c) => c.id === chapterId)
-        if (chapter && chapter.status === 'done' && chapter.summary_status === 'done' && chapter.concepts_status === 'done') {
-          setRecentlyCompletedChapters((prev) => new Set([...prev, chapterId]))
-          // Clear after 3 seconds
-          setTimeout(() => {
-            setRecentlyCompletedChapters((prev) => {
-              const next = new Set(prev)
-              next.delete(chapterId)
-              return next
-            })
-          }, 3000)
+        if (stage === 'done') {
+          const chapter = updatedChapters.find((c) => c.id === chapterId)
+          if (chapter && chapter.status === 'done' && chapter.summary_status === 'done' && chapter.concepts_status === 'done') {
+            setRecentlyCompletedChapters((prev) => new Set([...prev, chapterId]))
+            // Clear after 3 seconds
+            setTimeout(() => {
+              setRecentlyCompletedChapters((prev) => {
+                const next = new Set(prev)
+                next.delete(chapterId)
+                return next
+              })
+            }, 3000)
+          }
         }
       }
     })

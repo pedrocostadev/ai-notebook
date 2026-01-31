@@ -101,6 +101,56 @@ export interface ChunkWithPage {
   pageEnd: number
 }
 
+/**
+ * Search for a quote in chunks and return the actual page number.
+ * Uses fuzzy matching to handle minor text differences.
+ */
+function findQuoteInChunks(quote: string, chunks: ChunkWithPage[]): number | undefined {
+  // Normalize text for matching (collapse whitespace, lowercase)
+  const normalizeText = (text: string): string =>
+    text.toLowerCase().replace(/\s+/g, ' ').trim()
+
+  const normalizedQuote = normalizeText(quote)
+
+  for (const chunk of chunks) {
+    const normalizedContent = normalizeText(chunk.content)
+
+    // Check if quote exists in this chunk
+    const quotePos = normalizedContent.indexOf(normalizedQuote)
+    if (quotePos === -1) continue
+
+    // If chunk is single page, return that page
+    if (chunk.pageStart === chunk.pageEnd) {
+      return chunk.pageStart
+    }
+
+    // Estimate page within multi-page chunk based on position
+    const relativePos = quotePos / normalizedContent.length
+    const pageRange = chunk.pageEnd - chunk.pageStart
+    const estimatedPage = Math.round(chunk.pageStart + relativePos * pageRange)
+
+    return Math.min(estimatedPage, chunk.pageEnd)
+  }
+
+  // Try partial match (first 50 chars) as fallback
+  const shortQuote = normalizedQuote.slice(0, 50)
+  for (const chunk of chunks) {
+    const normalizedContent = normalizeText(chunk.content)
+    const quotePos = normalizedContent.indexOf(shortQuote)
+    if (quotePos === -1) continue
+
+    if (chunk.pageStart === chunk.pageEnd) {
+      return chunk.pageStart
+    }
+
+    const relativePos = quotePos / normalizedContent.length
+    const pageRange = chunk.pageEnd - chunk.pageStart
+    return Math.min(Math.round(chunk.pageStart + relativePos * pageRange), chunk.pageEnd)
+  }
+
+  return undefined
+}
+
 export async function generateChapterConcepts(chunks: ChunkWithPage[]): Promise<Concept[]> {
   const { google, modelId } = getGoogleProvider()
 
@@ -143,7 +193,19 @@ Order concepts by importance (highest first).`,
       prompt: `Extract key concepts from this chapter:\n\n${truncatedText}`
     })
 
-    return object.concepts
+    // Fix page estimates by searching for quotes in actual chunks
+    const concepts = object.concepts.map((concept) => ({
+      ...concept,
+      quotes: concept.quotes.map((quote) => {
+        const actualPage = findQuoteInChunks(quote.text, chunks)
+        return {
+          ...quote,
+          pageEstimate: actualPage ?? quote.pageEstimate
+        }
+      })
+    }))
+
+    return concepts
   } catch (err) {
     // Log detailed error info to diagnose schema failures
     console.error('[generateChapterConcepts] Failed:', err)

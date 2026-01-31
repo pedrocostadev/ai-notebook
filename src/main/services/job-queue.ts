@@ -222,7 +222,21 @@ async function processJob(job: PendingJob): Promise<void> {
       const existingChunks = getChunksByChapterId(job.chapter_id)
 
       if (existingChunks.length === 0) {
-        // Fallback: chapter has no chunks yet (shouldn't happen in normal flow)
+        // Check if chapter is empty (start_idx == end_idx means no content)
+        const chapter = getChapter(job.chapter_id)
+        if (chapter && chapter.start_idx === chapter.end_idx) {
+          // Empty chapter - mark as done (nothing to extract concepts from)
+          updateChapterConceptsStatus(job.chapter_id, 'done')
+          notifyConceptsProgress({
+            pdfId: job.pdf_id,
+            chapterId: job.chapter_id,
+            stage: 'done',
+            conceptsCount: 0
+          })
+          cleanupWorker(job.id)
+          return
+        }
+        // Non-empty chapter with no chunks - this is an error
         updateChapterConceptsStatus(job.chapter_id, 'error', 'No chunks available')
         throw new Error('No chunks found for chapter')
       }

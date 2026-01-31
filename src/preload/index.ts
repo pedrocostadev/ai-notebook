@@ -195,6 +195,22 @@ const api = {
     content: string
   }[] | { error: string }> => ipcRenderer.invoke('chunks:get-by-chapter-test', chapterId),
 
+  // Test-only: Get concepts for a chapter (for verifying page estimates)
+  getConceptsByChapterTest: (chapterId: number): Promise<{
+    id: number
+    name: string
+    importance: number
+    quotes: { text: string; pageEstimate?: number }[]
+  }[] | { error: string }> => ipcRenderer.invoke('concepts:get-by-chapter-test', chapterId),
+
+  // Test-only: Insert concepts for a chapter (for seeding test data)
+  insertConceptsTest: (pdfId: number, chapterId: number, concepts: { name: string; definition: string; importance: number; quotes: { text: string; pageEstimate?: number }[] }[]): Promise<{ success: boolean; ids: number[] } | { error: string }> =>
+    ipcRenderer.invoke('concepts:insert-test', pdfId, chapterId, concepts),
+
+  // Dev-only: Regenerate concepts for a chapter
+  regenerateConcepts: (chapterId: number): Promise<{ success: boolean; jobId?: number } | { error: string }> =>
+    ipcRenderer.invoke('dev:regenerate-concepts', chapterId),
+
   // Chat
   sendMessage: (pdfId: number, chapterId: number | null, message: string): Promise<boolean> =>
     ipcRenderer.invoke('chat:send', pdfId, chapterId, message),

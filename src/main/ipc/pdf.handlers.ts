@@ -1,6 +1,6 @@
-import { ipcMain, dialog, shell } from 'electron'
+import { ipcMain, dialog, shell, app } from 'electron'
 import { spawn, execSync } from 'child_process'
-import { getAllPdfs, getPdf, deletePdf as dbDeletePdf, getChaptersByPdfId, updatePdfStatus, updateChapterStatus, getChapter, markAllJobsDoneForPdf, getChunksByChapterId, updateChapterSummaryStatus, updateChapterConceptsStatus, getDb } from '../services/database'
+import { getAllPdfs, getPdf, deletePdf as dbDeletePdf, getChaptersByPdfId, updatePdfStatus, updateChapterStatus, getChapter, markAllJobsDoneForPdf, getChunksByChapterId, updateChapterSummaryStatus, updateChapterConceptsStatus, getDb, deleteConceptsByChapterId, insertJob, getConceptsByChapterId, insertConcepts } from '../services/database'
 import { processPdf, deletePdfFile } from '../services/pdf-processor'
 import { startJobQueue, cancelProcessing, requestCancelForPdf } from '../services/job-queue'
 import { parseOutlineFromPdf } from '../services/toc-parser'
@@ -295,5 +295,55 @@ export function registerPdfHandlers(): void {
     const chapters = db.prepare('SELECT id, status, summary_status, concepts_status FROM chapters WHERE pdf_id = ?').all(pdfId) as { id: number; status: string; summary_status: string; concepts_status: string }[]
     const jobs = db.prepare('SELECT id, status, type FROM jobs WHERE pdf_id = ?').all(pdfId) as { id: number; status: string; type: string }[]
     return { pdf, chapters, jobs }
+  })
+
+  // Dev-only: Regenerate concepts for a chapter (for testing page estimate fixes)
+  ipcMain.handle('dev:regenerate-concepts', (_, chapterId: number) => {
+    if (app.isPackaged) {
+      return { error: 'Not allowed in production' }
+    }
+
+    const chapter = getChapter(chapterId)
+    if (!chapter) {
+      return { error: 'Chapter not found' }
+    }
+
+    // Delete existing concepts for this chapter
+    deleteConceptsByChapterId(chapterId)
+
+    // Reset chapter concepts status
+    updateChapterConceptsStatus(chapterId, 'pending')
+
+    // Queue new concepts job
+    const jobId = insertJob(chapter.pdf_id, chapterId, 'concepts')
+
+    // Start job queue to process it
+    startJobQueue()
+
+    return { success: true, jobId }
+  })
+
+  // Test-only: Get concepts for a chapter (for verifying page estimates)
+  ipcMain.handle('concepts:get-by-chapter-test', (_, chapterId: number) => {
+    if (process.env.NODE_ENV !== 'test') {
+      return { error: 'Not allowed outside test environment' }
+    }
+    const concepts = getConceptsByChapterId(chapterId)
+    return concepts.map((c) => ({
+      id: c.id,
+      name: c.name,
+      importance: c.importance,
+      quotes: c.quotes
+    }))
+  })
+
+  // Test-only: Insert concepts for a chapter (for seeding test data)
+  ipcMain.handle('concepts:insert-test', (_, pdfId: number, chapterId: number, concepts: { name: string; definition: string; importance: number; quotes: { text: string; pageEstimate?: number }[] }[]) => {
+    if (process.env.NODE_ENV !== 'test') {
+      return { error: 'Not allowed outside test environment' }
+    }
+    const ids = insertConcepts(pdfId, chapterId, concepts)
+    updateChapterConceptsStatus(chapterId, 'done')
+    return { success: true, ids }
   })
 }

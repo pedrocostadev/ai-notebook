@@ -10,6 +10,7 @@ import type { ChatMessage, Citation } from '@/lib/types'
 interface ChatMessageItemProps {
   message: ChatMessage
   pdfId?: number | null
+  chapterId?: number | null
   onFollowUpClick?: (question: string) => void
   onCitationClick: (citation: Citation) => void
 }
@@ -17,6 +18,7 @@ interface ChatMessageItemProps {
 const ChatMessageItem = memo(function ChatMessageItem({
   message,
   pdfId,
+  chapterId,
   onFollowUpClick,
   onCitationClick
 }: ChatMessageItemProps) {
@@ -46,6 +48,8 @@ const ChatMessageItem = memo(function ChatMessageItem({
           <KeyConceptsMessage
             concepts={message.metadata!.concepts!}
             isDocumentLevel={message.metadata!.isDocumentLevel}
+            pdfId={pdfId}
+            chapterId={chapterId}
           />
         ) : (
           <>
@@ -218,6 +222,7 @@ export const MessageList = memo(function MessageList({ messages, streamingConten
               <ChatMessageItem
                 message={message}
                 pdfId={pdfId}
+                chapterId={chapterId}
                 onFollowUpClick={onFollowUpClick}
                 onCitationClick={handleCitationClick}
               />
