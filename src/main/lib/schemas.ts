@@ -186,8 +186,9 @@ export const QueryClassificationSchema = z.object({
   isOnTopic: z
     .boolean()
     .describe(
-      'True if query is related to the book/document content. ' +
-        'False if query is off-topic (general knowledge, coding, personal advice, etc.)'
+      'True if query is related to the book/document content or subjects. ' +
+        'Subject questions (what is X?, explain Y) should be ON-TOPIC if X/Y relate to book topics. ' +
+        'False if query is off-topic (clearly unrelated general knowledge, coding, personal advice, etc.)'
     ),
   reason: z.string().optional().describe('Brief reason for classification')
 })
