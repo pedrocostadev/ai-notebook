@@ -142,10 +142,15 @@ export function registerPdfHandlers(): void {
     markAllJobsDoneForPdf(pdfId)
     // Update PDF status
     updatePdfStatus(pdfId, status)
-    // Update all chapters to same status
+    // Update all chapters to same status (including summary_status and concepts_status)
     const chapters = getChaptersByPdfId(pdfId)
     for (const chapter of chapters) {
       updateChapterStatus(chapter.id, status as 'pending' | 'processing' | 'done' | 'error')
+      // Also update summary_status and concepts_status for 'done' state
+      if (status === 'done') {
+        updateChapterSummaryStatus(chapter.id, 'done')
+        updateChapterConceptsStatus(chapter.id, 'done')
+      }
     }
     return { success: true }
   })

@@ -98,6 +98,13 @@ export const ChatContainer = memo(function ChatContainer({ pdfId, chapterId, cha
   const doneChapters = chapters?.filter(c => c.status === 'done').length ?? 0
   const processingChapterIndex = doneChapters + 1 // 1-indexed for display
 
+  // Check if all chapters are fully processed (status, summary_status, and concepts_status all 'done')
+  const allChaptersFullyProcessed = chapters?.every(c => 
+    c.status === 'done' && 
+    c.summary_status === 'done' && 
+    c.concepts_status === 'done'
+  ) ?? true // If no chapters, consider it fully processed
+
   function getPlaceholder(): string {
     if (isExecutingCommand) return commandLoadingMessage || 'Processing...'
     if (isProcessing) return 'Processing...'
@@ -117,7 +124,7 @@ export const ChatContainer = memo(function ChatContainer({ pdfId, chapterId, cha
 
   const isDone = status === 'done'
 
-  const showHeader = (isChapterView && chapterTitle) || (!isChapterView && isDone)
+  const showHeader = (isChapterView && chapterTitle) || (!isChapterView && isDone && allChaptersFullyProcessed)
 
   return (
     <div className="flex-1 flex flex-col bg-background">
@@ -148,7 +155,7 @@ export const ChatContainer = memo(function ChatContainer({ pdfId, chapterId, cha
         </div>
       )}
       {/* PDF header (main chat view, not chapter) */}
-      {!isChapterView && isDone && (
+      {!isChapterView && isDone && allChaptersFullyProcessed && (
         <div data-testid="pdf-header" className="titlebar-drag px-4 pt-7 pb-3 border-b flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm text-[var(--color-success)]">
             <CheckCircle className="h-4 w-4" />
