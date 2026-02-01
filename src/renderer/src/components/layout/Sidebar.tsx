@@ -120,7 +120,7 @@ export function Sidebar({
         <Button
           variant="ghost"
           data-testid="support-btn"
-          className="w-full justify-start gap-2 text-[var(--color-sidebar-foreground)]/70 hover:text-[var(--color-sidebar-foreground)] hover:bg-[var(--color-sidebar-accent)]"
+          className="justify-start gap-2 text-[var(--color-sidebar-foreground)]/70 hover:text-[var(--color-sidebar-foreground)] hover:bg-[var(--color-sidebar-accent)]"
           onClick={() => window.open('https://ko-fi.com/pedro_dcc', '_blank')}
         >
           <Heart className="h-4 w-4" />
