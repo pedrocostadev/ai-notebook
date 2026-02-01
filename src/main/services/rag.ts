@@ -61,7 +61,7 @@ async function classifyQuery(
     system: `You are a query classifier for a book/document chat assistant.
 Determine if the user's query is asking about book/document content OR is off-topic.
 
-CRITICAL: Questions about book subjects/topics should ALWAYS be classified as ON-TOPIC.
+CRITICAL: Questions about book subjects/topics should generally be classified as ON-TOPIC.
 When a user asks "what is X?" or "explain Y", assume they're asking about the book's coverage 
 of that topic, NOT requesting general knowledge unrelated to the book.
 
