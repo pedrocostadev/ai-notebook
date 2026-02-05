@@ -75,6 +75,17 @@ export default function App() {
     if (pdfs.selectedChapterId && pdfs.selectedChapter) {
       return pdfs.selectedChapter.status
     }
+    // For main PDF view, only show 'done' if all chapters are processed
+    if (pdfs.selectedPdf && pdfs.selectedPdfId) {
+      const pdfChapters = pdfs.chapters[pdfs.selectedPdfId] || []
+      if (pdfChapters.length > 0) {
+        const allChaptersDone = pdfChapters.every(c => c.status === 'done')
+        // If not all chapters are done, return 'processing' even if PDF status is 'done'
+        if (!allChaptersDone) {
+          return 'processing'
+        }
+      }
+    }
     return pdfs.selectedPdf?.status
   }
 
