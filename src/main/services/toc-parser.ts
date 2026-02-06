@@ -44,9 +44,10 @@ export async function parseOutlineFromPdf(
 ): Promise<ParsedToc> {
   // Dynamic import for ESM module
   const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs')
-  const loadingTask = pdfjs.getDocument(pdfPath)
+  let loadingTask: ReturnType<typeof pdfjs.getDocument> | undefined
   
   try {
+    loadingTask = pdfjs.getDocument(pdfPath)
     const doc: PDFDocumentProxy = await loadingTask.promise
 
     // Fetch metadata, outline, and page labels in parallel (independent operations)
@@ -135,10 +136,12 @@ export async function parseOutlineFromPdf(
     return { hasToc: false, chapters: [] }
   } finally {
     // Clean up PDF resources to prevent memory leak
-    try {
-      loadingTask.destroy()
-    } catch {
-      // Ignore cleanup errors
+    if (loadingTask) {
+      try {
+        loadingTask.destroy()
+      } catch {
+        // Ignore cleanup errors
+      }
     }
   }
 }
