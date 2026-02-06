@@ -54,7 +54,11 @@ export async function loadPageLabels(pdfPath: string): Promise<Map<number, numbe
     // Ignore errors, return empty map
   } finally {
     // Clean up PDF resources to prevent memory leak
-    loadingTask.destroy()
+    try {
+      loadingTask.destroy()
+    } catch {
+      // Ignore cleanup errors
+    }
   }
   return labelMap
 }

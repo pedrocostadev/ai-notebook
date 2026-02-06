@@ -135,7 +135,11 @@ export async function parseOutlineFromPdf(
     return { hasToc: false, chapters: [] }
   } finally {
     // Clean up PDF resources to prevent memory leak
-    loadingTask.destroy()
+    try {
+      loadingTask.destroy()
+    } catch {
+      // Ignore cleanup errors
+    }
   }
 }
 
