@@ -37,17 +37,22 @@ test.describe('PDF Status and Green Checkmark', () => {
     const readyToChatIndicator = window.locator('[data-testid="pdf-header"]')
     await expect(readyToChatIndicator).not.toBeVisible()
 
-    // Manually set all chapter statuses to done BUT leave summary/concepts as pending
-    for (const chapter of chapters) {
+    // Helper to set chapter status
+    const setChapterStatus = async (chapterId: number, status: string, summaryStatus: string | null, conceptsStatus: string | null) => {
       await window.evaluate(
-        async ({ chapterId }) => {
+        async ({ chapterId, status, summaryStatus, conceptsStatus }) => {
           const api = (window as unknown as {
             api: { setChapterStatusTest: (chapterId: number, status: string, summaryStatus: string | null, conceptsStatus: string | null) => Promise<{ success: boolean } | { error: string }> }
           }).api
-          await api.setChapterStatusTest(chapterId, 'done', 'pending', 'pending')
+          await api.setChapterStatusTest(chapterId, status, summaryStatus, conceptsStatus)
         },
-        { chapterId: chapter.id }
+        { chapterId, status, summaryStatus, conceptsStatus }
       )
+    }
+
+    // Manually set all chapter statuses to done BUT leave summary/concepts as pending
+    for (const chapter of chapters) {
+      await setChapterStatus(chapter.id, 'done', 'pending', 'pending')
     }
 
     // Force refresh by reloading
@@ -61,15 +66,7 @@ test.describe('PDF Status and Green Checkmark', () => {
 
     // Now set all chapter statuses to FULLY done (embeddings + summary + concepts)
     for (const chapter of chapters) {
-      await window.evaluate(
-        async ({ chapterId }) => {
-          const api = (window as unknown as {
-            api: { setChapterStatusTest: (chapterId: number, status: string, summaryStatus: string | null, conceptsStatus: string | null) => Promise<{ success: boolean } | { error: string }> }
-          }).api
-          await api.setChapterStatusTest(chapterId, 'done', 'done', 'done')
-        },
-        { chapterId: chapter.id }
-      )
+      await setChapterStatus(chapter.id, 'done', 'done', 'done')
     }
 
     // Also set PDF status to 'done'
