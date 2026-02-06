@@ -42,11 +42,11 @@ export async function parseOutlineFromPdf(
   pdfPath: string,
   onChapter: (chapter: TocChapter, index: number) => void
 ): Promise<ParsedToc> {
-  // Dynamic import for ESM module
-  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs')
-  let loadingTask: ReturnType<typeof pdfjs.getDocument> | undefined
+  let loadingTask: any
   
   try {
+    // Dynamic import for ESM module
+    const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs')
     loadingTask = pdfjs.getDocument(pdfPath)
     const doc: PDFDocumentProxy = await loadingTask.promise
 
