@@ -328,7 +328,12 @@ function cleanupWorker(jobId: number): void {
 
 function checkPdfCompletion(pdfId: number): void {
   const chapters = getChaptersByPdfId(pdfId)
-  const allDone = chapters.every((c) => c.status === 'done')
+  const allDone = chapters.every(
+    (c) =>
+      c.status === 'done' &&
+      c.summary_status === 'done' &&
+      c.concepts_status === 'done'
+  )
   const anyError = chapters.some((c) => c.status === 'error')
 
   if (allDone) {
