@@ -48,8 +48,11 @@ export async function waitForLocalStorage(window: Page, key: string, timeout = 3
 
 // Launch app with common options
 export async function launchApp(): Promise<ElectronApplication> {
+  // Add --no-sandbox flag for CI environments (avoids SUID sandbox issues)
+  const args = process.env.CI ? ['.', '--no-sandbox'] : ['.']
+  
   return electron.launch({
-    args: ['.'],
+    args,
     env: {
       ...process.env,
       NODE_ENV: 'test',
