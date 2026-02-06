@@ -36,7 +36,7 @@ const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB
  */
 export async function loadPageLabels(pdfPath: string): Promise<Map<number, number>> {
   const labelMap = new Map<number, number>()
-  let loadingTask: any
+  let loadingTask: { destroy: () => void } | undefined
   
   try {
     const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs')

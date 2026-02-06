@@ -42,7 +42,7 @@ export async function parseOutlineFromPdf(
   pdfPath: string,
   onChapter: (chapter: TocChapter, index: number) => void
 ): Promise<ParsedToc> {
-  let loadingTask: any
+  let loadingTask: { destroy: () => void } | undefined
   
   try {
     // Dynamic import for ESM module
