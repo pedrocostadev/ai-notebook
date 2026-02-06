@@ -2,16 +2,19 @@ import { useState, useEffect, useCallback } from 'react'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { ChatContainer } from '@/components/chat/ChatContainer'
 import { SettingsDialog } from '@/components/settings/SettingsDialog'
+import { NotebookDialog } from '@/components/settings/NotebookDialog'
 import { WelcomeScreen } from '@/components/settings/WelcomeScreen'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { ErrorBoundary } from '@/components/ui/error-boundary'
 import { useSettings } from '@/hooks/useSettings'
 import { usePdfs } from '@/hooks/usePdfs'
+import type { NotebookFormData } from '@/lib/formSchemas'
 
 export default function App() {
   const settings = useSettings()
   const pdfs = usePdfs()
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [notebookDialogOpen, setNotebookDialogOpen] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'info' } | null>(null)
 
   // Handle welcome screen completion
@@ -40,6 +43,14 @@ export default function App() {
   }, [pdfs.uploadPdf])
 
   const handleOpenSettings = useCallback(() => setSettingsOpen(true), [])
+
+  const handleNotebookSubmit = useCallback((data: NotebookFormData) => {
+    // For now, just show a success message
+    setToast({ 
+      message: `Notebook "${data.title}" created successfully!`, 
+      type: 'info' 
+    })
+  }, [])
 
   // Auto-dismiss toast
   useEffect(() => {
@@ -104,6 +115,7 @@ export default function App() {
           onToggleExpand={pdfs.toggleExpanded}
           onUploadPdf={handleUpload}
           onOpenSettings={handleOpenSettings}
+          onOpenNotebook={() => setNotebookDialogOpen(true)}
         />
       </ErrorBoundary>
       <ErrorBoundary>
@@ -129,6 +141,11 @@ export default function App() {
         onSaveApiKey={settings.saveApiKey}
         onSetModel={settings.setModel}
         onSetTheme={settings.setTheme}
+      />
+      <NotebookDialog
+        open={notebookDialogOpen}
+        onOpenChange={setNotebookDialogOpen}
+        onSubmit={handleNotebookSubmit}
       />
       {toast && (
         <div

@@ -1,4 +1,4 @@
-import { Settings, BookOpen, Plus, Heart } from 'lucide-react'
+import { Settings, BookOpen, Plus, Heart, NotebookPen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PdfList } from '@/components/pdf/PdfList'
 
@@ -48,6 +48,7 @@ interface SidebarProps {
   onToggleExpand: (pdfId: number) => void
   onUploadPdf: () => void
   onOpenSettings: () => void
+  onOpenNotebook?: () => void
 }
 
 export function Sidebar({
@@ -63,7 +64,8 @@ export function Sidebar({
   onCancelPdf,
   onToggleExpand,
   onUploadPdf,
-  onOpenSettings
+  onOpenSettings,
+  onOpenNotebook
 }: SidebarProps) {
   return (
     <div className="w-72 flex flex-col h-full bg-[var(--color-sidebar)] text-[var(--color-sidebar-foreground)] overflow-hidden">
@@ -75,15 +77,29 @@ export function Sidebar({
           </div>
           <span className="font-semibold text-[15px]">AI Notebook</span>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onOpenSettings}
-          data-testid="settings-btn"
-          className="titlebar-no-drag h-8 w-8 text-[var(--color-sidebar-foreground)] hover:bg-[var(--color-sidebar-accent)] hover:text-[var(--color-sidebar-foreground)]"
-        >
-          <Settings className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-1">
+          {onOpenNotebook && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onOpenNotebook}
+              data-testid="create-notebook-btn"
+              className="titlebar-no-drag h-8 w-8 text-[var(--color-sidebar-foreground)] hover:bg-[var(--color-sidebar-accent)] hover:text-[var(--color-sidebar-foreground)]"
+              title="Create Notebook"
+            >
+              <NotebookPen className="h-4 w-4" />
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onOpenSettings}
+            data-testid="settings-btn"
+            className="titlebar-no-drag h-8 w-8 text-[var(--color-sidebar-foreground)] hover:bg-[var(--color-sidebar-accent)] hover:text-[var(--color-sidebar-foreground)]"
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Section header with add button */}
