@@ -2,7 +2,7 @@ import { createGoogleGenerativeAI, type GoogleGenerativeAIProvider } from '@ai-s
 import { embedMany } from 'ai'
 import { getApiKey } from './settings'
 
-const EMBEDDING_MODEL = 'text-embedding-004'
+const EMBEDDING_MODEL = 'gemini-embedding-001'
 const BATCH_SIZE = 100
 
 // Singleton client - reused across calls to avoid connection overhead
@@ -31,7 +31,7 @@ export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
   for (let i = 0; i < texts.length; i += BATCH_SIZE) {
     const batch = texts.slice(i, i + BATCH_SIZE)
     const { embeddings: batchEmbeddings } = await embedMany({
-      model: google.textEmbeddingModel(EMBEDDING_MODEL),
+      model: google.textEmbeddingModel(EMBEDDING_MODEL, { outputDimensionality: 768 }),
       values: batch,
       abortSignal: AbortSignal.timeout(60000)
     })
