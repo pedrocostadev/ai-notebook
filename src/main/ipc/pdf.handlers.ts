@@ -150,6 +150,21 @@ export function registerPdfHandlers(): void {
     return { success: true }
   })
 
+  // Test-only: Set individual chapter status including summary and concepts
+  ipcMain.handle('chapter:set-status-test', (_, chapterId: number, status: string, summaryStatus: string | null, conceptsStatus: string | null) => {
+    if (process.env.NODE_ENV !== 'test') {
+      return { error: 'Not allowed outside test environment' }
+    }
+    updateChapterStatus(chapterId, status as 'pending' | 'processing' | 'done' | 'error')
+    if (summaryStatus !== null) {
+      updateChapterSummaryStatus(chapterId, summaryStatus as 'pending' | 'processing' | 'done' | 'error')
+    }
+    if (conceptsStatus !== null) {
+      updateChapterConceptsStatus(chapterId, conceptsStatus as 'pending' | 'processing' | 'done' | 'error')
+    }
+    return { success: true }
+  })
+
   // Open PDF in system default viewer
   ipcMain.handle('pdf:open', async (_, pdfId: number) => {
     const pdf = getPdf(pdfId)

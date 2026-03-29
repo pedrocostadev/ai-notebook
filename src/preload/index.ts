@@ -156,6 +156,9 @@ const api = {
   // Test-only: Set PDF status directly (bypasses embedding)
   setPdfStatusTest: (pdfId: number, status: string): Promise<{ success: boolean } | { error: string }> =>
     ipcRenderer.invoke('pdf:set-status-test', pdfId, status),
+  // Test-only: Set individual chapter status including summary and concepts
+  setChapterStatusTest: (chapterId: number, status: string, summaryStatus: string | null, conceptsStatus: string | null): Promise<{ success: boolean } | { error: string }> =>
+    ipcRenderer.invoke('chapter:set-status-test', chapterId, status, summaryStatus, conceptsStatus),
   listPdfs: (): Promise<{ id: number; filename: string; status: string; created_at: string; title: string | null }[]> =>
     ipcRenderer.invoke('pdf:list'),
   getPdf: (id: number): Promise<Pdf | undefined> => ipcRenderer.invoke('pdf:get', id),
